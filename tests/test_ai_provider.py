@@ -4,50 +4,56 @@ import types
 import ai_provider
 
 
-def test_get_ai_settings_prefers_deepseek_primary(monkeypatch):
+def test_get_ai_settings_prefers_openrouter_claude_primary(monkeypatch):
     monkeypatch.setattr(ai_provider, "load_dotenv_if_present", lambda: None)
     for key in (
-        "DEEPSEEK_API_KEY",
-        "DEEPSEEK_MODEL",
-        "DEEPSEEK_BASE_URL",
         "OPENROUTER_API_KEY",
         "OPENROUTER_MODEL",
         "OPENROUTER_BASE_URL",
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_MODEL",
+        "DEEPSEEK_BASE_URL",
         "OPENAI_API_KEY",
     ):
         monkeypatch.delenv(key, raising=False)
 
+    monkeypatch.setenv("OPENROUTER_API_KEY", "openrouter-key")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
-    monkeypatch.setenv("OPENROUTER_API_KEY", "fallback-key")
 
     settings = ai_provider.get_ai_settings()
 
-    assert settings["provider"] == "deepseek"
-    assert settings["api_key"] == "deepseek-key"
-    assert settings["model"] == "deepseek-v4-flash"
-    assert settings["base_url"] == "https://api.deepseek.com"
+    assert settings["provider"] == "openrouter"
+    assert settings["api_key"] == "openrouter-key"
+    assert settings["model"] == "~anthropic/claude-sonnet-latest"
+    assert settings["base_url"] == "https://openrouter.ai/api/v1"
 
 
-def test_get_ai_fallback_settings_uses_openrouter_free_models(monkeypatch):
+def test_get_ai_fallback_settings_uses_openai_then_deepseek(monkeypatch):
     monkeypatch.setattr(ai_provider, "load_dotenv_if_present", lambda: None)
     for key in (
         "OPENROUTER_API_KEY",
         "OPENROUTER_MODEL",
         "OPENROUTER_BACKUP_MODEL",
         "AI_BACKUP_MODEL",
+        "OPENAI_API_KEY",
+        "OPENAI_MODEL",
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_MODEL",
     ):
         monkeypatch.delenv(key, raising=False)
 
-    monkeypatch.setenv("OPENROUTER_API_KEY", "fallback-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "primary-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
 
-    fallbacks = ai_provider.get_ai_fallback_settings({"provider": "deepseek"})
+    fallbacks = ai_provider.get_ai_fallback_settings({"provider": "openrouter"})
 
-    assert [f["provider"] for f in fallbacks] == ["openrouter", "openrouter"]
+    assert [f["provider"] for f in fallbacks] == ["openai", "deepseek"]
     assert [f["model"] for f in fallbacks] == [
-        "openai/gpt-oss-120b:free",
-        "z-ai/glm-4.5-air:free",
+        "gpt-4.1",
+        "deepseek-v4-flash",
     ]
-    assert all(f["api_key"] == "fallback-key" for f in fallbacks)
+    assert [f["api_key"] for f in fallbacks] == ["openai-key", "deepseek-key"]
 
 
 def test_call_ai_uses_supplied_runtime_settings(monkeypatch):

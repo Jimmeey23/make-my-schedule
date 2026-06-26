@@ -1111,13 +1111,11 @@ def _ai_attempt_settings(primary_settings: dict) -> List[dict]:
     add(primary_settings, str(primary_settings.get("model") or ""))
     add(primary_settings, str(primary_settings.get("backup_model") or ""))
 
-    provider = str(primary_settings.get("provider") or "").lower()
-    if provider in {"deepseek", "openai"}:
-        try:
-            for fallback in get_ai_fallback_settings(primary_settings):
-                add(fallback)
-        except Exception as exc:
-            print(f"  [Agent 5] [WARN] Could not load fallback AI settings: {exc}")
+    try:
+        for fallback in get_ai_fallback_settings(primary_settings):
+            add(fallback)
+    except Exception as exc:
+        print(f"  [Agent 5] [WARN] Could not load fallback AI settings: {exc}")
 
     return attempts
 

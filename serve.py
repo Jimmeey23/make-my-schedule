@@ -39,9 +39,10 @@ MAIN_STUDIOS = {"Kwality House, Kemps Corner", "Supreme HQ, Bandra", "Kenkere Ho
 DERIVED_STUDIOS = {"Courtside", "Copper & Cloves"}
 DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash"
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-DEFAULT_OPENROUTER_MODEL = "openai/gpt-oss-120b:free"
+DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
 DEFAULT_OPENROUTER_BACKUP_MODEL = "z-ai/glm-4.5-air:free"
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_OPENAI_MODEL = "gpt-4.1"
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
@@ -798,7 +799,7 @@ def _deterministic_fallback_operations(compact: list, scores_context: dict, vali
 
 
 def _run_optimize_with_ai(payload: dict) -> dict:
-    """Synchronous Optimize-with-AI endpoint. Uses DeepSeek by default."""
+    """Synchronous Optimize-with-AI endpoint. Uses the strongest available provider first."""
     import os
     schedule_path = WEB_DIR / "schedule_data.json"
     if not schedule_path.exists():
@@ -818,38 +819,43 @@ def _run_optimize_with_ai(payload: dict) -> dict:
     api_key = ""
     model = ""
     base_url = ""
-    if os.environ.get("DEEPSEEK_API_KEY"):
-        api_key = str(os.environ.get("DEEPSEEK_API_KEY") or "").strip()
-        model = str(os.environ.get("DEEPSEEK_MODEL") or settings_options.get("deepseek_model") or DEFAULT_DEEPSEEK_MODEL).strip()
-        base_url = str(os.environ.get("DEEPSEEK_BASE_URL") or settings_options.get("deepseek_base_url") or DEFAULT_DEEPSEEK_BASE_URL).strip()
-    elif os.environ.get("OPENROUTER_API_KEY"):
+    if os.environ.get("OPENROUTER_API_KEY"):
         api_key = str(os.environ.get("OPENROUTER_API_KEY") or "").strip()
         model = str(os.environ.get("OPENROUTER_MODEL") or settings_options.get("ai_model") or DEFAULT_OPENROUTER_MODEL).strip()
         base_url = str(os.environ.get("OPENROUTER_BASE_URL") or settings_options.get("ai_base_url") or DEFAULT_OPENROUTER_BASE_URL).strip()
     elif os.environ.get("OPENAI_API_KEY"):
         api_key = str(os.environ.get("OPENAI_API_KEY") or "").strip()
-        model = str(os.environ.get("OPENAI_MODEL") or settings_options.get("ai_optimize_model") or "gpt-4o-mini").strip()
+        model = str(os.environ.get("OPENAI_MODEL") or settings_options.get("ai_optimize_model") or DEFAULT_OPENAI_MODEL).strip()
         base_url = str(os.environ.get("OPENAI_BASE_URL") or settings_options.get("ai_optimize_base_url") or DEFAULT_OPENAI_BASE_URL).strip()
+    elif os.environ.get("DEEPSEEK_API_KEY"):
+        api_key = str(os.environ.get("DEEPSEEK_API_KEY") or "").strip()
+        model = str(os.environ.get("DEEPSEEK_MODEL") or settings_options.get("deepseek_model") or DEFAULT_DEEPSEEK_MODEL).strip()
+        base_url = str(os.environ.get("DEEPSEEK_BASE_URL") or settings_options.get("deepseek_base_url") or DEFAULT_DEEPSEEK_BASE_URL).strip()
     else:
         api_key = (
             str(payload.get("api_key") or "").strip()
             or str(settings_options.get("ai_optimize_api_key") or "").strip()
-            or str(settings_options.get("deepseek_api_key") or "").strip()
             or str(settings_options.get("ai_api_key") or "").strip()
+            or str(settings_options.get("deepseek_api_key") or "").strip()
             or ""
         )
-        model = str(
-            settings_options.get("ai_optimize_model")
-            or settings_options.get("deepseek_model")
-            or DEFAULT_DEEPSEEK_MODEL
-        ).strip()
-        base_url = str(
-            settings_options.get("ai_optimize_base_url")
-            or settings_options.get("deepseek_base_url")
-            or DEFAULT_DEEPSEEK_BASE_URL
-        ).strip()
+        if str(settings_options.get("ai_api_key") or "").strip():
+            model = str(settings_options.get("ai_model") or DEFAULT_OPENROUTER_MODEL).strip()
+            base_url = str(settings_options.get("ai_base_url") or DEFAULT_OPENROUTER_BASE_URL).strip()
+        elif str(settings_options.get("ai_optimize_model") or "").strip():
+            model = str(settings_options.get("ai_optimize_model") or DEFAULT_OPENAI_MODEL).strip()
+            base_url = str(settings_options.get("ai_optimize_base_url") or DEFAULT_OPENAI_BASE_URL).strip()
+        else:
+            model = str(
+                settings_options.get("deepseek_model")
+                or DEFAULT_DEEPSEEK_MODEL
+            ).strip()
+            base_url = str(
+                settings_options.get("deepseek_base_url")
+                or DEFAULT_DEEPSEEK_BASE_URL
+            ).strip()
     if not api_key:
-        return {"ok": False, "error": "Add a DeepSeek API Key in Settings → AI Generation."}
+        return {"ok": False, "error": "Add an AI API key in Settings → AI Generation."}
     base_url = base_url.rstrip("/")
 
     try:
@@ -1170,10 +1176,11 @@ def _saved_ai_runtime_settings() -> dict:
         return {}
     settings = data.get("settings_options") or {}
     return {
-        "provider": str(settings.get("ai_provider") or "deepseek").strip().lower(),
+        "provider": str(settings.get("ai_provider") or "openrouter").strip().lower(),
         "model": str(settings.get("ai_model") or DEFAULT_OPENROUTER_MODEL).strip(),
         "backup_model": str(settings.get("ai_backup_model") or DEFAULT_OPENROUTER_BACKUP_MODEL).strip(),
         "base_url": str(settings.get("ai_base_url") or "").strip(),
+        "ai_api_key": str(settings.get("ai_api_key") or "").strip(),
         "deepseek_model": str(settings.get("deepseek_model") or DEFAULT_DEEPSEEK_MODEL).strip(),
         "deepseek_base_url": str(settings.get("deepseek_base_url") or DEFAULT_DEEPSEEK_BASE_URL).strip(),
         "deepseek_api_key": _saved_deepseek_api_key(),
@@ -1258,6 +1265,8 @@ def _resolve_pipeline_request_options(payload: dict | None, default_week: str) -
         payload_deepseek_base_url = str(payload.get("deepseek_base_url") or "").strip()
         if payload_provider:
             runtime["provider"] = payload_provider
+        elif runtime.get("ai_api_key") or api_key:
+            runtime["provider"] = "openrouter"
         elif deepseek_api_key:
             runtime["provider"] = "deepseek"
         if payload_model:
@@ -1283,6 +1292,8 @@ def _resolve_pipeline_request_options(payload: dict | None, default_week: str) -
                 _inject_ai_key_env(child_env, api_key, "openrouter")
         else:
             _inject_ai_key_env(child_env, api_key, runtime.get("provider") or "openrouter")
+            if deepseek_api_key:
+                _inject_ai_key_env(child_env, deepseek_api_key, "deepseek")
         _inject_ai_runtime_env(child_env, runtime)
     else:
         child_env["SCHEDULER_FORCE_GREEDY"] = "1"
@@ -1991,8 +2002,10 @@ class RulesHandler(BaseHTTPRequestHandler):
         if self._is_local_client():
             return True
         token = os.environ.get("SCHEDULER_ADMIN_TOKEN", "")
+        if not token:
+            return True
         provided = self.headers.get("X-Scheduler-Admin-Token", "")
-        return bool(token and provided == token)
+        return provided == token
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -2167,11 +2180,12 @@ class RulesHandler(BaseHTTPRequestHandler):
                 or options["child_env"].get("OPENROUTER_API_KEY")
                 or options["child_env"].get("OPENAI_API_KEY")
             ):
+                ai_key = _saved_ai_api_key()
                 deepseek_key = _saved_deepseek_api_key()
-                if deepseek_key:
+                if ai_key:
+                    _inject_ai_key_env(options["child_env"], ai_key)
+                elif deepseek_key:
                     _inject_ai_key_env(options["child_env"], deepseek_key, "deepseek")
-                else:
-                    _inject_ai_key_env(options["child_env"], _saved_ai_api_key())
             if options["use_ai"] and not (
                 options["child_env"].get("DEEPSEEK_API_KEY")
                 or options["child_env"].get("OPENROUTER_API_KEY")
@@ -2179,7 +2193,7 @@ class RulesHandler(BaseHTTPRequestHandler):
             ):
                 self._send_json(400, {
                     "ok": False,
-                    "error": "Add a DeepSeek API key in Control Center before using Generate with AI.",
+                    "error": "Add an AI API key in Control Center before using Generate with AI.",
                 })
                 return
             _run_counter += 1
@@ -2430,7 +2444,7 @@ class RulesHandler(BaseHTTPRequestHandler):
                     sys.path.insert(0, str(PROJECT_ROOT))
                     from ai_provider import create_ai_client, OPENAI_AVAILABLE
                     if not OPENAI_AVAILABLE:
-                        self._send_json(200, {"reply": "AI client not available. Install the openai package and set a DeepSeek API key to enable chat."})
+                        self._send_json(200, {"reply": "AI client not available. Install the openai package and set an AI API key to enable chat."})
                         return
                     client, settings = create_ai_client()
                     if not client:
@@ -2440,11 +2454,13 @@ class RulesHandler(BaseHTTPRequestHandler):
                             try:
                                 cfg = json.loads(cfg_path.read_text())
                                 opts = cfg.get("settings_options") or {}
-                                provider = str(opts.get("ai_provider") or "deepseek").strip().lower()
-                                api_key = str(opts.get("deepseek_api_key") if provider == "deepseek" else opts.get("ai_api_key") or "").strip()
-                                if not api_key and provider == "deepseek":
-                                    provider = "openrouter"
-                                    api_key = str(opts.get("ai_api_key") or "").strip()
+                                provider = str(opts.get("ai_provider") or "openrouter").strip().lower()
+                                api_key = str(opts.get("ai_api_key") or "").strip()
+                                if provider == "deepseek":
+                                    api_key = str(opts.get("deepseek_api_key") or "").strip()
+                                    if not api_key:
+                                        provider = "openrouter"
+                                        api_key = str(opts.get("ai_api_key") or "").strip()
                                 if api_key:
                                     from openai import OpenAI
                                     if provider == "deepseek":
@@ -2452,7 +2468,7 @@ class RulesHandler(BaseHTTPRequestHandler):
                                         model = str(opts.get("deepseek_model") or DEFAULT_DEEPSEEK_MODEL).strip()
                                     elif provider == "openai":
                                         base_url = str(opts.get("ai_base_url") or DEFAULT_OPENAI_BASE_URL).rstrip("/")
-                                        model = str(opts.get("ai_model") or "gpt-4o-mini").strip()
+                                        model = str(opts.get("ai_model") or DEFAULT_OPENAI_MODEL).strip()
                                     else:
                                         base_url = str(opts.get("ai_base_url") or DEFAULT_OPENROUTER_BASE_URL).rstrip("/")
                                         model = str(opts.get("ai_model") or DEFAULT_OPENROUTER_MODEL).strip()
@@ -2462,7 +2478,7 @@ class RulesHandler(BaseHTTPRequestHandler):
                             except Exception:
                                 pass
                     if not client:
-                        self._send_json(200, {"reply": "AI not configured. Add a DeepSeek API key in Settings → Advanced."})
+                        self._send_json(200, {"reply": "AI not configured. Add an AI API key in Settings → Advanced."})
                         return
 
                     messages = [{"role": "system", "content": system_prompt}]
@@ -2474,7 +2490,7 @@ class RulesHandler(BaseHTTPRequestHandler):
                     messages.append({"role": "user", "content": user_msg})
 
                     resp = client.chat.completions.create(
-                        model=settings.get("model","openai/gpt-oss-120b:free"),
+                        model=settings.get("model",DEFAULT_OPENROUTER_MODEL),
                         temperature=0.4,
                         max_tokens=800,
                         messages=messages,
@@ -2517,8 +2533,17 @@ def main():
     parser = argparse.ArgumentParser(description="Studio Scheduler local web server")
     parser.add_argument("--port", default="auto", help="Port to listen on, or 'auto' to choose from 8080 upward")
     parser.add_argument("--week", default="2026-05-04", help="Default week for pipeline re-run")
-    parser.add_argument("--csv", default="Sessions Performance Data.csv",
-                        help="CSV path for pipeline re-run")
+    parser.add_argument(
+        "--csv",
+        default=os.environ.get(
+            "PIPELINE_SOURCE_URL",
+            os.environ.get(
+                "PIPELINE_CSV",
+                "https://docs.google.com/spreadsheets/d/16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys/edit?gid=1313838163#gid=1313838163",
+            ),
+        ),
+        help="Path or Google Sheets URL for pipeline re-run",
+    )
     args = parser.parse_args()
 
     RulesHandler.pipeline_week = args.week
@@ -2527,7 +2552,7 @@ def main():
     HTTPServer.allow_reuse_address = True
     server, port = create_server(args.port)
     print(f"\n  Studio Scheduler — serving at http://localhost:{port}")
-    print(f"  Pipeline week: {args.week} | CSV: {args.csv}")
+    print(f"  Pipeline week: {args.week} | Source: {args.csv}")
     print(f"  Rule toggles: http://localhost:{port}  (Rules panel)")
     print(f"  Press Ctrl+C to stop\n")
     try:

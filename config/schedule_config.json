@@ -1311,11 +1311,11 @@
     "deepseek_base_url": "https://api.deepseek.com",
     "ai_api_key": "",
     "ai_provider": "openrouter",
-    "ai_model": "openai/gpt-oss-120b:free",
+    "ai_model": "~anthropic/claude-sonnet-latest",
     "ai_backup_model": "z-ai/glm-4.5-air:free",
     "ai_base_url": "",
     "ai_optimize_api_key": "",
-    "ai_optimize_model": "gpt-4o-mini",
+    "ai_optimize_model": "gpt-4.1",
     "ai_optimize_base_url": "https://api.openai.com/v1",
     "location_weekly_floors": {
       "Kwality House, Kemps Corner": 70,

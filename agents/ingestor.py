@@ -1,8 +1,23 @@
 import csv
 import json
+import os
+from io import StringIO
+from urllib.parse import parse_qs, urlparse
+from urllib.request import urlopen
 import pandas as pd
 import numpy as np
 from pathlib import Path
+
+try:
+    from google.auth.transport.requests import Request as GoogleAuthRequest
+    from google.oauth2.credentials import Credentials as GoogleUserCredentials
+    from google.oauth2.service_account import Credentials as GoogleServiceAccountCredentials
+    from googleapiclient.discovery import build as google_build
+except Exception:  # pragma: no cover - optional dependency fallback
+    GoogleAuthRequest = None
+    GoogleUserCredentials = None
+    GoogleServiceAccountCredentials = None
+    google_build = None
 
 STATE_DIR = Path("state")
 VALID_LOCATIONS = [
@@ -11,6 +26,8 @@ VALID_LOCATIONS = [
     "Kenkere House",
     "Copper & Cloves",
 ]
+GOOGLE_SHEETS_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+DEFAULT_GOOGLE_SHEET_RANGE = "A:ZZ"
 
 
 def copper_class_name(row) -> str:
@@ -40,11 +57,164 @@ def time_band(time_str: str) -> str:
 
 
 class DataIngestor:
-    def __init__(self, csv_path: Path):
-        self.csv_path = Path(csv_path)
+    def __init__(self, csv_path: Path | str):
+        self.csv_path = str(csv_path)
+
+    def _source_is_url(self) -> bool:
+        return self.csv_path.startswith(("http://", "https://"))
+
+    def _google_sheet_export_url(self) -> str:
+        source = self.csv_path.strip()
+        parsed = urlparse(source)
+        if "docs.google.com" not in parsed.netloc:
+            return source
+        if "/export" in parsed.path and "format=csv" in parsed.query:
+            return source
+        parts = parsed.path.split("/")
+        spreadsheet_id = ""
+        if "d" in parts:
+            try:
+                spreadsheet_id = parts[parts.index("d") + 1]
+            except Exception:
+                spreadsheet_id = ""
+        gid = parse_qs(parsed.query).get("gid", [""])[0]
+        if not spreadsheet_id:
+            return source
+        export_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv"
+        if gid:
+            export_url += f"&gid={gid}"
+        return export_url
+
+    def _looks_like_google_sheet(self) -> bool:
+        parsed = urlparse(self.csv_path.strip())
+        return "docs.google.com" in parsed.netloc
+
+    def _google_sheet_target(self) -> tuple[str, int | None] | None:
+        source = self.csv_path.strip()
+        parsed = urlparse(source)
+        if "docs.google.com" not in parsed.netloc:
+            return None
+        parts = parsed.path.split("/")
+        if "d" not in parts:
+            return None
+        try:
+            spreadsheet_id = parts[parts.index("d") + 1]
+        except Exception:
+            return None
+        gid_value = parse_qs(parsed.query).get("gid", [""])[0] or parse_qs(parsed.fragment).get("gid", [""])[0]
+        try:
+            gid = int(gid_value) if gid_value else None
+        except ValueError:
+            gid = None
+        return spreadsheet_id, gid
+
+    def _load_google_credentials(self):
+        client_id = os.environ.get("GOOGLE_CLIENT_ID") or os.environ.get("GSHEETS_CLIENT_ID")
+        client_secret = os.environ.get("GOOGLE_CLIENT_SECRET") or os.environ.get("GSHEETS_CLIENT_SECRET")
+        refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN") or os.environ.get("GSHEETS_REFRESH_TOKEN")
+        if client_id and client_secret and refresh_token:
+            if GoogleUserCredentials is None:
+                raise RuntimeError(
+                    "google-auth dependencies are missing. Install google-auth and google-api-python-client."
+                )
+            return GoogleUserCredentials(
+                token=None,
+                refresh_token=refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=client_id,
+                client_secret=client_secret,
+                scopes=GOOGLE_SHEETS_SCOPES,
+            )
+
+        service_account_json = (
+            os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+            or os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
+        )
+        if service_account_json:
+            if GoogleServiceAccountCredentials is None:
+                raise RuntimeError(
+                    "google-auth dependencies are missing. Install google-auth and google-api-python-client."
+                )
+            if service_account_json.strip().startswith("{"):
+                info = json.loads(service_account_json)
+                return GoogleServiceAccountCredentials.from_service_account_info(
+                    info,
+                    scopes=GOOGLE_SHEETS_SCOPES,
+                )
+            return GoogleServiceAccountCredentials.from_service_account_file(
+                service_account_json,
+                scopes=GOOGLE_SHEETS_SCOPES,
+            )
+
+        return None
+
+    def _fetch_google_sheet_dataframe(self) -> pd.DataFrame | None:
+        target = self._google_sheet_target()
+        if not target:
+            return None
+        spreadsheet_id, gid = target
+        credentials = self._load_google_credentials()
+        if credentials is None or google_build is None:
+            return None
+
+        service = google_build("sheets", "v4", credentials=credentials, cache_discovery=False)
+        metadata = service.spreadsheets().get(
+            spreadsheetId=spreadsheet_id,
+            fields="sheets(properties(sheetId,title))",
+        ).execute()
+
+        sheet_title = None
+        for sheet in metadata.get("sheets", []):
+            properties = sheet.get("properties", {})
+            if gid is not None and int(properties.get("sheetId", -1)) == gid:
+                sheet_title = properties.get("title")
+                break
+
+        if not sheet_title:
+            sheets = metadata.get("sheets", [])
+            if len(sheets) == 1:
+                sheet_title = sheets[0].get("properties", {}).get("title")
+
+        if not sheet_title:
+            raise ValueError(
+                f"Could not resolve a worksheet title for spreadsheet {spreadsheet_id}"
+            )
+
+        escaped_title = sheet_title.replace("'", "''")
+        range_name = f"'{escaped_title}'!{DEFAULT_GOOGLE_SHEET_RANGE}"
+        values = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=range_name,
+            majorDimension="ROWS",
+            valueRenderOption="UNFORMATTED_VALUE",
+        ).execute().get("values", [])
+
+        if not values:
+            return pd.DataFrame()
+
+        header = [str(col).strip() for col in values[0]]
+        rows = []
+        header_len = len(header)
+        for row in values[1:]:
+            normalized = list(row[:header_len])
+            if len(normalized) < header_len:
+                normalized.extend([""] * (header_len - len(normalized)))
+            rows.append(normalized)
+        return pd.DataFrame(rows, columns=header)
 
     def _read_sessions_file(self) -> pd.DataFrame:
-        sample = self.csv_path.read_text(encoding="utf-8", errors="replace")[:8192]
+        if self._source_is_url():
+            if self._looks_like_google_sheet():
+                oauth_df = self._fetch_google_sheet_dataframe()
+                if oauth_df is not None:
+                    return oauth_df
+            source_url = self._google_sheet_export_url()
+            with urlopen(source_url) as response:
+                raw_text = response.read().decode("utf-8", errors="replace")
+            sample = raw_text[:8192]
+        else:
+            raw_text = Path(self.csv_path).read_text(encoding="utf-8", errors="replace")
+            sample = raw_text[:8192]
         delimiter = "\t"
         try:
             dialect = csv.Sniffer().sniff(sample, delimiters=",\t;|")
@@ -60,8 +230,15 @@ class DataIngestor:
             else:
                 delimiter = ","
 
+        if self._source_is_url():
+            return pd.read_csv(
+                StringIO(raw_text),
+                sep=delimiter,
+                engine="python",
+                on_bad_lines="warn",
+            )
         return pd.read_csv(
-            self.csv_path,
+            Path(self.csv_path),
             sep=delimiter,
             engine="python",
             on_bad_lines="warn",
@@ -72,7 +249,7 @@ class DataIngestor:
         df = self._read_sessions_file()
 
         # Parse date
-        df["Date"] = pd.to_datetime(df["Date"], dayfirst=True, errors="coerce")
+        df["Date"] = pd.to_datetime(df["Date"].astype(str).str.strip(), errors="coerce", format="mixed")
         df = df.dropna(subset=["Date"])
 
         # Normalize time to HH:MM

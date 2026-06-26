@@ -6,6 +6,7 @@ Runs 6 agents sequentially to produce optimised weekly schedules.
 import sys
 import json
 import traceback
+import os
 from pathlib import Path
 
 import click
@@ -31,9 +32,12 @@ def state_exists(filename: str) -> bool:
 @click.option(
     "--csv",
     "csv_path",
-    default="Sessions Performance Data.csv",
+    default=os.environ.get(
+        "PIPELINE_SOURCE_URL",
+        "https://docs.google.com/spreadsheets/d/16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys/edit?gid=1313838163#gid=1313838163",
+    ),
     show_default=True,
-    help="Path to sessions CSV",
+    help="Path or Google Sheets URL for sessions data",
 )
 @click.option(
     "--template",
@@ -121,7 +125,7 @@ def run_pipeline(
         try:
             from agents.ingestor import DataIngestor
 
-            ingestor = DataIngestor(csv_path=Path(csv_path))
+            ingestor = DataIngestor(csv_path=csv_path)
             ingestor.run()
         except Exception as e:
             console.print(f"[red][Agent 1] FAILED: {e}[/red]")

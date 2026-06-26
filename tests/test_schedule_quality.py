@@ -363,7 +363,8 @@ def test_ai_planner_retries_backup_model_when_primary_plan_is_invalid(tmp_path, 
     output = planner.run()
 
     assert calls == ["primary-model", "z-ai/glm-4.5-air:free"]
-    assert output["ai_models"] == ["primary-model", "z-ai/glm-4.5-air:free"]
+    assert output["ai_models"][:2] == ["primary-model", "z-ai/glm-4.5-air:free"]
+    assert "openai/gpt-oss-120b:free" in output["ai_models"]
     assert len(output["schedule"]) == 20
 
 
@@ -2176,7 +2177,7 @@ def test_serve_pipeline_request_prefers_env_ai_key_over_payload_control_center_k
     assert options["child_env"]["OPENROUTER_API_KEY"] == "env-openrouter-key"
 
 
-def test_pipeline_request_uses_deepseek_primary_and_openrouter_fallback(tmp_path, monkeypatch):
+def test_pipeline_request_prefers_openrouter_claude_primary_and_keeps_deepseek_available(tmp_path, monkeypatch):
     clear_ai_env(monkeypatch)
     config_dir = tmp_path / "config"
     config_dir.mkdir()
@@ -2187,7 +2188,7 @@ def test_pipeline_request_uses_deepseek_primary_and_openrouter_fallback(tmp_path
             "deepseek_model": "deepseek-v4-flash",
             "ai_provider": "deepseek",
             "ai_api_key": "saved-openrouter-key",
-            "ai_model": "openai/gpt-oss-120b:free",
+            "ai_model": "~anthropic/claude-sonnet-latest",
             "ai_backup_model": "z-ai/glm-4.5-air:free",
         }
     }))
@@ -2202,7 +2203,7 @@ def test_pipeline_request_uses_deepseek_primary_and_openrouter_fallback(tmp_path
     assert options["child_env"]["DEEPSEEK_MODEL"] == "deepseek-v4-flash"
     assert options["child_env"]["DEEPSEEK_BASE_URL"] == "https://api.deepseek.com"
     assert options["child_env"]["OPENROUTER_API_KEY"] == "saved-openrouter-key"
-    assert options["child_env"]["OPENROUTER_MODEL"] == "openai/gpt-oss-120b:free"
+    assert options["child_env"]["OPENROUTER_MODEL"] == "~anthropic/claude-sonnet-latest"
     assert options["child_env"]["OPENROUTER_BACKUP_MODEL"] == "z-ai/glm-4.5-air:free"
     assert options["child_env"]["SCHEDULER_FORCE_AI_ONLY"] == "1"
 
@@ -2231,7 +2232,7 @@ def test_pipeline_request_prefers_env_deepseek_and_openrouter_over_saved_keys(tm
     assert options["child_env"]["OPENROUTER_API_KEY"] == "env-openrouter-key"
 
 
-def test_serve_pipeline_request_uses_deepseek_primary_and_openrouter_fallback(tmp_path, monkeypatch):
+def test_serve_pipeline_request_prefers_openrouter_claude_primary_and_keeps_deepseek_available(tmp_path, monkeypatch):
     clear_ai_env(monkeypatch)
     config_dir = tmp_path / "config"
     config_dir.mkdir()
@@ -2242,7 +2243,7 @@ def test_serve_pipeline_request_uses_deepseek_primary_and_openrouter_fallback(tm
             "deepseek_model": "deepseek-v4-flash",
             "ai_provider": "deepseek",
             "ai_api_key": "saved-openrouter-key",
-            "ai_model": "openai/gpt-oss-120b:free",
+            "ai_model": "~anthropic/claude-sonnet-latest",
             "ai_backup_model": "z-ai/glm-4.5-air:free",
         }
     }))
@@ -2257,7 +2258,7 @@ def test_serve_pipeline_request_uses_deepseek_primary_and_openrouter_fallback(tm
     assert options["child_env"]["DEEPSEEK_MODEL"] == "deepseek-v4-flash"
     assert options["child_env"]["DEEPSEEK_BASE_URL"] == "https://api.deepseek.com"
     assert options["child_env"]["OPENROUTER_API_KEY"] == "saved-openrouter-key"
-    assert options["child_env"]["OPENROUTER_MODEL"] == "openai/gpt-oss-120b:free"
+    assert options["child_env"]["OPENROUTER_MODEL"] == "~anthropic/claude-sonnet-latest"
     assert options["child_env"]["OPENROUTER_BACKUP_MODEL"] == "z-ai/glm-4.5-air:free"
     assert options["child_env"]["SCHEDULER_FORCE_AI_ONLY"] == "1"
 
@@ -2319,6 +2320,8 @@ def test_serve_optimize_schedule_endpoint_is_registered(monkeypatch):
 
 
 def test_serve_optimize_schedule_defaults_to_deepseek_key(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     clear_ai_env(monkeypatch)
     web_dir = tmp_path / "web"
     web_dir.mkdir()
@@ -2386,6 +2389,8 @@ def test_serve_optimize_schedule_defaults_to_deepseek_key(tmp_path, monkeypatch)
 
 
 def test_serve_optimize_schedule_prefers_env_key_over_control_center_key(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     web_dir = tmp_path / "web"
     web_dir.mkdir()
     (web_dir / "schedule_data.json").write_text(json.dumps({
@@ -2405,7 +2410,7 @@ def test_serve_optimize_schedule_prefers_env_key_over_control_center_key(tmp_pat
     config_path.write_text(json.dumps({
         "settings_options": {
             "ai_optimize_api_key": "saved-optimize-key",
-            "ai_optimize_model": "gpt-4o-mini",
+            "ai_optimize_model": "gpt-4.1",
             "ai_optimize_base_url": "https://api.openai.com/v1",
             "deepseek_api_key": "saved-deepseek-key",
         }
@@ -2489,6 +2494,8 @@ def test_serve_accepts_british_optimise_schedule_alias(monkeypatch):
 
 
 def test_serve_optimize_schedule_accepts_numeric_ai_slot_ids(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     web_dir = tmp_path / "web"
     web_dir.mkdir()
     schedule_path = web_dir / "schedule_data.json"
@@ -2581,6 +2588,8 @@ def test_serve_optimize_schedule_accepts_numeric_ai_slot_ids(tmp_path, monkeypat
 
 
 def test_serve_optimize_schedule_applies_mixed_validated_operations(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     web_dir = tmp_path / "web"
     web_dir.mkdir()
     schedule_path = web_dir / "schedule_data.json"
@@ -3147,6 +3156,8 @@ def test_optimizer_ai_json_parser_reports_truncated_response():
 
 
 def test_serve_optimize_schedule_retries_when_all_ai_operations_rejected(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     web_dir = tmp_path / "web"
     web_dir.mkdir()
     schedule_path = web_dir / "schedule_data.json"
@@ -3230,6 +3241,8 @@ def test_serve_optimize_schedule_retries_when_all_ai_operations_rejected(tmp_pat
 
 
 def test_serve_optimize_schedule_uses_deterministic_fallback_after_failed_retry(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     web_dir = tmp_path / "web"
     web_dir.mkdir()
     schedule_path = web_dir / "schedule_data.json"
@@ -4676,6 +4689,118 @@ def test_pipeline_command_includes_variation_and_output_suffix():
     assert "run_test" in cmd
 
 
+def test_data_ingestor_uses_google_oauth_credentials_for_sessions_sheet(tmp_path, monkeypatch):
+    import agents.ingestor as ingestor_module
+
+    captured = {}
+
+    class FakeMetadataResponse:
+        def execute(self):
+            return {
+                "sheets": [
+                    {"properties": {"sheetId": 1313838163, "title": "Sessions Sheet"}}
+                ]
+            }
+
+    class FakeValuesResponse:
+        def execute(self):
+            return {
+                "values": [
+                    [
+                        "TrainerID",
+                        "FirstName",
+                        "LastName",
+                        "Trainer",
+                        "SessionID",
+                        "SessionName",
+                        "Capacity",
+                        "CheckedIn",
+                        "LateCancelled",
+                        "Booked",
+                        "Complimentary",
+                        "Location",
+                        "Date",
+                        "Day",
+                        "Time",
+                        "Revenue",
+                        "NonPaid",
+                        "UniqueID1",
+                        "UniqueID2",
+                        "Memberships",
+                        "Packages",
+                        "IntroOffers",
+                        "SingleClasses",
+                        "Type",
+                        "Class",
+                        "Classes",
+                    ],
+                    [
+                        "53133",
+                        "Anisha",
+                        "Shah",
+                        "Anisha Shah",
+                        "99927036",
+                        "Studio FIT",
+                        "15",
+                        "6",
+                        "0",
+                        "6",
+                        "0",
+                        "Kwality House, Kemps Corner",
+                        "2024-02-28",
+                        "Wednesday",
+                        "11:30:00",
+                        "4773.06",
+                        "0",
+                        "74ZMM51",
+                        "FU08YS3",
+                        "5",
+                        "0",
+                        "0",
+                        "1",
+                        "Barre 57",
+                        "Studio FIT",
+                        "1",
+                    ],
+                ]
+            }
+
+    class FakeValues:
+        def get(self, **kwargs):
+            captured["range"] = kwargs["range"]
+            return FakeValuesResponse()
+
+    class FakeSpreadsheets:
+        def get(self, **kwargs):
+            captured["spreadsheet_id"] = kwargs["spreadsheetId"]
+            return FakeMetadataResponse()
+
+        def values(self):
+            return FakeValues()
+
+    class FakeService:
+        def spreadsheets(self):
+            return FakeSpreadsheets()
+
+    monkeypatch.setattr(ingestor_module, "google_build", lambda *args, **kwargs: FakeService())
+    monkeypatch.setattr(
+        ingestor_module.DataIngestor,
+        "_load_google_credentials",
+        lambda self: object(),
+    )
+    monkeypatch.setattr(ingestor_module, "STATE_DIR", tmp_path)
+
+    ingestor = ingestor_module.DataIngestor(
+        "https://docs.google.com/spreadsheets/d/16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys/edit?gid=1313838163#gid=1313838163"
+    )
+    output = ingestor.run()
+
+    assert output["total_sessions"] == 1
+    assert output["sessions"][0]["Location"] == "Kwality House, Kemps Corner"
+    assert captured["spreadsheet_id"] == "16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys"
+    assert captured["range"] == "'Sessions Sheet'!A:ZZ"
+
+
 def test_optimiser_candidate_rows_are_indexed_by_location_and_day():
     optimiser = ScheduleOptimiser(target_week_start="2026-05-04", locations=[])
     row_kw_mon = {"location": "Kwality House, Kemps Corner", "day": 0, "class": "Studio Barre 57"}
@@ -5317,7 +5442,7 @@ def test_deepseek_structural_underfill_skips_free_model_and_repairs(tmp_path, mo
     }))
     monkeypatch.setattr(ai_planner_module, "get_ai_fallback_settings", lambda settings: [{
         "provider": "openrouter",
-        "model": "openai/gpt-oss-120b:free",
+        "model": "~anthropic/claude-sonnet-latest",
         "base_url": "https://openrouter.ai/api/v1",
         "api_key": "fallback",
     }])
