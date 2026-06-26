@@ -36,10 +36,10 @@ MAIN_STUDIOS = {"Kwality House, Kemps Corner", "Supreme HQ, Bandra", "Kenkere Ho
 DERIVED_STUDIOS = {"Courtside", "Copper & Cloves"}
 DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash"
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-DEFAULT_OPENROUTER_MODEL = "~anthropic/claude-sonnet-latest"
+DEFAULT_OPENROUTER_MODEL = "gpt-4.1-mini"
 DEFAULT_OPENROUTER_BACKUP_MODEL = "z-ai/glm-4.5-air:free"
 DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_OPENAI_MODEL = "gpt-4.1"
+DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
@@ -218,8 +218,8 @@ def _saved_ai_runtime_settings() -> dict:
         return {}
     settings = data.get("settings_options") or {}
     return {
-        "provider": str(settings.get("ai_provider") or "openrouter").strip().lower(),
-        "model": str(settings.get("ai_model") or DEFAULT_OPENROUTER_MODEL).strip(),
+        "provider": str(settings.get("ai_provider") or "openai").strip().lower(),
+        "model": str(settings.get("ai_model") or DEFAULT_OPENAI_MODEL).strip(),
         "backup_model": str(settings.get("ai_backup_model") or DEFAULT_OPENROUTER_BACKUP_MODEL).strip(),
         "base_url": str(settings.get("ai_base_url") or "").strip(),
         "ai_api_key": str(settings.get("ai_api_key") or "").strip(),
@@ -253,10 +253,10 @@ def _build_chat_reply(payload: dict) -> str:
     client, settings = create_ai_client()
     if not client:
         runtime = _saved_ai_runtime_settings()
-        provider = runtime.get("provider") or "openrouter"
+        provider = runtime.get("provider") or "openai"
         api_key = _saved_ai_api_key() if provider != "deepseek" else _saved_deepseek_api_key()
         if not api_key and provider == "deepseek":
-            provider = "openrouter"
+            provider = "openai"
             api_key = _saved_ai_api_key()
         if api_key:
             try:
@@ -270,7 +270,7 @@ def _build_chat_reply(payload: dict) -> str:
                     )
                     model = runtime.get("model") or (
                         os.environ.get("OPENAI_MODEL") if provider == "openai" else os.environ.get("OPENROUTER_MODEL")
-                    ) or DEFAULT_OPENROUTER_MODEL
+                    ) or DEFAULT_OPENAI_MODEL
                 client = OpenAI(
                     api_key=api_key,
                     base_url=base_url,
@@ -301,7 +301,7 @@ def _build_chat_reply(payload: dict) -> str:
 
     try:
         response = client.chat.completions.create(
-            model=(settings or {}).get("model") or DEFAULT_OPENROUTER_MODEL,
+            model=(settings or {}).get("model") or DEFAULT_OPENAI_MODEL,
             temperature=0.4,
             max_tokens=800,
             messages=messages,
@@ -310,11 +310,11 @@ def _build_chat_reply(payload: dict) -> str:
     except Exception as exc:
         return f"AI error: {exc}"
 
-def _inject_ai_key_env(child_env: dict, api_key: str, provider: str = "openrouter") -> None:
+def _inject_ai_key_env(child_env: dict, api_key: str, provider: str = "openai") -> None:
     key = str(api_key or "").strip()
     if not key:
         return
-    provider = str(provider or "openrouter").strip().lower()
+    provider = str(provider or "openai").strip().lower()
     if provider == "deepseek":
         child_env["DEEPSEEK_API_KEY"] = key
     elif provider == "openai":

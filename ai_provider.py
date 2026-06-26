@@ -6,10 +6,10 @@ from typing import Optional, Tuple
 
 PROJECT_ROOT = Path(__file__).parent
 ENV_PATH = PROJECT_ROOT / ".env"
-DEFAULT_MODEL = "~anthropic/claude-sonnet-latest"
+DEFAULT_MODEL = "gpt-4.1-mini"
 DEFAULT_BACKUP_MODEL = "z-ai/glm-4.5-air:free"
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_OPENAI_MODEL = "gpt-4.1"
+DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash"
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
@@ -73,16 +73,6 @@ def _settings(provider: str, api_key: str, model: str, base_url: str, backup_mod
 def get_ai_settings() -> Optional[dict]:
     load_dotenv_if_present()
 
-    openrouter_key = _clean_key(os.environ.get("OPENROUTER_API_KEY"))
-    if openrouter_key:
-        return _settings(
-            provider="openrouter",
-            api_key=openrouter_key,
-            model=os.environ.get("OPENROUTER_MODEL") or DEFAULT_MODEL,
-            backup_model=os.environ.get("OPENROUTER_BACKUP_MODEL") or os.environ.get("AI_BACKUP_MODEL") or DEFAULT_BACKUP_MODEL,
-            base_url=os.environ.get("OPENROUTER_BASE_URL") or DEFAULT_BASE_URL,
-        )
-
     openai_key = _clean_key(os.environ.get("OPENAI_API_KEY"))
     if openai_key:
         return _settings(
@@ -103,6 +93,16 @@ def get_ai_settings() -> Optional[dict]:
             base_url=os.environ.get("DEEPSEEK_BASE_URL") or DEFAULT_DEEPSEEK_BASE_URL,
         )
 
+    openrouter_key = _clean_key(os.environ.get("OPENROUTER_API_KEY"))
+    if openrouter_key:
+        return _settings(
+            provider="openrouter",
+            api_key=openrouter_key,
+            model=os.environ.get("OPENROUTER_MODEL") or DEFAULT_MODEL,
+            backup_model=os.environ.get("OPENROUTER_BACKUP_MODEL") or os.environ.get("AI_BACKUP_MODEL") or DEFAULT_BACKUP_MODEL,
+            base_url=os.environ.get("OPENROUTER_BASE_URL") or DEFAULT_BASE_URL,
+        )
+
     return None
 
 
@@ -110,26 +110,6 @@ def get_ai_fallback_settings(primary_settings: Optional[dict] = None) -> list[di
     load_dotenv_if_present()
     primary_provider = str((primary_settings or {}).get("provider") or "").lower()
     fallbacks: list[dict] = []
-
-    openrouter_key = _clean_key(os.environ.get("OPENROUTER_API_KEY"))
-    if openrouter_key and primary_provider != "openrouter":
-        fallbacks.append(_settings(
-            provider="openrouter",
-            api_key=openrouter_key,
-            model=os.environ.get("OPENROUTER_MODEL") or DEFAULT_MODEL,
-            backup_model=os.environ.get("OPENROUTER_BACKUP_MODEL") or os.environ.get("AI_BACKUP_MODEL") or DEFAULT_BACKUP_MODEL,
-            base_url=os.environ.get("OPENROUTER_BASE_URL") or DEFAULT_BASE_URL,
-        ))
-
-    openai_key = _clean_key(os.environ.get("OPENAI_API_KEY"))
-    if openai_key and primary_provider != "openai":
-        fallbacks.append(_settings(
-            provider="openai",
-            api_key=openai_key,
-            model=os.environ.get("OPENAI_MODEL") or DEFAULT_OPENAI_MODEL,
-            backup_model=os.environ.get("OPENAI_BACKUP_MODEL") or os.environ.get("AI_BACKUP_MODEL") or "",
-            base_url=os.environ.get("OPENAI_BASE_URL") or DEFAULT_OPENAI_BASE_URL,
-        ))
 
     deepseek_key = _clean_key(os.environ.get("DEEPSEEK_API_KEY"))
     if deepseek_key and primary_provider != "deepseek":
@@ -139,6 +119,16 @@ def get_ai_fallback_settings(primary_settings: Optional[dict] = None) -> list[di
             model=os.environ.get("DEEPSEEK_MODEL") or DEFAULT_DEEPSEEK_MODEL,
             backup_model=os.environ.get("DEEPSEEK_BACKUP_MODEL") or "",
             base_url=os.environ.get("DEEPSEEK_BASE_URL") or DEFAULT_DEEPSEEK_BASE_URL,
+        ))
+
+    openrouter_key = _clean_key(os.environ.get("OPENROUTER_API_KEY"))
+    if openrouter_key and primary_provider != "openrouter":
+        fallbacks.append(_settings(
+            provider="openrouter",
+            api_key=openrouter_key,
+            model=os.environ.get("OPENROUTER_MODEL") or DEFAULT_MODEL,
+            backup_model=os.environ.get("OPENROUTER_BACKUP_MODEL") or os.environ.get("AI_BACKUP_MODEL") or DEFAULT_BACKUP_MODEL,
+            base_url=os.environ.get("OPENROUTER_BASE_URL") or DEFAULT_BASE_URL,
         ))
 
     return fallbacks
@@ -263,7 +253,7 @@ def call_ai(
 
     explicit_key = _clean_key(api_key)
     if explicit_key:
-        provider_name = str(provider or "openrouter").strip().lower()
+        provider_name = str(provider or "openai").strip().lower()
         if provider_name == "openai":
             default_model = DEFAULT_OPENAI_MODEL
             default_base_url = DEFAULT_OPENAI_BASE_URL

@@ -3922,7 +3922,7 @@ function runPipelineFromHeader(useAi=false){
     if(apiKey) payload.api_key = apiKey;
     if(deepseekKey) payload.deepseek_api_key = deepseekKey;
     payload.ai_provider = String(aiOpts.ai_provider||"deepseek");
-    payload.ai_model = String(aiOpts.ai_model||"~anthropic/claude-sonnet-latest");
+    payload.ai_model = String(aiOpts.ai_model||"gpt-4.1-mini");
     payload.ai_backup_model = String(aiOpts.ai_backup_model||"z-ai/glm-4.5-air:free");
     payload.ai_base_url = String(aiOpts.ai_base_url||"");
     payload.deepseek_model = String(aiOpts.deepseek_model||"deepseek-v4-flash");
@@ -5074,12 +5074,12 @@ function settDefaultConfig(){
       deepseek_model:"deepseek-v4-flash",
       deepseek_base_url:"https://api.deepseek.com",
       ai_api_key:"",
-      ai_provider:"openrouter",
-      ai_model:"~anthropic/claude-sonnet-latest",
+      ai_provider:"openai",
+      ai_model:"gpt-4.1-mini",
       ai_backup_model:"z-ai/glm-4.5-air:free",
       ai_base_url:"",
       ai_optimize_api_key:"",
-      ai_optimize_model:"gpt-4.1",
+      ai_optimize_model:"gpt-4.1-mini",
       ai_optimize_base_url:"https://api.openai.com/v1",
     },
     source_of_truth:{
@@ -5115,13 +5115,13 @@ function settNormalizeConfig(config){
   next.settings_options.deepseek_model=String(next.settings_options.deepseek_model||base.settings_options.deepseek_model||"deepseek-v4-flash");
   next.settings_options.deepseek_base_url=String(next.settings_options.deepseek_base_url||base.settings_options.deepseek_base_url||"https://api.deepseek.com");
   next.settings_options.ai_api_key=String(next.settings_options.ai_api_key||"");
-  next.settings_options.ai_provider=String(next.settings_options.ai_provider||"openrouter").toLowerCase();
-  if(!["deepseek","openrouter","openai"].includes(next.settings_options.ai_provider))next.settings_options.ai_provider="openrouter";
-  next.settings_options.ai_model=String(next.settings_options.ai_model||base.settings_options.ai_model||"~anthropic/claude-sonnet-latest");
+  next.settings_options.ai_provider=String(next.settings_options.ai_provider||"openai").toLowerCase();
+  if(!["deepseek","openrouter","openai"].includes(next.settings_options.ai_provider))next.settings_options.ai_provider="openai";
+  next.settings_options.ai_model=String(next.settings_options.ai_model||base.settings_options.ai_model||"gpt-4.1-mini");
   next.settings_options.ai_backup_model=String(next.settings_options.ai_backup_model||base.settings_options.ai_backup_model||"z-ai/glm-4.5-air:free");
   next.settings_options.ai_base_url=String(next.settings_options.ai_base_url||"");
   next.settings_options.ai_optimize_api_key=String(next.settings_options.ai_optimize_api_key||"");
-  next.settings_options.ai_optimize_model=String(next.settings_options.ai_optimize_model||base.settings_options.ai_optimize_model||"gpt-4.1");
+  next.settings_options.ai_optimize_model=String(next.settings_options.ai_optimize_model||base.settings_options.ai_optimize_model||"gpt-4.1-mini");
   next.settings_options.ai_optimize_base_url=String(next.settings_options.ai_optimize_base_url||base.settings_options.ai_optimize_base_url||"https://api.openai.com/v1");
   next.manual_protected=Array.isArray(next.manual_protected)?next.manual_protected:[];
   next.manual_excluded=Array.isArray(next.manual_excluded)?next.manual_excluded:[];
@@ -5687,20 +5687,20 @@ function settRenderAdvancedOptions(){
     <div class="sett-config-panel">
       <div class="sett-section-kicker">AI Generation</div>
       <div class="sett-option-grid">
-        ${settAdvancedOptionCard("field","ai_provider","AI Provider","Claude Sonnet via OpenRouter is used first when its key is available.",`<select onchange="settSetAdvancedOption('ai_provider',this.value,'string')"><option value="openrouter" ${o.ai_provider==="openrouter"?"selected":""}>OpenRouter</option><option value="openai" ${o.ai_provider==="openai"?"selected":""}>OpenAI-Compatible</option><option value="deepseek" ${o.ai_provider==="deepseek"?"selected":""}>DeepSeek</option></select>`)}
-        ${settAdvancedOptionCard("field","deepseek_api_key","DeepSeek API Key","Primary paid key for Generate with AI.",`<input type="password" value="${rvEscapeAttr(o.deepseek_api_key||"")}" placeholder="Paste DeepSeek key" autocomplete="off" onchange="settSetAdvancedOption('deepseek_api_key',this.value,'string')">`)}
-        ${settAdvancedOptionCard("field","deepseek_model","DeepSeek Model","Fallback model when DeepSeek is the selected provider.",`<input type="text" value="${rvEscapeAttr(o.deepseek_model||"deepseek-v4-flash")}" placeholder="deepseek-v4-flash" autocomplete="off" onchange="settSetAdvancedOption('deepseek_model',this.value,'string')">`)}
+        ${settAdvancedOptionCard("field","ai_provider","AI Provider","OpenAI GPT-4.1 Mini is the default. Falls back to DeepSeek, then OpenRouter.",`<select onchange="settSetAdvancedOption('ai_provider',this.value,'string')"><option value="openai" ${o.ai_provider==="openai"?"selected":""}>OpenAI (Default)</option><option value="deepseek" ${o.ai_provider==="deepseek"?"selected":""}>DeepSeek</option><option value="openrouter" ${o.ai_provider==="openrouter"?"selected":""}>OpenRouter</option></select>`)}
+        ${settAdvancedOptionCard("field","deepseek_api_key","DeepSeek API Key","Fallback key when OpenAI is unavailable.",`<input type="password" value="${rvEscapeAttr(o.deepseek_api_key||"")}" placeholder="Paste DeepSeek key" autocomplete="off" onchange="settSetAdvancedOption('deepseek_api_key',this.value,'string')">`)}
+        ${settAdvancedOptionCard("field","deepseek_model","DeepSeek Model","Model used when DeepSeek is the selected provider.",`<input type="text" value="${rvEscapeAttr(o.deepseek_model||"deepseek-v4-flash")}" placeholder="deepseek-v4-flash" autocomplete="off" onchange="settSetAdvancedOption('deepseek_model',this.value,'string')">`)}
         ${settAdvancedOptionCard("field","deepseek_base_url","DeepSeek Base URL","DeepSeek OpenAI-compatible endpoint.",`<input type="text" value="${rvEscapeAttr(o.deepseek_base_url||"https://api.deepseek.com")}" placeholder="https://api.deepseek.com" autocomplete="off" onchange="settSetAdvancedOption('deepseek_base_url',this.value,'string')">`)}
-        ${settAdvancedOptionCard("field","ai_api_key","AI API Key (OpenRouter)","Primary key for Claude Sonnet or other OpenRouter-backed models.",`<input type="password" value="${rvEscapeAttr(o.ai_api_key||"")}" placeholder="Paste OpenRouter key" autocomplete="off" onchange="settSetAdvancedOption('ai_api_key',this.value,'string')">`)}
-        ${settAdvancedOptionCard("field","ai_model","OpenRouter Model","Primary model for Generate with AI.",`<input type="text" value="${rvEscapeAttr(o.ai_model||"~anthropic/claude-sonnet-latest")}" placeholder="~anthropic/claude-sonnet-latest" autocomplete="off" onchange="settSetAdvancedOption('ai_model',this.value,'string')">`)}
+        ${settAdvancedOptionCard("field","ai_api_key","AI API Key (OpenRouter)","Last-resort fallback key for OpenRouter models.",`<input type="password" value="${rvEscapeAttr(o.ai_api_key||"")}" placeholder="Paste OpenRouter key" autocomplete="off" onchange="settSetAdvancedOption('ai_api_key',this.value,'string')">`)}
+        ${settAdvancedOptionCard("field","ai_model","OpenRouter Model","Model used when OpenRouter is the selected provider.",`<input type="text" value="${rvEscapeAttr(o.ai_model||"gpt-4.1-mini")}" placeholder="gpt-4.1-mini" autocomplete="off" onchange="settSetAdvancedOption('ai_model',this.value,'string')">`)}
         ${settAdvancedOptionCard("field","ai_backup_model","Second Fallback Model","Retried if the first fallback parses poorly or fails hard-limit enforcement.",`<input type="text" value="${rvEscapeAttr(o.ai_backup_model||"z-ai/glm-4.5-air:free")}" placeholder="z-ai/glm-4.5-air:free" autocomplete="off" onchange="settSetAdvancedOption('ai_backup_model',this.value,'string')">`)}
-        ${settAdvancedOptionCard("field","ai_base_url","OpenRouter Base URL (Optional)","Override the fallback provider endpoint when needed.",`<input type="text" value="${rvEscapeAttr(o.ai_base_url||"")}" placeholder="https://openrouter.ai/api/v1" autocomplete="off" onchange="settSetAdvancedOption('ai_base_url',this.value,'string')">`)}
+        ${settAdvancedOptionCard("field","ai_base_url","OpenRouter Base URL (Optional)","Override the OpenRouter endpoint when needed.",`<input type="text" value="${rvEscapeAttr(o.ai_base_url||"")}" placeholder="https://openrouter.ai/api/v1" autocomplete="off" onchange="settSetAdvancedOption('ai_base_url',this.value,'string')">`)}
       </div>
     </div>
     <div class="sett-config-panel">
       <div class="sett-section-kicker">AI Optimisation (Optimize with AI)</div>
       <div class="sett-option-grid">
-        ${settAdvancedOptionCard("field","ai_optimize_model","Optimize Model","Model used by the Optimize with AI button when OpenAI is selected.",`<input type="text" value="${rvEscapeAttr(o.ai_optimize_model||"gpt-4.1")}" placeholder="gpt-4.1" autocomplete="off" onchange="settSetAdvancedOption('ai_optimize_model',this.value,'string')">`)}
+        ${settAdvancedOptionCard("field","ai_optimize_model","Optimize Model","Model used by the Optimize with AI button.",`<input type="text" value="${rvEscapeAttr(o.ai_optimize_model||"gpt-4.1-mini")}" placeholder="gpt-4.1-mini" autocomplete="off" onchange="settSetAdvancedOption('ai_optimize_model',this.value,'string')">`)}
         ${settAdvancedOptionCard("field","ai_optimize_base_url","Optimize Base URL","Endpoint for the optimize model.",`<input type="text" value="${rvEscapeAttr(o.ai_optimize_base_url||"https://api.openai.com/v1")}" placeholder="https://api.openai.com/v1" autocomplete="off" onchange="settSetAdvancedOption('ai_optimize_base_url',this.value,'string')">`)}
         ${settAdvancedOptionCard("field","ai_optimize_api_key","Optimize API Key","Separate key for Optimize with AI. Falls back to the DeepSeek key if blank.",`<input type="password" value="${rvEscapeAttr(o.ai_optimize_api_key||"")}" placeholder="Paste API key" autocomplete="off" onchange="settSetAdvancedOption('ai_optimize_api_key',this.value,'string')">`)}
       </div>
