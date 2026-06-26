@@ -80,10 +80,7 @@ def _next_monday() -> str:
 
 PIPELINE_SOURCE_URL = os.environ.get(
     "PIPELINE_SOURCE_URL",
-    os.environ.get(
-        "PIPELINE_CSV",
-        "https://docs.google.com/spreadsheets/d/16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys/edit?gid=1313838163#gid=1313838163",
-    ),
+    "https://docs.google.com/spreadsheets/d/16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys/edit?gid=1313838163#gid=1313838163",
 )
 PIPELINE_WEEK = os.environ.get("PIPELINE_WEEK") or _next_monday()
 

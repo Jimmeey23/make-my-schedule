@@ -37,7 +37,7 @@ def state_exists(filename: str) -> bool:
         "https://docs.google.com/spreadsheets/d/16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys/edit?gid=1313838163#gid=1313838163",
     ),
     show_default=True,
-    help="Path or Google Sheets URL for sessions data",
+    help="Google Sheets URL for sessions data",
 )
 @click.option(
     "--template",

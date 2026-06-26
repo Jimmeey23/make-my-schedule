@@ -2537,12 +2537,9 @@ def main():
         "--csv",
         default=os.environ.get(
             "PIPELINE_SOURCE_URL",
-            os.environ.get(
-                "PIPELINE_CSV",
-                "https://docs.google.com/spreadsheets/d/16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys/edit?gid=1313838163#gid=1313838163",
-            ),
+            "https://docs.google.com/spreadsheets/d/16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys/edit?gid=1313838163#gid=1313838163",
         ),
-        help="Path or Google Sheets URL for pipeline re-run",
+        help="Google Sheets URL for pipeline re-run",
     )
     args = parser.parse_args()
 

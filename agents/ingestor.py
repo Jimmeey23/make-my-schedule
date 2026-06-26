@@ -1,9 +1,6 @@
-import csv
 import json
 import os
-from io import StringIO
 from urllib.parse import parse_qs, urlparse
-from urllib.request import urlopen
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -125,6 +122,9 @@ class DataIngestor:
                 client_secret=client_secret,
                 scopes=GOOGLE_SHEETS_SCOPES,
             )
+            if GoogleAuthRequest is not None:
+                credentials.refresh(GoogleAuthRequest())
+            return credentials
 
         service_account_json = (
             os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
@@ -155,7 +155,9 @@ class DataIngestor:
         spreadsheet_id, gid = target
         credentials = self._load_google_credentials()
         if credentials is None or google_build is None:
-            return None
+            raise RuntimeError(
+                "Google Sheets OAuth credentials are required to read the sessions source."
+            )
 
         service = google_build("sheets", "v4", credentials=credentials, cache_discovery=False)
         metadata = service.spreadsheets().get(
@@ -203,46 +205,14 @@ class DataIngestor:
         return pd.DataFrame(rows, columns=header)
 
     def _read_sessions_file(self) -> pd.DataFrame:
-        if self._source_is_url():
-            if self._looks_like_google_sheet():
-                oauth_df = self._fetch_google_sheet_dataframe()
-                if oauth_df is not None:
-                    return oauth_df
-            source_url = self._google_sheet_export_url()
-            with urlopen(source_url) as response:
-                raw_text = response.read().decode("utf-8", errors="replace")
-            sample = raw_text[:8192]
-        else:
-            raw_text = Path(self.csv_path).read_text(encoding="utf-8", errors="replace")
-            sample = raw_text[:8192]
-        delimiter = "\t"
-        try:
-            dialect = csv.Sniffer().sniff(sample, delimiters=",\t;|")
-            delimiter = dialect.delimiter
-        except csv.Error:
-            first_line = sample.splitlines()[0] if sample else ""
-            if "\t" in first_line:
-                delimiter = "\t"
-            elif ";" in first_line:
-                delimiter = ";"
-            elif "|" in first_line:
-                delimiter = "|"
-            else:
-                delimiter = ","
-
-        if self._source_is_url():
-            return pd.read_csv(
-                StringIO(raw_text),
-                sep=delimiter,
-                engine="python",
-                on_bad_lines="warn",
+        if not self._source_is_url() or not self._looks_like_google_sheet():
+            raise ValueError(
+                "DataIngestor now reads Google Sheets only. Pass a docs.google.com spreadsheet URL."
             )
-        return pd.read_csv(
-            Path(self.csv_path),
-            sep=delimiter,
-            engine="python",
-            on_bad_lines="warn",
-        )
+        oauth_df = self._fetch_google_sheet_dataframe()
+        if oauth_df is None:
+            raise RuntimeError("Failed to read Google Sheets sessions data.")
+        return oauth_df
 
     def run(self) -> dict:
         print("[Agent 1] Ingestor starting...")

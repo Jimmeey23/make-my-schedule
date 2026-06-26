@@ -1,21 +1,37 @@
 """
-Agent 3 — Class Scorer (CSV-based, trust-weighted)
-Uses 'Class Performance by UD1.csv' to define slot performance and
-'Class Performance by Trainer.csv' for trainer options within those slots.
-Uses absolute thresholds — fixes the normalization problem where 38% and 78%
-fill both score INCLUDE.
+Agent 3 — Class Scorer (historic-performance, trust-weighted)
+Uses the Sessions Sheet for slot performance and the Teacher Recurring sheet
+for trainer options within those slots when a Google Sheets source is used.
+Local CSV input remains available for explicit manual overrides and tests.
 """
 import json
 import re
+import os
 from collections import defaultdict
+from io import StringIO
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import numpy as np
 import pandas as pd
 
 from agents.io_utils import atomic_write_json
 
+try:
+    from google.auth.transport.requests import Request as GoogleAuthRequest
+    from google.oauth2.credentials import Credentials as GoogleUserCredentials
+    from google.oauth2.service_account import Credentials as GoogleServiceAccountCredentials
+    from googleapiclient.discovery import build as google_build
+except Exception:  # pragma: no cover - optional dependency fallback
+    GoogleAuthRequest = None
+    GoogleUserCredentials = None
+    GoogleServiceAccountCredentials = None
+    google_build = None
+
 STATE_DIR = Path("state")
+GOOGLE_SHEETS_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+DEFAULT_SLOTS_SHEET_TITLE = os.environ.get("SESSIONS_SHEET_TITLE", "Sessions Sheet")
+DEFAULT_TRAINER_SHEET_TITLE = os.environ.get("TEACHER_RECURRING_SHEET_TITLE", "Teacher Recurring")
 
 # CSV column interpretation (column names are misleading — see comments)
 COL_TRAINER = "Trainer"
@@ -189,7 +205,97 @@ def _apply_protect_score_floor(record: dict) -> None:
 class ClassScorer:
     def __init__(self, weights: dict = None, csv_path: str = None):
         self.weights = weights or SCORING_WEIGHTS
-        self.csv_path = csv_path or "Class Performance by UD1.csv"
+        self.csv_path = csv_path or os.environ.get(
+            "PERFORMANCE_SOURCE_URL",
+            os.environ.get(
+                "PIPELINE_SOURCE_URL",
+                "https://docs.google.com/spreadsheets/d/16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys/edit?gid=1313838163#gid=1313838163",
+            ),
+        )
+
+    def _source_is_google_sheet(self) -> bool:
+        parsed = urlparse(str(self.csv_path).strip())
+        return "docs.google.com" in parsed.netloc
+
+    def _google_spreadsheet_id(self) -> str | None:
+        parsed = urlparse(str(self.csv_path).strip())
+        if "docs.google.com" not in parsed.netloc:
+            return None
+        parts = parsed.path.split("/")
+        if "d" not in parts:
+            return None
+        try:
+            return parts[parts.index("d") + 1]
+        except Exception:
+            return None
+
+    def _load_google_credentials(self):
+        client_id = os.environ.get("GOOGLE_CLIENT_ID") or os.environ.get("GSHEETS_CLIENT_ID")
+        client_secret = os.environ.get("GOOGLE_CLIENT_SECRET") or os.environ.get("GSHEETS_CLIENT_SECRET")
+        refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN") or os.environ.get("GSHEETS_REFRESH_TOKEN")
+        if client_id and client_secret and refresh_token:
+            if GoogleUserCredentials is None:
+                raise RuntimeError(
+                    "google-auth dependencies are missing. Install google-auth and google-api-python-client."
+                )
+            credentials = GoogleUserCredentials(
+                token=None,
+                refresh_token=refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=client_id,
+                client_secret=client_secret,
+                scopes=GOOGLE_SHEETS_SCOPES,
+            )
+            if GoogleAuthRequest is not None:
+                credentials.refresh(GoogleAuthRequest())
+            return credentials
+
+        service_account_json = (
+            os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+            or os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
+        )
+        if service_account_json:
+            if GoogleServiceAccountCredentials is None:
+                raise RuntimeError(
+                    "google-auth dependencies are missing. Install google-auth and google-api-python-client."
+                )
+            if service_account_json.strip().startswith("{"):
+                return GoogleServiceAccountCredentials.from_service_account_info(
+                    json.loads(service_account_json),
+                    scopes=GOOGLE_SHEETS_SCOPES,
+                )
+            return GoogleServiceAccountCredentials.from_service_account_file(
+                service_account_json,
+                scopes=GOOGLE_SHEETS_SCOPES,
+            )
+        return None
+
+    def _load_google_sheet(self, sheet_title: str) -> pd.DataFrame:
+        spreadsheet_id = self._google_spreadsheet_id()
+        credentials = self._load_google_credentials()
+        if not spreadsheet_id or credentials is None or google_build is None:
+            raise RuntimeError(
+                "Google Sheets OAuth credentials are required to read the historic performance source."
+            )
+        service = google_build("sheets", "v4", credentials=credentials, cache_discovery=False)
+        range_name = f"'{sheet_title.replace(\"'\", \"''\")}'!A:ZZ"
+        values = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=range_name,
+            majorDimension="ROWS",
+            valueRenderOption="UNFORMATTED_VALUE",
+        ).execute().get("values", [])
+        if not values:
+            return pd.DataFrame()
+        header = [str(col).strip() for col in values[0]]
+        rows = []
+        header_len = len(header)
+        for row in values[1:]:
+            normalized = list(row[:header_len])
+            if len(normalized) < header_len:
+                normalized.extend([""] * (header_len - len(normalized)))
+            rows.append(normalized)
+        return pd.DataFrame(rows, columns=header)
 
     def _inactive_trainers(self) -> set:
         inactive = set()
