@@ -32,6 +32,7 @@ except Exception:  # pragma: no cover - optional dependency fallback
 
 STATE_DIR = Path("state")
 GOOGLE_SHEETS_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+DEFAULT_GOOGLE_SHEET_RANGE = "A1:ZZ"
 DEFAULT_SLOTS_SHEET_TITLE = os.environ.get("SESSIONS_SHEET_TITLE", "Sessions Sheet")
 DEFAULT_TRAINER_SHEET_TITLE = os.environ.get("TEACHER_RECURRING_SHEET_TITLE", "Teacher Recurring")
 
@@ -299,7 +300,7 @@ class ClassScorer:
             )
         service = google_build("sheets", "v4", credentials=credentials, cache_discovery=False)
         escaped_title = sheet_title.replace("'", "''")
-        range_name = f"'{escaped_title}'!A:ZZ"
+        range_name = f"'{escaped_title}'!{DEFAULT_GOOGLE_SHEET_RANGE}"
         values = service.spreadsheets().values().get(
             spreadsheetId=spreadsheet_id,
             range=range_name,
