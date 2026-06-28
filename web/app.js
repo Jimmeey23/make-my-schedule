@@ -4168,72 +4168,6 @@ function pollPipelineStatus(){
 // ============================================================
 // CONTROL CENTER MODAL
 // ============================================================
-const CONTROL_CENTER_SECTIONS={
-  overview:{label:"Settings Console",icon:"🏠",group:"core",summary:"Status",detail:"Applied to every generation.",panel:"settings",heading:"Settings Console",description:"One source of truth for generated schedules, manual edits, trainer setup, and AI generation.",activate(){settSetTab("overview");}},
-  scheduling:{label:"Schedule Setup",icon:"📅",group:"schedule",summary:"Targets + Mix",detail:"Targets, Class Mix and Formats, and priority.",panel:"settings",heading:"Schedule Setup",description:"Manage daily targets, class mix, and planner count selection before generation.",activate(){settSetTab("rules");settSetSub("rules","targets");}},
-  rules:{label:"Rules and Pinned Classes",icon:"📌",group:"schedule",summary:"Hard rules",detail:"Pinned classes and active safeguards.",panel:"settings",heading:"Rules and Pinned Classes",description:"Review all active custom rules, pinned classes, universal safeguards, and generation controls in one place.",activate(){settSetTab("customrules");}},
-  trainers:{label:"Trainer Setup",icon:"👥",group:"people",summary:"Profiles",detail:"Directory and active status.",panel:"settings",heading:"Trainer Setup",description:"Manage trainer profiles, studio access, tiers, and activation status.",activate(){settSetTab("trainers");}},
-  qualifications:{label:"Certifications",icon:"🏅",group:"people",summary:"Eligible",detail:"Current class-format eligibility.",panel:"settings",heading:"Certifications",description:"Control which trainers are certified to teach each current class format.",activate(){settSetTab("qualifications");}},
-  availability:{label:"Availability",icon:"🗓",group:"people",summary:"Days + Leave",detail:"Assignment days, week offs, and time windows.",panel:"settings",heading:"Availability",description:"Set trainer assignment days, studio-specific availability, historic week offs, leave, and time windows used by generation.",activate(){settSetTab("availability");}},
-  ai:{label:"AI & Generation",icon:"⚙️",group:"system",summary:"Policy",detail:"Model config and generation settings.",panel:"settings",heading:"AI & Generation",description:"Tune AI settings, validation gates, and generation behavior.",activate(){settSetTab("advanced");}}
-};
-const CC_GROUPS={
-  core:{label:""},
-  schedule:{label:"Schedule"},
-  people:{label:"People"},
-  system:{label:"System"}
-};
-let _controlCenterSection="overview";
-function controlCenterNavButton(key,section){
-  return `<button class="control-center-nav-btn${_controlCenterSection===key?" active":""}" type="button" data-control-section="${key}" onclick="controlCenterSetSection('${key}')"><span class="cc-nav-icon">${section.icon||"·"}</span><span class="cc-nav-text"><span class="control-center-nav-title">${rvEscapeHtml(section.label)}</span><span class="control-center-nav-desc">${rvEscapeHtml(section.detail)}</span></span><span class="control-center-status">${rvEscapeHtml(section.summary)}</span></button>`;
-}
-function renderControlCenterNav(){
-  const sections=Object.entries(CONTROL_CENTER_SECTIONS);
-  let html='';let lastGroup=null;
-  sections.forEach(([k,v])=>{
-    if(v.group!==lastGroup){
-      const g=CC_GROUPS[v.group]||{};
-      if(g.label) html+=`<div class="cc-nav-group"><div class="cc-nav-group-label">${rvEscapeHtml(g.label)}</div></div>`;
-      lastGroup=v.group;
-    }
-    html+=controlCenterNavButton(k,v);
-  });
-  return html;
-}
-function renderControlCenterShell(){
-  const box=document.getElementById("modal-box"); if(!box)return;
-  box.className="modal-box control-center-modal";
-  box.innerHTML=`<div class="modal-hdr"><div class="cc-title-stack"><div class="cc-title-mark">⚙</div><div><div class="cc-title-line"><div class="modal-class-name">Settings Console</div><span class="cc-live-chip">Persistent</span></div><div class="modal-meta">Applied to every generation: targets, trainers, assignment days, off days, class mix, rules, pins, and AI configuration.</div></div></div><button class="modal-close" onclick="closeModal()">✕</button></div><div class="control-center-shell"><aside class="control-center-rail"><div class="cc-rail-header"><div class="cc-rail-title">Control Room</div><div class="cc-rail-sub">Edit the generation contract from one organized command surface.</div></div><div class="cc-rail-nav-wrap"><div class="control-center-nav">${renderControlCenterNav()}</div></div></aside><main class="control-center-main"><section class="control-center-intro"><div class="control-center-nav-title" id="control-center-heading">Settings Console</div><div class="control-center-nav-desc" id="control-center-description"></div><div class="cc-status-strip"><div class="cc-status-tile"><span>Rules source</span><b>Canonical JSON</b></div><div class="cc-status-tile"><span>Save mode</span><b>Persistent</b></div><div class="cc-status-tile"><span>Generation</span><b>Standard + AI</b></div><div class="cc-status-tile"><span>Validation</span><b>Pre-assignment</b></div></div></section><section class="control-center-panel" id="control-center-settings-panel" hidden></section><section class="control-center-panel" id="control-center-rules-panel" hidden></section></main><aside class="control-center-inspector"><div class="cc-inspector-card accent sett-generation-contract"><div class="cc-inspector-title">Generation Contract</div><div class="cc-inspector-copy">Saved settings are the canonical source for every Standard, AI, and repair generation. Trainer assignment days, week off dates, inactive status, class mix caps, and hard custom rules are validated before assignment.</div></div><div class="cc-inspector-card"><div class="cc-inspector-title">Actions</div><div class="cc-inspector-actions"><button class="sett-ghost-btn primary" onclick="settSaveCanonicalConfig()">Save & Apply Changes</button><button class="sett-ghost-btn" onclick="settValidateAndRender()">Validate Configuration</button><button class="sett-ghost-btn" onclick="settExportConfig()">Export JSON</button></div></div><div class="cc-inspector-card"><div class="cc-inspector-title">Selection Inspector</div><div class="sett-inspector-box" id="sett-inspector-selection">Select target or class-mix cells to apply bulk changes.</div></div><div class="cc-inspector-card"><div class="cc-inspector-title">Active Health</div><div id="sett-conflict-list" class="sett-conflict-list"><div class="sett-conflict-item">Loading validation...</div></div></div></aside></div>`;
-}
-function controlCenterEnsurePanel(panelName){
-  const panelId=panelName==="rules"?"control-center-rules-panel":"control-center-settings-panel";
-  const host=document.getElementById(panelId);
-  if(!host||host.dataset.loaded==="1")return;
-  if(panelName==="rules")renderRulesView(host); else renderSettingsView(host);
-  host.dataset.loaded="1";
-}
-function controlCenterSetSection(sectionKey){
-  const section=CONTROL_CENTER_SECTIONS[sectionKey]||CONTROL_CENTER_SECTIONS.overview;
-  _controlCenterSection=sectionKey in CONTROL_CENTER_SECTIONS?sectionKey:"overview";
-  const settingsPanel=document.getElementById("control-center-settings-panel");
-  const rulesPanel=document.getElementById("control-center-rules-panel");
-  const heading=document.getElementById("control-center-heading");
-  const description=document.getElementById("control-center-description");
-  document.querySelectorAll("[data-control-section]").forEach(btn=>btn.classList.toggle("active",btn.dataset.controlSection===_controlCenterSection));
-  if(heading)heading.textContent=section.heading;
-  if(description)description.textContent=section.description;
-  controlCenterEnsurePanel(section.panel);
-  if(settingsPanel)settingsPanel.hidden=section.panel!=="settings";
-  if(rulesPanel)rulesPanel.hidden=section.panel!=="rules";
-  setTimeout(()=>section.activate&&section.activate(),0);
-}
-function openControlCenterModal(sectionKey="overview"){
-  renderControlCenterShell();
-  controlCenterSetSection(sectionKey);
-  document.getElementById("modal-overlay").classList.add("open");
-}
-
-// ============================================================
 // RULES VIEW
 // ============================================================
 const BUILTIN_RULES_CATALOG={
@@ -5924,7 +5858,7 @@ function settLoadData(){
     settRenderLeave();settRenderClassMix();settRenderPriority();settRenderCustomRules();settRenderAdvancedOptions();settRenderAISettings();
     settPopulateLeaveTrainerList();
     settValidateAndRender();
-  }).catch(e=>console.error("Settings load error",e));
+  }).catch(()=>{});
 }
 
 function trainerIsActive(t){
