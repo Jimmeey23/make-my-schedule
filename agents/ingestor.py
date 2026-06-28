@@ -27,7 +27,7 @@ VALID_LOCATIONS = [
     "Copper & Cloves",
 ]
 GOOGLE_SHEETS_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
-DEFAULT_GOOGLE_SHEET_RANGE = "A1:ZZ"
+DEFAULT_GOOGLE_SHEET_RANGE = "A:ZZ"
 PREFERRED_SESSIONS_SHEET_TITLES = ("Sessions Sheet", "Sessions", "Session Data")
 REQUIRED_SESSION_COLUMNS = {
     "Date",
