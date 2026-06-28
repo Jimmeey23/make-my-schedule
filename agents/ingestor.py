@@ -1,16 +1,19 @@
 import json
 import os
+import base64
 from urllib.parse import parse_qs, urlparse
 import pandas as pd
 import numpy as np
 from pathlib import Path
 
 try:
+    from google.auth.exceptions import RefreshError as GoogleRefreshError
     from google.auth.transport.requests import Request as GoogleAuthRequest
     from google.oauth2.credentials import Credentials as GoogleUserCredentials
     from google.oauth2.service_account import Credentials as GoogleServiceAccountCredentials
     from googleapiclient.discovery import build as google_build
 except Exception:  # pragma: no cover - optional dependency fallback
+    GoogleRefreshError = None
     GoogleAuthRequest = None
     GoogleUserCredentials = None
     GoogleServiceAccountCredentials = None
@@ -69,6 +72,7 @@ def time_band(time_str: str) -> str:
 class DataIngestor:
     def __init__(self, csv_path: Path | str):
         self.csv_path = str(csv_path)
+        self._last_source_info: dict = {}
 
     def _source_is_url(self) -> bool:
         return self.csv_path.startswith(("http://", "https://"))
@@ -119,6 +123,34 @@ class DataIngestor:
         return spreadsheet_id, gid
 
     def _load_google_credentials(self):
+        service_account_json = (
+            os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+            or os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON_BASE64")
+            or os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
+        )
+        if service_account_json:
+            if GoogleServiceAccountCredentials is None:
+                raise RuntimeError(
+                    "google-auth dependencies are missing. Install google-auth and google-api-python-client."
+                )
+            service_account_json = service_account_json.strip()
+            if service_account_json.startswith("{"):
+                info = json.loads(service_account_json)
+                return GoogleServiceAccountCredentials.from_service_account_info(
+                    info,
+                    scopes=GOOGLE_SHEETS_SCOPES,
+                )
+            if os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON_BASE64"):
+                info = json.loads(base64.b64decode(service_account_json).decode("utf-8"))
+                return GoogleServiceAccountCredentials.from_service_account_info(
+                    info,
+                    scopes=GOOGLE_SHEETS_SCOPES,
+                )
+            return GoogleServiceAccountCredentials.from_service_account_file(
+                service_account_json,
+                scopes=GOOGLE_SHEETS_SCOPES,
+            )
+
         client_id = os.environ.get("GOOGLE_CLIENT_ID") or os.environ.get("GSHEETS_CLIENT_ID")
         client_secret = os.environ.get("GOOGLE_CLIENT_SECRET") or os.environ.get("GSHEETS_CLIENT_SECRET")
         refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN") or os.environ.get("GSHEETS_REFRESH_TOKEN")
@@ -136,28 +168,18 @@ class DataIngestor:
                 scopes=GOOGLE_SHEETS_SCOPES,
             )
             if GoogleAuthRequest is not None:
-                credentials.refresh(GoogleAuthRequest())
+                try:
+                    credentials.refresh(GoogleAuthRequest())
+                except Exception as exc:
+                    if (GoogleRefreshError is not None and isinstance(exc, GoogleRefreshError)) or "invalid_client" in str(exc):
+                        raise RuntimeError(
+                            "Google Sheets OAuth credentials are invalid: the OAuth client was not found. "
+                            "Fix GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REFRESH_TOKEN, or set "
+                            "GOOGLE_SERVICE_ACCOUNT_JSON / GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 for the service account "
+                            "that has access to the spreadsheet."
+                        ) from exc
+                    raise
             return credentials
-
-        service_account_json = (
-            os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
-            or os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
-        )
-        if service_account_json:
-            if GoogleServiceAccountCredentials is None:
-                raise RuntimeError(
-                    "google-auth dependencies are missing. Install google-auth and google-api-python-client."
-                )
-            if service_account_json.strip().startswith("{"):
-                info = json.loads(service_account_json)
-                return GoogleServiceAccountCredentials.from_service_account_info(
-                    info,
-                    scopes=GOOGLE_SHEETS_SCOPES,
-                )
-            return GoogleServiceAccountCredentials.from_service_account_file(
-                service_account_json,
-                scopes=GOOGLE_SHEETS_SCOPES,
-            )
 
         return None
 
@@ -209,6 +231,7 @@ class DataIngestor:
         ).execute()
 
         requested_title = None
+        requested_gid = gid
         sheet_titles = []
         for sheet in metadata.get("sheets", []):
             properties = sheet.get("properties", {})
@@ -239,17 +262,68 @@ class DataIngestor:
                 best_score = score
                 best_df = df
             if self._is_sessions_dataframe(df):
+                self._last_source_info = {
+                    "type": "google_sheet",
+                    "source_url": self.csv_path,
+                    "spreadsheet_id": spreadsheet_id,
+                    "requested_gid": requested_gid,
+                    "requested_sheet_title": requested_title,
+                    "sheet_title": title,
+                    "available_sheets": sheet_titles,
+                    "columns": [str(col) for col in df.columns],
+                    "raw_row_count": int(len(df)),
+                    "missing_required_columns": [],
+                }
                 if title != requested_title:
                     print(f"[Agent 1] Using Google Sheet tab '{title}' for sessions data")
                 return df
 
         missing = sorted(REQUIRED_SESSION_COLUMNS - {str(col).strip() for col in best_df.columns})
+        self._last_source_info = {
+            "type": "google_sheet",
+            "source_url": self.csv_path,
+            "spreadsheet_id": spreadsheet_id,
+            "requested_gid": requested_gid,
+            "requested_sheet_title": requested_title,
+            "sheet_title": best_title,
+            "available_sheets": sheet_titles,
+            "columns": [str(col) for col in best_df.columns],
+            "raw_row_count": int(len(best_df)),
+            "missing_required_columns": missing,
+        }
         available = ", ".join(map(str, best_df.columns[:25]))
         raise ValueError(
             "Could not find a Google Sheets tab with the required sessions schema. "
             f"Best match was '{best_title}' but it is missing: {', '.join(missing)}. "
             f"Available columns: {available}"
         )
+
+    def source_health(self) -> dict:
+        try:
+            df = self._read_sessions_file()
+            missing = sorted(REQUIRED_SESSION_COLUMNS - {str(col).strip() for col in df.columns})
+            date_range = {"min": None, "max": None}
+            if "Date" in df.columns:
+                parsed_dates = pd.to_datetime(df["Date"].astype(str).str.strip(), errors="coerce", format="mixed").dropna()
+                if not parsed_dates.empty:
+                    date_range = {
+                        "min": parsed_dates.min().strftime("%Y-%m-%d"),
+                        "max": parsed_dates.max().strftime("%Y-%m-%d"),
+                    }
+            return {
+                **self._last_source_info,
+                "ok": not missing,
+                "row_count": int(len(df)),
+                "date_range": date_range,
+                "missing_required_columns": missing,
+            }
+        except Exception as exc:
+            return {
+                **self._last_source_info,
+                "ok": False,
+                "source_url": self.csv_path,
+                "error": str(exc),
+            }
 
     def _read_sessions_file(self) -> pd.DataFrame:
         if not self._source_is_url() or not self._looks_like_google_sheet():
@@ -338,6 +412,12 @@ class DataIngestor:
             "locations": VALID_LOCATIONS,
             "total_sessions": total,
             "date_range": {"min": date_min, "max": date_max},
+            "source": {
+                **self._last_source_info,
+                "row_count": total,
+                "date_range": {"min": date_min, "max": date_max},
+                "missing_required_columns": [],
+            },
             "sessions": records,
         }
 

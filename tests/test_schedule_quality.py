@@ -450,6 +450,88 @@ def test_ai_planner_retries_backup_model_when_primary_plan_is_partial(tmp_path, 
     assert output["ai_repaired_locations"] == []
 
 
+def test_ai_planner_selects_best_valid_variant_when_enabled(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "state").mkdir()
+    (tmp_path / "rules").mkdir()
+    (tmp_path / "config").mkdir()
+    (tmp_path / "state" / "03_scores.json").write_text(json.dumps({"class_slot_ranking": [], "slot_group_ranking": []}))
+    (tmp_path / "state" / "02_metrics.json").write_text(json.dumps({"trainer_metrics": [], "day_band_metrics": []}))
+    (tmp_path / "rules" / "trainer_profiles.json").write_text(json.dumps([]))
+    (tmp_path / "config" / "rules_config.json").write_text(json.dumps({"categories": {"universal": {"enabled": True}}, "rules": {}}))
+
+    import agents.ai_planner as ai_planner_module
+
+    calls = []
+    monkeypatch.setenv("SCHEDULER_FORCE_AI_ONLY", "1")
+    monkeypatch.setenv("SCHEDULER_AI_VARIANTS_PER_LOCATION", "2")
+    monkeypatch.setattr(ai_planner_module, "OPENAI_AVAILABLE", True)
+    monkeypatch.setattr(
+        ai_planner_module,
+        "create_ai_client",
+        lambda: (object(), {"model": "primary-model"}),
+    )
+
+    def fake_call(self, client, model_name, system_prompt, user_prompt, location, max_tokens=None):
+        calls.append(user_prompt)
+        return '{"schedule":[]}'
+
+    low_slots = [
+        PlannedSlot(
+            location="Kenkere House",
+            date="2026-05-04",
+            day_of_week="Monday",
+            time="09:00",
+            class_name="Studio Barre 57",
+            trainer_1="Trainer A",
+            trainer_2="",
+            cover="",
+            room="studio_a",
+            capacity=12,
+            predicted_fill_rate=0.4,
+            score=40,
+            constraint_violations=[],
+        )
+    ]
+    high_slots = [
+        PlannedSlot(
+            location="Kenkere House",
+            date="2026-05-04",
+            day_of_week="Monday",
+            time="10:00",
+            class_name="Studio Barre 57",
+            trainer_1="Trainer B",
+            trainer_2="",
+            cover="",
+            room="studio_a",
+            capacity=12,
+            predicted_fill_rate=0.8,
+            score=90,
+            constraint_violations=[],
+        )
+    ]
+
+    def fake_parse(raw, location, week, profiles):
+        return (low_slots, []) if len(calls) == 1 else (high_slots, [])
+
+    monkeypatch.setattr(AISchedulePlanner, "_call_model", fake_call)
+    monkeypatch.setattr(ai_planner_module, "_minimum_ai_slot_count_for_location", lambda location: 1)
+    monkeypatch.setattr(ai_planner_module, "_parse_schedule_response", fake_parse)
+    monkeypatch.setattr(ai_planner_module, "_validate_slots", lambda slots, location, profiles: slots)
+    monkeypatch.setattr(ai_planner_module, "_enforce_hard_limits", lambda slots, location, profiles: slots)
+    monkeypatch.setattr(ai_planner_module, "_has_enough_slots_after_enforcement", lambda location, slots: bool(slots))
+    monkeypatch.setattr(ai_planner_module, "_score_slots", lambda slots, scores: slots)
+    monkeypatch.setattr(ai_planner_module, "_enforce_global_trainer_overlaps", lambda slots, profiles: slots)
+
+    output = AISchedulePlanner(target_week_start="2026-05-04", locations=["Kenkere House"]).run()
+
+    assert len(calls) == 2
+    assert "AI VARIANT 1/2" in calls[0]
+    assert "AI VARIANT 2/2" in calls[1]
+    assert output["schedule"][0]["trainer_1"] == "Trainer B"
+    assert output["ai_run"]["variant_count"] == 2
+
+
 def test_ai_location_parallelism_defaults_to_one_for_free_models(monkeypatch):
     import agents.ai_planner as ai_planner_module
 
@@ -4797,6 +4879,9 @@ def test_data_ingestor_uses_google_oauth_credentials_for_sessions_sheet(tmp_path
 
     assert output["total_sessions"] == 1
     assert output["sessions"][0]["Location"] == "Kwality House, Kemps Corner"
+    assert output["source"]["type"] == "google_sheet"
+    assert output["source"]["sheet_title"] == "Sessions Sheet"
+    assert output["source"]["row_count"] == 1
     assert captured["spreadsheet_id"] == "16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys"
     assert captured["range"] == "'Sessions Sheet'!A:ZZ"
 
@@ -4884,6 +4969,89 @@ def test_data_ingestor_falls_back_to_sessions_tab_when_gid_points_to_wrong_tab(t
 
     assert output["total_sessions"] == 1
     assert captured_ranges[:2] == ["'Teacher Recurring'!A:ZZ", "'Sessions Sheet'!A:ZZ"]
+    assert output["source"]["requested_sheet_title"] == "Teacher Recurring"
+    assert output["source"]["sheet_title"] == "Sessions Sheet"
+
+
+def test_data_ingestor_prefers_service_account_over_broken_oauth_env(monkeypatch):
+    import agents.ingestor as ingestor_module
+
+    created = {}
+
+    class FakeServiceAccountCredentials:
+        @classmethod
+        def from_service_account_info(cls, info, scopes=None):
+            created["info"] = info
+            created["scopes"] = scopes
+            return "service-account-creds"
+
+    class BrokenUserCredentials:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("OAuth credentials should not be constructed when service account is configured")
+
+    monkeypatch.setenv("GOOGLE_SERVICE_ACCOUNT_JSON", '{"client_email":"scheduler@test.iam.gserviceaccount.com"}')
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "deleted-client-id")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "deleted-client-secret")
+    monkeypatch.setenv("GOOGLE_REFRESH_TOKEN", "stale-refresh-token")
+    monkeypatch.setattr(ingestor_module, "GoogleServiceAccountCredentials", FakeServiceAccountCredentials)
+    monkeypatch.setattr(ingestor_module, "GoogleUserCredentials", BrokenUserCredentials)
+
+    creds = ingestor_module.DataIngestor("https://docs.google.com/spreadsheets/d/test/edit")._load_google_credentials()
+
+    assert creds == "service-account-creds"
+    assert created["info"]["client_email"] == "scheduler@test.iam.gserviceaccount.com"
+    assert created["scopes"] == ingestor_module.GOOGLE_SHEETS_SCOPES
+
+
+def test_data_ingestor_reports_invalid_google_oauth_client(monkeypatch):
+    import agents.ingestor as ingestor_module
+
+    for key in ("GOOGLE_SERVICE_ACCOUNT_JSON", "GOOGLE_SERVICE_ACCOUNT_JSON_BASE64", "GOOGLE_SERVICE_ACCOUNT_FILE"):
+        monkeypatch.delenv(key, raising=False)
+
+    class BrokenCredentials:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def refresh(self, request):
+            raise Exception("invalid_client: The OAuth client was not found.")
+
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "deleted-client-id")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "deleted-client-secret")
+    monkeypatch.setenv("GOOGLE_REFRESH_TOKEN", "stale-refresh-token")
+    monkeypatch.setattr(ingestor_module, "GoogleUserCredentials", BrokenCredentials)
+    monkeypatch.setattr(ingestor_module, "GoogleAuthRequest", lambda: object())
+
+    with pytest.raises(RuntimeError, match="OAuth credentials are invalid"):
+        ingestor_module.DataIngestor("https://docs.google.com/spreadsheets/d/test/edit")._load_google_credentials()
+
+
+def test_flask_source_health_reports_google_sheet_metadata(monkeypatch, tmp_path):
+    class FakeIngestor:
+        def __init__(self, source_url):
+            self.source_url = source_url
+
+        def source_health(self):
+            return {
+                "ok": True,
+                "source_url": self.source_url,
+                "type": "google_sheet",
+                "sheet_title": "Sessions Sheet",
+                "row_count": 123,
+                "date_range": {"min": "2024-01-01", "max": "2026-06-01"},
+                "missing_required_columns": [],
+            }
+
+    monkeypatch.setattr(flask_app_module, "DataIngestor", FakeIngestor, raising=False)
+    monkeypatch.setattr(flask_app_module, "PIPELINE_SOURCE_URL", "https://docs.google.com/spreadsheets/d/test/edit")
+
+    response = flask_app_module.app.test_client().get("/api/source-health")
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["ok"] is True
+    assert body["sheet_title"] == "Sessions Sheet"
+    assert body["row_count"] == 123
 
 
 def test_optimiser_candidate_rows_are_indexed_by_location_and_day():
@@ -5179,6 +5347,13 @@ def test_ai_fallback_generates_three_named_optimisation_iterations(tmp_path, mon
     ]
     assert output["schedule"] == output["iterations"][0]["schedule"]
     assert output["iteration_names"] == ["Max Score", "Trainer Hours", "Class Variety"]
+    assert output["ai_run"]["planner_mode"] == "greedy_fallback"
+    assert output["ai_run"]["variant_count"] == 3
+    assert output["ai_run"]["selected_iteration_name"] == "Max Score"
+    run_log = tmp_path / "state" / "ai_runs.jsonl"
+    assert run_log.exists()
+    logged = json.loads(run_log.read_text().strip().splitlines()[-1])
+    assert logged["run_id"] == output["ai_run"]["run_id"]
 
 
 def test_ai_fallback_with_output_suffix_refreshes_canonical_draft(tmp_path, monkeypatch):

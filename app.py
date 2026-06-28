@@ -19,6 +19,7 @@ from urllib import request as urlrequest
 
 from flask import Flask, Response, request
 
+from agents.ingestor import DataIngestor
 from chat_assistant import build_chat_context
 from finalise_schedule import finalise_schedule_document
 from rule_config import build_rules_catalog, load_rules_config, update_rules_config
@@ -220,8 +221,8 @@ def _saved_ai_runtime_settings() -> dict:
         return {}
     settings = data.get("settings_options") or {}
     return {
-        "provider": str(settings.get("ai_provider") or "openai").strip().lower(),
-        "model": str(settings.get("ai_model") or DEFAULT_OPENAI_MODEL).strip(),
+        "provider": str(settings.get("ai_provider") or "openrouter").strip().lower(),
+        "model": str(settings.get("ai_model") or DEFAULT_OPENROUTER_MODEL).strip(),
         "backup_model": str(settings.get("ai_backup_model") or DEFAULT_OPENROUTER_BACKUP_MODEL).strip(),
         "base_url": str(settings.get("ai_base_url") or "").strip(),
         "ai_api_key": str(settings.get("ai_api_key") or "").strip(),
@@ -406,6 +407,7 @@ def _resolve_pipeline_request_options(payload=None) -> dict:
             runtime["deepseek_api_key"] = deepseek_api_key
         child_env.pop("SCHEDULER_FORCE_GREEDY", None)
         child_env["SCHEDULER_FORCE_AI_ONLY"] = "1"
+        child_env.setdefault("SCHEDULER_AI_VARIANTS_PER_LOCATION", "2")
         if runtime.get("provider") == "deepseek":
             if deepseek_api_key:
                 _inject_ai_key_env(child_env, deepseek_api_key, "deepseek")
@@ -611,6 +613,13 @@ def _trainer_qualified_for_manual_class(profile, class_name):
         return True
     key = _qual_key_for_manual_class(class_name)
     if q.get(key):
+        return True
+    aliases = {
+        "all_barre": ("barre_57", "studio_barre_57", "barre"),
+        "cardio_barre": ("cardio", "studio_cardio_barre"),
+        "mat_57": ("mat57", "studio_mat_57"),
+    }
+    if any(q.get(alias) for alias in aliases.get(key, ())):
         return True
     lower = str(class_name or "").lower()
     if "express" in lower and key == "powercycle" and q.get("express_cycle"):
@@ -1139,6 +1148,14 @@ def latest_schedule_file():
     global _latest_schedule_file
     _latest_schedule_file = _resolve_latest_schedule_file_name()
     return _json({"file": _latest_schedule_file})
+
+
+@app.route("/api/source-health")
+def source_health():
+    try:
+        return _json(DataIngestor(PIPELINE_SOURCE_URL).source_health())
+    except Exception as exc:
+        return _json({"ok": False, "source_url": PIPELINE_SOURCE_URL, "error": str(exc)}, 500)
 
 
 @app.route("/<path:name>")

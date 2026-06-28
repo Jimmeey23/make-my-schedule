@@ -223,6 +223,31 @@ def test_google_sheet_source_uses_sheet_tabs_not_local_csv(tmp_path, monkeypatch
     assert [t["trainer"] for t in slot["top_trainers"]] == ["Active Trainer"]
 
 
+def test_scorer_prefers_service_account_over_broken_oauth_env(monkeypatch):
+    import agents.scorer as scorer_module
+
+    class FakeServiceAccountCredentials:
+        @classmethod
+        def from_service_account_info(cls, info, scopes=None):
+            return {"info": info, "scopes": scopes}
+
+    class BrokenUserCredentials:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("OAuth credentials should not be constructed when service account is configured")
+
+    monkeypatch.setenv("GOOGLE_SERVICE_ACCOUNT_JSON", '{"client_email":"scheduler@test.iam.gserviceaccount.com"}')
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "deleted-client-id")
+    monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "deleted-client-secret")
+    monkeypatch.setenv("GOOGLE_REFRESH_TOKEN", "stale-refresh-token")
+    monkeypatch.setattr(scorer_module, "GoogleServiceAccountCredentials", FakeServiceAccountCredentials)
+    monkeypatch.setattr(scorer_module, "GoogleUserCredentials", BrokenUserCredentials)
+
+    creds = ClassScorer(csv_path="https://docs.google.com/spreadsheets/d/test/edit")._load_google_credentials()
+
+    assert creds["info"]["client_email"] == "scheduler@test.iam.gserviceaccount.com"
+    assert creds["scopes"] == scorer_module.GOOGLE_SHEETS_SCOPES
+
+
 def test_strength_lab_policy_protection_does_not_inflate_score_or_recommendation(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path("state").mkdir()

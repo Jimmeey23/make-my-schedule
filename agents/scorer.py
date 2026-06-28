@@ -1,14 +1,14 @@
 """
 Agent 3 — Class Scorer (historic-performance, trust-weighted)
 Uses the Sessions Sheet for slot performance and the Teacher Recurring sheet
-for trainer options within those slots when a Google Sheets source is used.
-Local CSV input remains available for explicit manual overrides and tests.
+for trainer options within those slots. Local CSV performance inputs are not
+accepted in the runtime pipeline.
 """
 import json
 import re
 import os
+import base64
 from collections import defaultdict
-from io import StringIO
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -18,11 +18,13 @@ import pandas as pd
 from agents.io_utils import atomic_write_json
 
 try:
+    from google.auth.exceptions import RefreshError as GoogleRefreshError
     from google.auth.transport.requests import Request as GoogleAuthRequest
     from google.oauth2.credentials import Credentials as GoogleUserCredentials
     from google.oauth2.service_account import Credentials as GoogleServiceAccountCredentials
     from googleapiclient.discovery import build as google_build
 except Exception:  # pragma: no cover - optional dependency fallback
+    GoogleRefreshError = None
     GoogleAuthRequest = None
     GoogleUserCredentials = None
     GoogleServiceAccountCredentials = None
@@ -230,6 +232,32 @@ class ClassScorer:
             return None
 
     def _load_google_credentials(self):
+        service_account_json = (
+            os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+            or os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON_BASE64")
+            or os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
+        )
+        if service_account_json:
+            if GoogleServiceAccountCredentials is None:
+                raise RuntimeError(
+                    "google-auth dependencies are missing. Install google-auth and google-api-python-client."
+                )
+            service_account_json = service_account_json.strip()
+            if service_account_json.startswith("{"):
+                return GoogleServiceAccountCredentials.from_service_account_info(
+                    json.loads(service_account_json),
+                    scopes=GOOGLE_SHEETS_SCOPES,
+                )
+            if os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON_BASE64"):
+                return GoogleServiceAccountCredentials.from_service_account_info(
+                    json.loads(base64.b64decode(service_account_json).decode("utf-8")),
+                    scopes=GOOGLE_SHEETS_SCOPES,
+                )
+            return GoogleServiceAccountCredentials.from_service_account_file(
+                service_account_json,
+                scopes=GOOGLE_SHEETS_SCOPES,
+            )
+
         client_id = os.environ.get("GOOGLE_CLIENT_ID") or os.environ.get("GSHEETS_CLIENT_ID")
         client_secret = os.environ.get("GOOGLE_CLIENT_SECRET") or os.environ.get("GSHEETS_CLIENT_SECRET")
         refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN") or os.environ.get("GSHEETS_REFRESH_TOKEN")
@@ -247,27 +275,19 @@ class ClassScorer:
                 scopes=GOOGLE_SHEETS_SCOPES,
             )
             if GoogleAuthRequest is not None:
-                credentials.refresh(GoogleAuthRequest())
+                try:
+                    credentials.refresh(GoogleAuthRequest())
+                except Exception as exc:
+                    if (GoogleRefreshError is not None and isinstance(exc, GoogleRefreshError)) or "invalid_client" in str(exc):
+                        raise RuntimeError(
+                            "Google Sheets OAuth credentials are invalid: the OAuth client was not found. "
+                            "Fix GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REFRESH_TOKEN, or set "
+                            "GOOGLE_SERVICE_ACCOUNT_JSON / GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 for the service account "
+                            "that has access to the spreadsheet."
+                        ) from exc
+                    raise
             return credentials
 
-        service_account_json = (
-            os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
-            or os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
-        )
-        if service_account_json:
-            if GoogleServiceAccountCredentials is None:
-                raise RuntimeError(
-                    "google-auth dependencies are missing. Install google-auth and google-api-python-client."
-                )
-            if service_account_json.strip().startswith("{"):
-                return GoogleServiceAccountCredentials.from_service_account_info(
-                    json.loads(service_account_json),
-                    scopes=GOOGLE_SHEETS_SCOPES,
-                )
-            return GoogleServiceAccountCredentials.from_service_account_file(
-                service_account_json,
-                scopes=GOOGLE_SHEETS_SCOPES,
-            )
         return None
 
     def _load_google_sheet(self, sheet_title: str) -> pd.DataFrame:
@@ -371,9 +391,6 @@ class ClassScorer:
                 df[COL_UID2] = df[COL_UID2].astype(str)
             return df
 
-        def _load_performance_csv(csv_file: Path, label: str) -> pd.DataFrame:
-            return _load_performance_frame(pd.read_csv(csv_file, low_memory=False), label)
-
         def _exclude_non_schedulable_classes(df: pd.DataFrame) -> pd.DataFrame:
             if df.empty:
                 return df.copy()
@@ -416,29 +433,23 @@ class ClassScorer:
         # -----------------------------------------------------------------
         inactive = self._inactive_trainers()
 
-        if self._source_is_google_sheet():
-            slot_source = f"Google Sheet tab: {DEFAULT_SLOTS_SHEET_TITLE}"
-            trainer_label = f"Google Sheet tab: {DEFAULT_TRAINER_SHEET_TITLE}"
-            slot_source_df = _load_performance_frame(
-                self._load_google_sheet(DEFAULT_SLOTS_SHEET_TITLE),
-                slot_source,
+        if not self._source_is_google_sheet():
+            raise ValueError(
+                "ClassScorer now reads historic performance from Google Sheets only. "
+                "Pass a docs.google.com spreadsheet URL so slot scoring uses the Sessions Sheet "
+                "and trainer scoring uses the Teacher Recurring tab."
             )
-            trainer_source_df = _load_performance_frame(
-                self._load_google_sheet(DEFAULT_TRAINER_SHEET_TITLE),
-                trainer_label,
-            )
-        else:
-            csv_file = Path(self.csv_path)
-            if not csv_file.exists():
-                raise FileNotFoundError(
-                    f"CSV not found: {self.csv_path}. "
-                    "Pass a docs.google.com spreadsheet URL for live data, or an explicit local CSV for tests/manual overrides."
-                )
-            slot_source_df = _load_performance_csv(csv_file, self.csv_path)
-            trainer_csv_file = Path("Class Performance by Trainer.csv")
-            trainer_source = trainer_csv_file if trainer_csv_file.exists() else csv_file
-            trainer_label = str(trainer_source)
-            trainer_source_df = _load_performance_csv(trainer_source, trainer_label)
+
+        slot_source = f"Google Sheet tab: {DEFAULT_SLOTS_SHEET_TITLE}"
+        trainer_label = f"Google Sheet tab: {DEFAULT_TRAINER_SHEET_TITLE}"
+        slot_source_df = _load_performance_frame(
+            self._load_google_sheet(DEFAULT_SLOTS_SHEET_TITLE),
+            slot_source,
+        )
+        trainer_source_df = _load_performance_frame(
+            self._load_google_sheet(DEFAULT_TRAINER_SHEET_TITLE),
+            trainer_label,
+        )
 
         slot_df = _prepare_scoring_metrics(_exclude_non_schedulable_classes(slot_source_df))
         trainer_df = _prepare_scoring_metrics(

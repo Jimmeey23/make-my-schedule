@@ -8,8 +8,10 @@ Falls back to the greedy ScheduleOptimiser only if no AI API key is available.
 import json
 import os
 import re
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, asdict, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -1120,6 +1122,79 @@ def _ai_attempt_settings(primary_settings: dict) -> List[dict]:
     return attempts
 
 
+def _ai_run_metadata(
+    *,
+    planner_mode: str,
+    target_week_start: str,
+    variation_seed: int,
+    output_suffix: str,
+    model_sequence: List[str] = None,
+    variant_count: int = 1,
+    selected_iteration_name: str = "",
+    repaired_locations: List[str] = None,
+) -> dict:
+    return {
+        "run_id": uuid.uuid4().hex,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "planner_mode": planner_mode,
+        "target_week_start": target_week_start,
+        "variation_seed": variation_seed,
+        "output_suffix": output_suffix,
+        "models": list(model_sequence or []),
+        "variant_count": int(variant_count or 1),
+        "selected_iteration_name": selected_iteration_name,
+        "repaired_locations": list(repaired_locations or []),
+    }
+
+
+def _append_ai_run_metadata(metadata: dict) -> None:
+    if not metadata:
+        return
+    try:
+        STATE_DIR.mkdir(exist_ok=True)
+        with open(STATE_DIR / "ai_runs.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(metadata, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        print(f"  [Agent 5] [WARN] Could not write AI run metadata: {exc}")
+
+
+def _ai_variant_count() -> int:
+    raw = os.environ.get("SCHEDULER_AI_VARIANTS_PER_LOCATION") or "1"
+    try:
+        return max(1, min(4, int(raw)))
+    except ValueError:
+        return 1
+
+
+def _variant_location_prompt(base_prompt: str, variant_index: int, variant_count: int, seed: int) -> str:
+    if variant_count <= 1:
+        return base_prompt
+    strategies = [
+        "maximize proven performance score and protect historically strong class/trainer/slot combinations",
+        "improve Tier 1 trainer utilisation while keeping weak-history combinations blocked",
+        "increase class-format variety across repeated clock times while preserving high-demand peak slots",
+        "balance studio coverage and trainer load across all seven days with fewer constraint repairs",
+    ]
+    strategy = strategies[variant_index % len(strategies)]
+    return (
+        f"{base_prompt}\n\n"
+        f"### AI VARIANT {variant_index + 1}/{variant_count}\n"
+        f"Variant seed: {seed + variant_index}\n"
+        f"Primary strategy: {strategy}.\n"
+        "Produce a materially different valid schedule than other variants could produce. "
+        "Do not reduce quality just to be different; all hard constraints and low-performer blocks still apply."
+    )
+
+
+def _candidate_quality(slots: List[PlannedSlot]) -> tuple:
+    if not slots:
+        return (-1, -999.0, -999.0, 0)
+    violations = sum(len(slot.constraint_violations or []) for slot in slots)
+    avg_score = sum(float(slot.score or 0.0) for slot in slots) / len(slots)
+    avg_fill = sum(float(slot.predicted_fill_rate or 0.0) for slot in slots) / len(slots)
+    return (-violations, avg_score, avg_fill, len(slots))
+
+
 def _is_truthy_env(value: str) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -1306,50 +1381,64 @@ class AISchedulePlanner:
             loc: _build_location_prompt(loc, self.target_week_start, scores_data, metrics_data, profiles)
             for loc in self.locations
         }
+        variant_count = _ai_variant_count()
 
         def _plan_location(location: str):
             attempts = []
             max_tokens = _max_tokens_for_location(location)
-            for attempt_idx, attempt_model in enumerate(model_sequence):
-                print(f"  [Agent 5] {location.split(',')[0]} requesting {attempt_model}...", flush=True)
-                raw = self._call_model(client, attempt_model, system_prompt, user_prompts[location], location, max_tokens=max_tokens)
-                if raw is None:
-                    detail = self._ai_call_errors.get((location, attempt_model), "call failed")
-                    attempts.append(f"{location}: {attempt_model} {detail}")
-                    continue
-
-                slots, errors = _parse_schedule_response(
-                    raw, location, self.target_week_start, profiles_by_name
+            candidates = []
+            min_slots = _minimum_ai_slot_count_for_location(location)
+            for variant_idx in range(variant_count):
+                variant_prompt = _variant_location_prompt(
+                    user_prompts[location],
+                    variant_idx,
+                    variant_count,
+                    int(self.variation_seed or 0),
                 )
-                min_slots = _minimum_ai_slot_count_for_location(location)
-                if len(slots) < min_slots:
-                    attempts.append(
-                        f"{location}: {attempt_model} only {len(slots)} slots parsed; need {min_slots}"
-                    )
-                    attempts.extend(errors[:2])
-                    if self._skip_ai_backup_after_structural_failure(attempt_model):
-                        attempts.append(f"{location}: repaired deterministically after DeepSeek underfill")
-                        break
-                    continue
+                for attempt_idx, attempt_model in enumerate(model_sequence):
+                    label = f" variant {variant_idx + 1}/{variant_count}" if variant_count > 1 else ""
+                    print(f"  [Agent 5] {location.split(',')[0]} requesting {attempt_model}{label}...", flush=True)
+                    raw = self._call_model(client, attempt_model, system_prompt, variant_prompt, location, max_tokens=max_tokens)
+                    if raw is None:
+                        detail = self._ai_call_errors.get((location, attempt_model), "call failed")
+                        attempts.append(f"{location}: {attempt_model} {detail}")
+                        continue
 
-                slots = _validate_slots(slots, location, profiles_by_name)
-                # Score & drop low-performers BEFORE enforcing hard limits, so trainer
-                # hour budgets aren't consumed by slots that will be discarded.
-                slots = _score_slots(slots, scores_data)
-                slots = [slot for slot in slots if not any("LOW-PERFORMER" in v for v in (slot.constraint_violations or []))]
-                slots = _enforce_hard_limits(slots, location, profiles_by_name)
-                if not _has_enough_slots_after_enforcement(location, slots):
-                    attempts.append(
-                        f"{location}: {attempt_model} only {len(slots)} slots remained after hard-limit enforcement"
+                    slots, errors = _parse_schedule_response(
+                        raw, location, self.target_week_start, profiles_by_name
                     )
-                    attempts.extend(errors[:2])
-                    if self._skip_ai_backup_after_structural_failure(attempt_model):
-                        attempts.append(f"{location}: repaired deterministically after DeepSeek hard-limit underfill")
-                        break
-                    continue
-                if attempt_model != model_sequence[0]:
-                    attempts.append(f"{location}: recovered with backup model {attempt_model}")
-                return location, slots, attempts + errors
+                    if len(slots) < min_slots:
+                        attempts.append(
+                            f"{location}: {attempt_model} variant {variant_idx + 1} only {len(slots)} slots parsed; need {min_slots}"
+                        )
+                        attempts.extend(errors[:2])
+                        if self._skip_ai_backup_after_structural_failure(attempt_model):
+                            attempts.append(f"{location}: repaired deterministically after DeepSeek underfill")
+                            break
+                        continue
+
+                    slots = _validate_slots(slots, location, profiles_by_name)
+                    # Score & drop low-performers BEFORE enforcing hard limits, so trainer
+                    # hour budgets aren't consumed by slots that will be discarded.
+                    slots = _score_slots(slots, scores_data)
+                    slots = [slot for slot in slots if not any("LOW-PERFORMER" in v for v in (slot.constraint_violations or []))]
+                    slots = _enforce_hard_limits(slots, location, profiles_by_name)
+                    if not _has_enough_slots_after_enforcement(location, slots):
+                        attempts.append(
+                            f"{location}: {attempt_model} variant {variant_idx + 1} only {len(slots)} slots remained after hard-limit enforcement"
+                        )
+                        attempts.extend(errors[:2])
+                        if self._skip_ai_backup_after_structural_failure(attempt_model):
+                            attempts.append(f"{location}: repaired deterministically after DeepSeek hard-limit underfill")
+                            break
+                        continue
+                    if attempt_model != model_sequence[0]:
+                        attempts.append(f"{location}: recovered with backup model {attempt_model}")
+                    candidates.append((_candidate_quality(slots), slots, attempts + errors))
+                    break
+            if candidates:
+                candidates.sort(key=lambda item: item[0], reverse=True)
+                return location, candidates[0][1], candidates[0][2]
             return location, None, attempts or [f"{location}: AI call failed"]
 
         max_workers = _location_parallelism(model_sequence, len(self.locations))
@@ -1421,6 +1510,15 @@ class AISchedulePlanner:
         all_slots = _enforce_global_trainer_overlaps(all_slots, profiles_by_name)
         _print_utilisation(all_slots, profiles_by_name)
 
+        ai_run = _ai_run_metadata(
+            planner_mode="ai",
+            target_week_start=self.target_week_start,
+            variation_seed=self.variation_seed,
+            output_suffix=self.output_suffix,
+            model_sequence=model_sequence,
+            variant_count=variant_count,
+            repaired_locations=repaired_locations,
+        )
         output = {
             "target_week_start": self.target_week_start,
             "schedule": [asdict(s) for s in all_slots],
@@ -1430,8 +1528,10 @@ class AISchedulePlanner:
             "ai_models": model_sequence,
             "variation_seed": self.variation_seed,
             "output_suffix": self.output_suffix,
+            "ai_run": ai_run,
         }
 
+        _append_ai_run_metadata(ai_run)
         self._write_draft_output(output)
 
         print(f"[Agent 5] AI Planner complete — {len(all_slots)} total slots across {len(self.locations)} locations")
@@ -1521,6 +1621,14 @@ class AISchedulePlanner:
 
         primary_iteration = _select_primary_iteration(iterations)
 
+        ai_run = _ai_run_metadata(
+            planner_mode="greedy_fallback",
+            target_week_start=self.target_week_start,
+            variation_seed=self.variation_seed,
+            output_suffix=self.output_suffix,
+            variant_count=len(iterations),
+            selected_iteration_name=primary_iteration.get("iteration_name") or "",
+        )
         output = {
             "target_week_start": self.target_week_start,
             "schedule": primary_iteration["schedule"],
@@ -1529,7 +1637,9 @@ class AISchedulePlanner:
             "selected_iteration_name": primary_iteration.get("iteration_name"),
             "variation_seed": self.variation_seed,
             "output_suffix": self.output_suffix,
+            "ai_run": ai_run,
         }
+        _append_ai_run_metadata(ai_run)
         self._write_draft_output(output)
         return output
 

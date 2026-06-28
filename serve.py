@@ -21,6 +21,7 @@ from urllib import error as urlerror
 from urllib import request as urlrequest
 from urllib.parse import urlparse
 
+from agents.ingestor import DataIngestor
 from chat_assistant import build_chat_context
 from finalise_schedule import finalise_schedule_document
 from rule_config import build_rules_catalog, load_rules_config, update_rules_config
@@ -819,7 +820,11 @@ def _run_optimize_with_ai(payload: dict) -> dict:
     api_key = ""
     model = ""
     base_url = ""
-    if os.environ.get("OPENAI_API_KEY"):
+    if os.environ.get("OPENROUTER_API_KEY"):
+        api_key = str(os.environ.get("OPENROUTER_API_KEY") or "").strip()
+        model = str(os.environ.get("OPENROUTER_MODEL") or settings_options.get("ai_model") or DEFAULT_OPENROUTER_MODEL).strip()
+        base_url = str(os.environ.get("OPENROUTER_BASE_URL") or settings_options.get("ai_base_url") or DEFAULT_OPENROUTER_BASE_URL).strip()
+    elif os.environ.get("OPENAI_API_KEY"):
         api_key = str(os.environ.get("OPENAI_API_KEY") or "").strip()
         model = str(os.environ.get("OPENAI_MODEL") or settings_options.get("ai_optimize_model") or DEFAULT_OPENAI_MODEL).strip()
         base_url = str(os.environ.get("OPENAI_BASE_URL") or settings_options.get("ai_optimize_base_url") or DEFAULT_OPENAI_BASE_URL).strip()
@@ -827,27 +832,27 @@ def _run_optimize_with_ai(payload: dict) -> dict:
         api_key = str(os.environ.get("DEEPSEEK_API_KEY") or "").strip()
         model = str(os.environ.get("DEEPSEEK_MODEL") or settings_options.get("deepseek_model") or DEFAULT_DEEPSEEK_MODEL).strip()
         base_url = str(os.environ.get("DEEPSEEK_BASE_URL") or settings_options.get("deepseek_base_url") or DEFAULT_DEEPSEEK_BASE_URL).strip()
-    elif os.environ.get("OPENROUTER_API_KEY"):
-        api_key = str(os.environ.get("OPENROUTER_API_KEY") or "").strip()
-        model = str(os.environ.get("OPENROUTER_MODEL") or settings_options.get("ai_model") or DEFAULT_OPENROUTER_MODEL).strip()
-        base_url = str(os.environ.get("OPENROUTER_BASE_URL") or settings_options.get("ai_base_url") or DEFAULT_OPENROUTER_BASE_URL).strip()
     else:
+        payload_key = str(payload.get("api_key") or "").strip()
+        optimize_key = str(settings_options.get("ai_optimize_api_key") or "").strip()
+        openrouter_key = str(settings_options.get("ai_api_key") or "").strip()
+        deepseek_key = str(settings_options.get("deepseek_api_key") or "").strip()
         api_key = (
-            str(payload.get("api_key") or "").strip()
-            or str(settings_options.get("ai_optimize_api_key") or "").strip()
-            or str(settings_options.get("ai_api_key") or "").strip()
-            or str(settings_options.get("deepseek_api_key") or "").strip()
+            payload_key
+            or optimize_key
+            or openrouter_key
+            or deepseek_key
             or ""
         )
-        if str(settings_options.get("ai_optimize_model") or "").strip():
+        if payload_key or optimize_key or str(settings_options.get("ai_optimize_model") or "").strip():
             model = str(settings_options.get("ai_optimize_model") or DEFAULT_OPENAI_MODEL).strip()
             base_url = str(settings_options.get("ai_optimize_base_url") or DEFAULT_OPENAI_BASE_URL).strip()
-        elif str(settings_options.get("deepseek_model") or "").strip():
-            model = str(settings_options.get("deepseek_model") or DEFAULT_DEEPSEEK_MODEL).strip()
-            base_url = str(settings_options.get("deepseek_base_url") or DEFAULT_DEEPSEEK_BASE_URL).strip()
-        elif str(settings_options.get("ai_api_key") or "").strip():
+        elif openrouter_key:
             model = str(settings_options.get("ai_model") or DEFAULT_OPENROUTER_MODEL).strip()
             base_url = str(settings_options.get("ai_base_url") or DEFAULT_OPENROUTER_BASE_URL).strip()
+        elif deepseek_key or str(settings_options.get("deepseek_model") or "").strip():
+            model = str(settings_options.get("deepseek_model") or DEFAULT_DEEPSEEK_MODEL).strip()
+            base_url = str(settings_options.get("deepseek_base_url") or DEFAULT_DEEPSEEK_BASE_URL).strip()
         else:
             model = DEFAULT_OPENAI_MODEL
             base_url = DEFAULT_OPENAI_BASE_URL
@@ -1132,7 +1137,7 @@ def _saved_ai_api_key() -> str:
         load_dotenv_if_present()
     except Exception:
         pass
-    env_key = (os.environ.get("OPENAI_API_KEY") or os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("OPENROUTER_API_KEY") or "").strip()
+    env_key = (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENAI_API_KEY") or "").strip()
     if env_key:
         return env_key
     try:
@@ -1173,8 +1178,8 @@ def _saved_ai_runtime_settings() -> dict:
         return {}
     settings = data.get("settings_options") or {}
     return {
-        "provider": str(settings.get("ai_provider") or "openai").strip().lower(),
-        "model": str(settings.get("ai_model") or DEFAULT_OPENAI_MODEL).strip(),
+        "provider": str(settings.get("ai_provider") or "openrouter").strip().lower(),
+        "model": str(settings.get("ai_model") or DEFAULT_OPENROUTER_MODEL).strip(),
         "backup_model": str(settings.get("ai_backup_model") or DEFAULT_OPENROUTER_BACKUP_MODEL).strip(),
         "base_url": str(settings.get("ai_base_url") or "").strip(),
         "ai_api_key": str(settings.get("ai_api_key") or "").strip(),
@@ -1198,7 +1203,7 @@ def _inject_ai_key_env(child_env: dict, api_key: str, provider: str = "openai") 
 
 
 def _inject_ai_runtime_env(child_env: dict, runtime: dict) -> None:
-    provider = str(runtime.get("provider") or "openai").strip().lower()
+    provider = str(runtime.get("provider") or "openrouter").strip().lower()
     model = str(runtime.get("model") or "").strip()
     backup_model = str(runtime.get("backup_model") or "").strip()
     base_url = str(runtime.get("base_url") or "").strip()
@@ -1264,7 +1269,7 @@ def _resolve_pipeline_request_options(payload: dict | None, default_week: str) -
             runtime["provider"] = payload_provider
         elif not runtime.get("provider"):
             if api_key:
-                runtime["provider"] = "openai"
+                runtime["provider"] = "openrouter"
             elif deepseek_api_key:
                 runtime["provider"] = "deepseek"
         if payload_model:
@@ -1281,15 +1286,16 @@ def _resolve_pipeline_request_options(payload: dict | None, default_week: str) -
             runtime["deepseek_api_key"] = deepseek_api_key
         child_env.pop("SCHEDULER_FORCE_GREEDY", None)
         child_env["SCHEDULER_FORCE_AI_ONLY"] = "1"
+        child_env.setdefault("SCHEDULER_AI_VARIANTS_PER_LOCATION", "2")
         if runtime.get("provider") == "deepseek":
             if deepseek_api_key:
                 _inject_ai_key_env(child_env, deepseek_api_key, "deepseek")
-                _inject_ai_key_env(child_env, api_key, "openai")
+                _inject_ai_key_env(child_env, api_key, "openrouter")
             else:
-                runtime["provider"] = "openai"
-                _inject_ai_key_env(child_env, api_key, "openai")
+                runtime["provider"] = "openrouter"
+                _inject_ai_key_env(child_env, api_key, "openrouter")
         else:
-            _inject_ai_key_env(child_env, api_key, runtime.get("provider") or "openai")
+            _inject_ai_key_env(child_env, api_key, runtime.get("provider") or "openrouter")
             if deepseek_api_key:
                 _inject_ai_key_env(child_env, deepseek_api_key, "deepseek")
         _inject_ai_runtime_env(child_env, runtime)
@@ -1425,6 +1431,13 @@ def _trainer_qualified_for_manual_class(profile, class_name):
         return True
     key = _qual_key_for_manual_class(class_name)
     if q.get(key):
+        return True
+    aliases = {
+        "all_barre": ("barre_57", "studio_barre_57", "barre"),
+        "cardio_barre": ("cardio", "studio_cardio_barre"),
+        "mat_57": ("mat57", "studio_mat_57"),
+    }
+    if any(q.get(alias) for alias in aliases.get(key, ())):
         return True
     lower = str(class_name or "").lower()
     if "express" in lower and key == "powercycle" and q.get("express_cycle"):
@@ -2052,6 +2065,13 @@ class RulesHandler(BaseHTTPRequestHandler):
 
         if path == "/api/latest-schedule-file":
             self._send_json(200, {"file": "schedule_data.json"})
+            return
+
+        if path == "/api/source-health":
+            try:
+                self._send_json(200, DataIngestor(self.pipeline_csv).source_health())
+            except Exception as exc:
+                self._send_json(500, {"ok": False, "source_url": self.pipeline_csv, "error": str(exc)})
             return
 
         # API: trainer profiles
