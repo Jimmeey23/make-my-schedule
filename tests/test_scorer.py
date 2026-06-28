@@ -204,7 +204,7 @@ def test_google_sheet_source_uses_sheet_tabs_not_local_csv(tmp_path, monkeypatch
     ]
     loaded_tabs = []
 
-    def fake_load_google_sheet(self, sheet_title):
+    def fake_load_google_sheet(self, sheet_title, fallback_titles=()):
         loaded_tabs.append(sheet_title)
         if sheet_title == "Sessions Sheet":
             return __import__("pandas").DataFrame(slot_rows)
@@ -221,6 +221,69 @@ def test_google_sheet_source_uses_sheet_tabs_not_local_csv(tmp_path, monkeypatch
     assert loaded_tabs == ["Sessions Sheet", "Teacher Recurring"]
     slot = next(r for r in output["slot_group_ranking"] if r["unique_id_1"] == "SLOT_0900")
     assert [t["trainer"] for t in slot["top_trainers"]] == ["Active Trainer"]
+
+
+def test_scorer_falls_back_to_sessions_tab_when_default_title_is_missing(monkeypatch):
+    import agents.scorer as scorer_module
+
+    captured_ranges = []
+
+    class FakeRangeError(Exception):
+        def __init__(self):
+            super().__init__("Unable to parse range: 'Sessions Sheet'!A1:ZZ")
+            self.resp = type("Resp", (), {"status": 400})()
+
+    class FakeMetadataResponse:
+        def execute(self):
+            return {
+                "sheets": [
+                    {"properties": {"title": "VC"}},
+                    {"properties": {"title": "Sessions"}},
+                    {"properties": {"title": "Teacher Recurring"}},
+                ]
+            }
+
+    class FakeValuesResponse:
+        def __init__(self, range_name):
+            self.range_name = range_name
+
+        def execute(self):
+            captured_ranges.append(self.range_name)
+            if self.range_name == "'Sessions Sheet'!A1:ZZ":
+                raise FakeRangeError()
+            if self.range_name == "'VC'!A1:ZZ":
+                return {"values": [["VCOnly"], ["not sessions"]]}
+            return {"values": [["Trainer"], ["Anisha Shah"]]}
+
+    class FakeValues:
+        def get(self, **kwargs):
+            return FakeValuesResponse(kwargs["range"])
+
+    class FakeSpreadsheets:
+        def get(self, **kwargs):
+            return FakeMetadataResponse()
+
+        def values(self):
+            return FakeValues()
+
+    class FakeService:
+        def spreadsheets(self):
+            return FakeSpreadsheets()
+
+    monkeypatch.setattr(scorer_module, "GoogleHttpError", None)
+    monkeypatch.setattr(scorer_module, "google_build", lambda *args, **kwargs: FakeService())
+    monkeypatch.setattr(
+        scorer_module.ClassScorer,
+        "_load_google_credentials",
+        lambda self: object(),
+    )
+
+    df = scorer_module.ClassScorer(
+        csv_path="https://docs.google.com/spreadsheets/d/test-sheet/edit?gid=1313838163#gid=1313838163"
+    )._load_google_sheet("Sessions Sheet", scorer_module.PREFERRED_SLOTS_SHEET_TITLES)
+
+    assert list(df.columns) == ["Trainer"]
+    assert captured_ranges[:2] == ["'Sessions Sheet'!A1:ZZ", "'Sessions'!A1:ZZ"]
 
 
 def test_scorer_prefers_service_account_over_broken_oauth_env(monkeypatch):

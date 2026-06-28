@@ -12,12 +12,14 @@ try:
     from google.oauth2.credentials import Credentials as GoogleUserCredentials
     from google.oauth2.service_account import Credentials as GoogleServiceAccountCredentials
     from googleapiclient.discovery import build as google_build
+    from googleapiclient.errors import HttpError as GoogleHttpError
 except Exception:  # pragma: no cover - optional dependency fallback
     GoogleRefreshError = None
     GoogleAuthRequest = None
     GoogleUserCredentials = None
     GoogleServiceAccountCredentials = None
     google_build = None
+    GoogleHttpError = None
 
 STATE_DIR = Path("state")
 VALID_LOCATIONS = [
@@ -165,7 +167,6 @@ class DataIngestor:
                 token_uri="https://oauth2.googleapis.com/token",
                 client_id=client_id,
                 client_secret=client_secret,
-                scopes=GOOGLE_SHEETS_SCOPES,
             )
             if GoogleAuthRequest is not None:
                 try:
@@ -209,6 +210,12 @@ class DataIngestor:
     def _session_schema_score(self, df: pd.DataFrame) -> int:
         columns = {str(col).strip() for col in df.columns}
         return sum(1 for col in REQUIRED_SESSION_COLUMNS if col in columns)
+
+    def _is_unparseable_sheet_range_error(self, exc: Exception) -> bool:
+        if GoogleHttpError is not None and not isinstance(exc, GoogleHttpError):
+            return False
+        status = getattr(getattr(exc, "resp", None), "status", None)
+        return status == 400 and "Unable to parse range" in str(exc)
 
     def _is_sessions_dataframe(self, df: pd.DataFrame) -> bool:
         return self._session_schema_score(df) == len(REQUIRED_SESSION_COLUMNS)
@@ -255,7 +262,12 @@ class DataIngestor:
         best_score = -1
         best_df = pd.DataFrame()
         for title in ordered_titles:
-            df = self._sheet_dataframe(service, spreadsheet_id, title)
+            try:
+                df = self._sheet_dataframe(service, spreadsheet_id, title)
+            except Exception as exc:
+                if self._is_unparseable_sheet_range_error(exc):
+                    continue
+                raise
             score = self._session_schema_score(df)
             if score > best_score:
                 best_title = title

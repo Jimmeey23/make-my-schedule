@@ -4973,6 +4973,108 @@ def test_data_ingestor_falls_back_to_sessions_tab_when_gid_points_to_wrong_tab(t
     assert output["source"]["sheet_title"] == "Sessions Sheet"
 
 
+def test_data_ingestor_skips_missing_preferred_sessions_sheet_title(tmp_path, monkeypatch):
+    import agents.ingestor as ingestor_module
+
+    captured_ranges = []
+
+    class FakeRangeError(Exception):
+        def __init__(self):
+            super().__init__("Unable to parse range: 'Sessions Sheet'!A1:Z50000")
+            self.resp = type("Resp", (), {"status": 400})()
+
+    class FakeMetadataResponse:
+        def execute(self):
+            return {
+                "sheets": [
+                    {"properties": {"sheetId": 1313838163, "title": "VC"}},
+                    {"properties": {"sheetId": 2108019763, "title": "Sessions"}},
+                    {"properties": {"sheetId": 1778490418, "title": "Teacher Recurring"}},
+                ]
+            }
+
+    class FakeValuesResponse:
+        def __init__(self, range_name):
+            self.range_name = range_name
+
+        def execute(self):
+            captured_ranges.append(self.range_name)
+            if self.range_name == "'Sessions Sheet'!A1:Z50000":
+                raise FakeRangeError()
+            if self.range_name == "'VC'!A1:Z50000":
+                return {"values": [["VCOnly"], ["not sessions"]]}
+            return {
+                "values": [
+                    [
+                        "Trainer",
+                        "SessionName",
+                        "Capacity",
+                        "CheckedIn",
+                        "LateCancelled",
+                        "Booked",
+                        "Location",
+                        "Date",
+                        "Day",
+                        "Time",
+                        "Revenue",
+                        "Class",
+                    ],
+                    [
+                        "Anisha Shah",
+                        "Studio FIT",
+                        "15",
+                        "6",
+                        "0",
+                        "6",
+                        "Kwality House, Kemps Corner",
+                        "2024-02-28",
+                        "Wednesday",
+                        "11:30:00",
+                        "4773.06",
+                        "Studio FIT",
+                    ],
+                ]
+            }
+
+    class FakeValues:
+        def get(self, **kwargs):
+            return FakeValuesResponse(kwargs["range"])
+
+    class FakeSpreadsheets:
+        def get(self, **kwargs):
+            return FakeMetadataResponse()
+
+        def values(self):
+            return FakeValues()
+
+    class FakeService:
+        def spreadsheets(self):
+            return FakeSpreadsheets()
+
+    monkeypatch.setattr(ingestor_module, "GoogleHttpError", None)
+    monkeypatch.setattr(ingestor_module, "google_build", lambda *args, **kwargs: FakeService())
+    monkeypatch.setattr(
+        ingestor_module.DataIngestor,
+        "_load_google_credentials",
+        lambda self: object(),
+    )
+    monkeypatch.setattr(ingestor_module, "STATE_DIR", tmp_path)
+
+    ingestor = ingestor_module.DataIngestor(
+        "https://docs.google.com/spreadsheets/d/test-sheet/edit?gid=1313838163#gid=1313838163"
+    )
+    output = ingestor.run()
+
+    assert output["total_sessions"] == 1
+    assert captured_ranges[:3] == [
+        "'VC'!A1:Z50000",
+        "'Sessions Sheet'!A1:Z50000",
+        "'Sessions'!A1:Z50000",
+    ]
+    assert output["source"]["requested_sheet_title"] == "VC"
+    assert output["source"]["sheet_title"] == "Sessions"
+
+
 def test_data_ingestor_prefers_service_account_over_broken_oauth_env(monkeypatch):
     import agents.ingestor as ingestor_module
 

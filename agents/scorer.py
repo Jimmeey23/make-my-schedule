@@ -23,18 +23,21 @@ try:
     from google.oauth2.credentials import Credentials as GoogleUserCredentials
     from google.oauth2.service_account import Credentials as GoogleServiceAccountCredentials
     from googleapiclient.discovery import build as google_build
+    from googleapiclient.errors import HttpError as GoogleHttpError
 except Exception:  # pragma: no cover - optional dependency fallback
     GoogleRefreshError = None
     GoogleAuthRequest = None
     GoogleUserCredentials = None
     GoogleServiceAccountCredentials = None
     google_build = None
+    GoogleHttpError = None
 
 STATE_DIR = Path("state")
 GOOGLE_SHEETS_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 DEFAULT_GOOGLE_SHEET_RANGE = "A1:ZZ"
 DEFAULT_SLOTS_SHEET_TITLE = os.environ.get("SESSIONS_SHEET_TITLE", "Sessions Sheet")
 DEFAULT_TRAINER_SHEET_TITLE = os.environ.get("TEACHER_RECURRING_SHEET_TITLE", "Teacher Recurring")
+PREFERRED_SLOTS_SHEET_TITLES = (DEFAULT_SLOTS_SHEET_TITLE, "Sessions", "Session Data")
 
 # CSV column interpretation (column names are misleading — see comments)
 COL_TRAINER = "Trainer"
@@ -273,7 +276,6 @@ class ClassScorer:
                 token_uri="https://oauth2.googleapis.com/token",
                 client_id=client_id,
                 client_secret=client_secret,
-                scopes=GOOGLE_SHEETS_SCOPES,
             )
             if GoogleAuthRequest is not None:
                 try:
@@ -291,14 +293,7 @@ class ClassScorer:
 
         return None
 
-    def _load_google_sheet(self, sheet_title: str) -> pd.DataFrame:
-        spreadsheet_id = self._google_spreadsheet_id()
-        credentials = self._load_google_credentials()
-        if not spreadsheet_id or credentials is None or google_build is None:
-            raise RuntimeError(
-                "Google Sheets OAuth credentials are required to read the historic performance source."
-            )
-        service = google_build("sheets", "v4", credentials=credentials, cache_discovery=False)
+    def _sheet_dataframe(self, service, spreadsheet_id: str, sheet_title: str) -> pd.DataFrame:
         escaped_title = sheet_title.replace("'", "''")
         range_name = f"'{escaped_title}'!{DEFAULT_GOOGLE_SHEET_RANGE}"
         values = service.spreadsheets().values().get(
@@ -318,6 +313,57 @@ class ClassScorer:
                 normalized.extend([""] * (header_len - len(normalized)))
             rows.append(normalized)
         return pd.DataFrame(rows, columns=header)
+
+    def _is_unparseable_sheet_range_error(self, exc: Exception) -> bool:
+        if GoogleHttpError is not None and not isinstance(exc, GoogleHttpError):
+            return False
+        status = getattr(getattr(exc, "resp", None), "status", None)
+        return status == 400 and "Unable to parse range" in str(exc)
+
+    def _load_google_sheet(self, sheet_title: str, fallback_titles: tuple[str, ...] = ()) -> pd.DataFrame:
+        spreadsheet_id = self._google_spreadsheet_id()
+        credentials = self._load_google_credentials()
+        if not spreadsheet_id or credentials is None or google_build is None:
+            raise RuntimeError(
+                "Google Sheets OAuth credentials are required to read the historic performance source."
+            )
+        service = google_build("sheets", "v4", credentials=credentials, cache_discovery=False)
+        sheet_titles = []
+        try:
+            metadata = service.spreadsheets().get(
+                spreadsheetId=spreadsheet_id,
+                fields="sheets(properties(title))",
+            ).execute()
+            sheet_titles = [
+                sheet.get("properties", {}).get("title")
+                for sheet in metadata.get("sheets", [])
+                if sheet.get("properties", {}).get("title")
+            ]
+        except Exception:
+            sheet_titles = []
+
+        ordered_titles = []
+        for title in (sheet_title, *fallback_titles, *sheet_titles):
+            if title and title not in ordered_titles:
+                ordered_titles.append(title)
+
+        last_error = None
+        for title in ordered_titles:
+            try:
+                df = self._sheet_dataframe(service, spreadsheet_id, title)
+            except Exception as exc:
+                if self._is_unparseable_sheet_range_error(exc):
+                    last_error = exc
+                    continue
+                raise
+            if not df.empty:
+                if title != sheet_title:
+                    print(f"[Agent 3] Using Google Sheet tab '{title}' instead of '{sheet_title}'")
+                return df
+
+        if last_error is not None:
+            raise last_error
+        return pd.DataFrame()
 
     def _inactive_trainers(self) -> set:
         inactive = set()
@@ -444,7 +490,7 @@ class ClassScorer:
         slot_source = f"Google Sheet tab: {DEFAULT_SLOTS_SHEET_TITLE}"
         trainer_label = f"Google Sheet tab: {DEFAULT_TRAINER_SHEET_TITLE}"
         slot_source_df = _load_performance_frame(
-            self._load_google_sheet(DEFAULT_SLOTS_SHEET_TITLE),
+            self._load_google_sheet(DEFAULT_SLOTS_SHEET_TITLE, PREFERRED_SLOTS_SHEET_TITLES),
             slot_source,
         )
         trainer_source_df = _load_performance_frame(
