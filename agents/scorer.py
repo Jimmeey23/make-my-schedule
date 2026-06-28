@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 
 from agents.io_utils import atomic_write_json
+from agents.sheet_value_utils import normalize_google_sheet_time, parse_google_sheet_dates
 
 try:
     from google.auth.exceptions import RefreshError as GoogleRefreshError
@@ -394,18 +395,14 @@ class ClassScorer:
         print("[Agent 3] Scorer starting (historic UD1-first mode)...")
 
         def _clean_time(t):
-            s = str(t).strip()
-            m = re.match(r"^(\d{1,2}):(\d{2})", s)
-            if m:
-                return f"{int(m.group(1)):02d}:{m.group(2)}"
-            return s
+            return normalize_google_sheet_time(t)
 
         def _load_performance_frame(df: pd.DataFrame, label: str) -> pd.DataFrame:
             df = df.copy()
             print(f"  Loaded {len(df):,} rows from {label}")
 
             if COL_DAY not in df.columns and "Date" in df.columns:
-                parsed_dates = pd.to_datetime(df["Date"], errors="coerce", format="mixed")
+                parsed_dates = parse_google_sheet_dates(df["Date"])
                 df[COL_DAY] = parsed_dates.dt.day_name()
 
             session_names = df["SessionName"] if "SessionName" in df.columns else ""

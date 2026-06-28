@@ -5027,9 +5027,9 @@ def test_data_ingestor_skips_missing_preferred_sessions_sheet_title(tmp_path, mo
                         "0",
                         "6",
                         "Kwality House, Kemps Corner",
-                        "2024-02-28",
+                        45350,
                         "Wednesday",
-                        "11:30:00",
+                        0.479167,
                         "4773.06",
                         "Studio FIT",
                     ],
@@ -5066,6 +5066,8 @@ def test_data_ingestor_skips_missing_preferred_sessions_sheet_title(tmp_path, mo
     output = ingestor.run()
 
     assert output["total_sessions"] == 1
+    assert output["date_range"] == {"min": "2024-02-28", "max": "2024-02-28"}
+    assert output["sessions"][0]["Time"] == "11:30"
     assert captured_ranges[:3] == [
         "'VC'!A1:Z50000",
         "'Sessions Sheet'!A1:Z50000",
@@ -5073,6 +5075,20 @@ def test_data_ingestor_skips_missing_preferred_sessions_sheet_title(tmp_path, mo
     ]
     assert output["source"]["requested_sheet_title"] == "VC"
     assert output["source"]["sheet_title"] == "Sessions"
+
+
+def test_google_sheet_serial_dates_and_fractional_times_are_normalized():
+    import pandas as pd
+
+    from agents.sheet_value_utils import normalize_google_sheet_time, parse_google_sheet_dates
+
+    parsed = parse_google_sheet_dates(pd.Series([45351, "2024-02-28", "not a date"]))
+
+    assert parsed.iloc[0] == pd.Timestamp("2024-02-29")
+    assert parsed.iloc[1] == pd.Timestamp("2024-02-28")
+    assert pd.isna(parsed.iloc[2])
+    assert normalize_google_sheet_time(0.479167) == "11:30"
+    assert normalize_google_sheet_time("7:30:00") == "07:30"
 
 
 def test_data_ingestor_prefers_service_account_over_broken_oauth_env(monkeypatch):

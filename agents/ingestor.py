@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
+from agents.sheet_value_utils import normalize_google_sheet_time, parse_google_sheet_dates
+
 try:
     from google.auth.exceptions import RefreshError as GoogleRefreshError
     from google.auth.transport.requests import Request as GoogleAuthRequest
@@ -316,7 +318,7 @@ class DataIngestor:
             missing = sorted(REQUIRED_SESSION_COLUMNS - {str(col).strip() for col in df.columns})
             date_range = {"min": None, "max": None}
             if "Date" in df.columns:
-                parsed_dates = pd.to_datetime(df["Date"].astype(str).str.strip(), errors="coerce", format="mixed").dropna()
+                parsed_dates = parse_google_sheet_dates(df["Date"]).dropna()
                 if not parsed_dates.empty:
                     date_range = {
                         "min": parsed_dates.min().strftime("%Y-%m-%d"),
@@ -359,11 +361,11 @@ class DataIngestor:
             )
 
         # Parse date
-        df["Date"] = pd.to_datetime(df["Date"].astype(str).str.strip(), errors="coerce", format="mixed")
+        df["Date"] = parse_google_sheet_dates(df["Date"])
         df = df.dropna(subset=["Date"])
 
         # Normalize time to HH:MM
-        df["Time"] = df["Time"].astype(str).str.strip().str[:5]
+        df["Time"] = df["Time"].apply(normalize_google_sheet_time)
 
         # Normalize whitespace in text columns (collapse double-spaces, strip)
         for col in ["Trainer", "Class", "Location"]:
@@ -413,6 +415,8 @@ class DataIngestor:
 
         # Drop rows with missing critical fields
         df = df.dropna(subset=["Location", "Class", "Trainer", "Time"])
+        if df.empty:
+            raise ValueError("Sessions data has no valid rows after parsing dates and required fields.")
 
         total = len(df)
         date_min = df["Date"].min().strftime("%Y-%m-%d")
