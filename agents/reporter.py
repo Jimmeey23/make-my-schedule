@@ -750,6 +750,424 @@ class OutputReporter:
         return errors, warnings
 
     # ------------------------------------------------------------------ #
+    #  Compliance report
+    # ------------------------------------------------------------------ #
+
+  def _build_compliance_report(self, location: str, slots: List[dict], score_baselines: Dict[str, float] = None) -> dict:
+        """Build a per-studio rules-met/missed compliance report for the UI."""
+        rules = []
+        total = len(slots)
+        score_baselines = score_baselines or {}
+
+        def _rule(id_, category, label, status, actual, expected, reason=None):
+            rules.append({
+                "id": id_, "category": category, "label": label,
+                "status": status, "actual": str(actual), "expected": str(expected),
+                "reason": reason,
+            })
+
+        # ---- Load trainer tiers ----------------------------------------
+        tier1_trainers: set = set()
+        try:
+            with open(Path("rules/trainer_profiles.json")) as _tf:
+                _tpd = json.load(_tf)
+            for _t in _tpd.get("trainers", []):
+                if _t.get("tier") == 1:
+                    tier1_trainers.add(_t["name"])
+        except Exception:
+            pass
+
+        # ---- Per-trainer aggregations ----------------------------------
+        trainer_daily_min: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        trainer_days: Dict[str, set] = defaultdict(set)
+        trainer_weekly_min: Dict[str, int] = defaultdict(int)
+        trainer_am_pm: Dict[str, Dict[str, set]] = defaultdict(lambda: {"am": set(), "pm": set()})
+
+        for s in slots:
+            t = s.get("trainer_1") or ""
+            day = s.get("day_of_week") or ""
+            dur = int(s.get("duration_min") or 57)
+            time_str = (s.get("time") or "")[:5]
+            if t and day:
+                trainer_daily_min[t][day] += dur
+                trainer_days[t].add(day)
+                trainer_weekly_min[t] += dur
+                hour = int(time_str.split(":")[0]) if ":" in time_str else 0
+                if hour < 13:
+                    trainer_am_pm[t]["am"].add(day)
+                else:
+                    trainer_am_pm[t]["pm"].add(day)
+
+        # ---- BUSINESS: weekly floor -----------------------------------
+        FLOORS = {
+            "Kwality House, Kemps Corner": 70,
+            "Supreme HQ, Bandra": 65,
+            "Kenkere House": 55,
+        }
+        if location in FLOORS:
+            floor = FLOORS[location]
+            if total >= floor:
+                _rule("FLOOR-001", "business", "Weekly assignment floor", "PASS",
+                      f"{total} classes", f"≥{floor}")
+            else:
+                _rule("FLOOR-001", "business", "Weekly assignment floor", "FAIL",
+                      f"{total} classes", f"≥{floor}",
+                      f"Need {floor - total} more classes to meet floor")
+
+        # ---- BUSINESS: daily trainer 4h cap ---------------------------
+        daily_violations = [
+            f"{t} {d} {round(m/60,1)}h"
+            for t, days in trainer_daily_min.items()
+            for d, m in days.items()
+            if m > 240
+        ]
+        if daily_violations:
+            _rule("TRAINER-DAILY", "business", "No trainer >4h in one day", "FAIL",
+                  "; ".join(daily_violations[:3]) + ("…" if len(daily_violations) > 3 else ""),
+                  "≤4h/day",
+                  f"{len(daily_violations)} violation(s)")
+        else:
+            _rule("TRAINER-DAILY", "business", "No trainer >4h in one day", "PASS",
+                  "All trainers ≤4h/day", "≤4h/day")
+
+        # ---- BUSINESS: AM/PM split ------------------------------------
+        ampm_violations = [
+            f"{t} on {d}"
+            for t, shifts in trainer_am_pm.items()
+            for d in (shifts["am"] & shifts["pm"])
+        ]
+        if ampm_violations:
+            _rule("TRAINER-AMPM", "business", "No trainer on both AM and PM same day", "FAIL",
+                  "; ".join(ampm_violations[:3]) + ("…" if len(ampm_violations) > 3 else ""),
+                  "AM or PM only per day",
+                  f"{len(ampm_violations)} trainer-day(s) with both AM and PM")
+        else:
+            _rule("TRAINER-AMPM", "business", "No trainer on both AM and PM same day", "PASS",
+                  "No AM+PM conflicts", "AM or PM only per day")
+
+        # ---- BUSINESS: trainer off day --------------------------------
+        all_days_set = set(DAY_ORDER)
+        no_offday = [t for t, days in trainer_days.items() if days >= all_days_set]
+        if no_offday:
+            _rule("TRAINER-OFFDAY", "business", "Every trainer ≥1 weekly off day", "FAIL",
+                  f"{', '.join(no_offday[:3])} working all 7 days",
+                  "≥1 off day/week",
+                  f"{len(no_offday)} trainer(s) have no off day")
+        else:
+            _rule("TRAINER-OFFDAY", "business", "Every trainer ≥1 weekly off day", "PASS",
+                  "All trainers have off day(s)", "≥1 off day/week")
+
+        # ---- BUSINESS: Tier 1 weekly hours toward 15h ----------------
+        tier1_in_sched = {t: trainer_weekly_min[t] for t in trainer_weekly_min if t in tier1_trainers}
+        over_cap = {t: m for t, m in tier1_in_sched.items() if m > 900}
+        under_target = {t: m for t, m in tier1_in_sched.items() if m < 720 and t in tier1_trainers}
+        if over_cap:
+            names = ", ".join(f"{t} {round(m/60,1)}h" for t, m in list(over_cap.items())[:3])
+            _rule("TIER1-CAP", "business", "Tier 1 trainers ≤15h/week", "FAIL",
+                  names, "≤15h/week", f"{len(over_cap)} Tier 1 trainer(s) over 15h cap")
+        elif under_target:
+            names = ", ".join(f"{t} {round(m/60,1)}h" for t, m in list(under_target.items())[:3])
+            _rule("TIER1-CAP", "business", "Tier 1 trainers toward 15h/week", "WARN",
+                  names, "12–15h/week target",
+                  f"{len(under_target)} Tier 1 trainer(s) below 12h — consider adding classes")
+        else:
+            _rule("TIER1-CAP", "business", "Tier 1 trainers ≤15h/week", "PASS",
+                  f"{len(tier1_in_sched)} Tier 1 trainer(s) within target", "12–15h/week")
+
+        # ---- BUSINESS: weekly 15h hard cap (any trainer) ---------------
+        hard_over = {t: m for t, m in trainer_weekly_min.items() if m > 900}
+        if hard_over:
+            names = ", ".join(f"{t} {round(m/60,1)}h" for t, m in list(hard_over.items())[:3])
+            _rule("WEEKLY-CAP", "business", "No trainer >15h/week", "FAIL",
+                  names, "≤15h/week", f"{len(hard_over)} trainer(s) exceed 15h cap")
+        else:
+            _rule("WEEKLY-CAP", "business", "No trainer >15h/week", "PASS",
+                  "All trainers ≤15h/week", "≤15h/week")
+
+        # ---- BUSINESS: peak cluster fill ------------------------------
+        peak_windows = [("08:00", "08:45"), ("11:00", "11:45"), ("18:00", "18:45")]
+        peak_label = "08:00–08:45, 11:00–11:45, 18:00–18:45"
+        peak_count = sum(
+            1 for s in slots
+            for start, end in peak_windows
+            if start <= (s.get("time") or "")[:5] <= end
+        )
+        total_peak_capacity = 3 * 7 * 2  # 3 windows × 7 days × ~2 rooms
+        if location in ("Kwality House, Kemps Corner", "Supreme HQ, Bandra"):
+            if peak_count >= 20:
+                _rule("PEAK-CLUSTERS", "business", "Fill peak time clusters", "PASS",
+                      f"{peak_count} classes in peak windows", f"≥20 peak placements")
+            elif peak_count >= 12:
+                _rule("PEAK-CLUSTERS", "business", "Fill peak time clusters", "WARN",
+                      f"{peak_count} classes in peak windows", "≥20 peak placements",
+                      "Peak clusters not fully utilised — check room/trainer availability at 08:00–08:45, 11:00–11:45, 18:00–18:45")
+            else:
+                _rule("PEAK-CLUSTERS", "business", "Fill peak time clusters", "FAIL",
+                      f"{peak_count} classes in peak windows", "≥20 peak placements",
+                      f"Only {peak_count} peak-window classes — significant demand windows unfilled")
+
+        # ---- BUSINESS: PowerCycle location restriction ----------------
+        pc_slots = [s for s in slots if "powercycle" in (s.get("class_name") or "").lower() or "power cycle" in (s.get("class_name") or "").lower()]
+        if location == "Kenkere House" and pc_slots:
+            _rule("FORMAT-POWERCYCLE", "business", "PowerCycle not at Kenkere House", "FAIL",
+                  f"{len(pc_slots)} PowerCycle class(es) scheduled", "0 PowerCycle classes",
+                  "PowerCycle is Mumbai-only format")
+        elif location in ("Kwality House, Kemps Corner", "Supreme HQ, Bandra"):
+            _rule("FORMAT-POWERCYCLE", "business", "PowerCycle only at Mumbai studios", "PASS",
+                  f"{len(pc_slots)} PowerCycle class(es)", "Mumbai only")
+
+        # ---- BUSINESS: Strength Lab location restriction --------------
+        sl_slots = [s for s in slots if "strength lab" in (s.get("class_name") or "").lower()]
+        if location != "Kwality House, Kemps Corner" and sl_slots:
+            _rule("FORMAT-STRENGTH", "business", "Strength Lab only at Kwality House", "FAIL",
+                  f"{len(sl_slots)} Strength Lab class(es) at {location}", "Kwality House only",
+                  "Strength Lab is Kwality House exclusive format")
+        elif location == "Kwality House, Kemps Corner":
+            _rule("FORMAT-STRENGTH", "business", "Strength Lab only at Kwality House", "PASS",
+                  f"{len(sl_slots)} Strength Lab class(es)", "Kwality House only")
+
+        # ---- SOFT: MIX-001 Barre family 45–55% ----------------------
+        barre_kws = ["Barre 57", "Cardio Barre", "Power Barre", "Barre Fusion"]
+        barre_count = sum(1 for s in slots if any(kw in (s.get("class_name") or "") for kw in barre_kws))
+        barre_pct = round(barre_count / total * 100, 1) if total else 0
+        if 45 <= barre_pct <= 55:
+            _rule("MIX-001", "soft", "Barre 57 family 45–55% of classes", "PASS",
+                  f"{barre_pct}% ({barre_count} classes)", "45–55%")
+        elif barre_pct < 45:
+            need = int((0.45 * total) - barre_count) + 1
+            _rule("MIX-001", "soft", "Barre 57 family 45–55% of classes", "WARN",
+                  f"{barre_pct}% ({barre_count} classes)", "45–55%",
+                  f"Below target — need ~{need} more Barre family class(es) to reach 45%")
+        else:
+            over = barre_count - int(0.55 * total)
+            _rule("MIX-001", "soft", "Barre 57 family 45–55% of classes", "WARN",
+                  f"{barre_pct}% ({barre_count} classes)", "45–55%",
+                  f"Above target — ~{over} class(es) over 55% ceiling")
+
+        # ---- SOFT: MIX-002 PowerCycle % target -----------------------
+        pc_count = len(pc_slots)
+        pc_pct = round(pc_count / total * 100, 1) if total else 0
+        pc_targets = {
+            "Kwality House, Kemps Corner": (8, 10),
+            "Supreme HQ, Bandra": (25, 28),
+            "Kenkere House": (0, 0),
+        }
+        if location in pc_targets:
+            lo, hi = pc_targets[location]
+            if lo == 0 and pc_count == 0:
+                _rule("MIX-002", "soft", "PowerCycle format %", "PASS",
+                      "0% (0 classes)", "0% (not scheduled here)")
+            elif lo <= pc_pct <= hi:
+                _rule("MIX-002", "soft", "PowerCycle format %", "PASS",
+                      f"{pc_pct}% ({pc_count} classes)", f"{lo}–{hi}%")
+            else:
+                direction = "below" if pc_pct < lo else "above"
+                _rule("MIX-002", "soft", "PowerCycle format %", "WARN",
+                      f"{pc_pct}% ({pc_count} classes)", f"{lo}–{hi}%",
+                      f"PowerCycle {direction} target range for {location}")
+
+        # ---- SOFT: MIX-003 Mat 57 min 3–4x/week ---------------------
+        mat57_count = sum(1 for s in slots if "mat 57" in (s.get("class_name") or "").lower())
+        if mat57_count >= 3:
+            _rule("MIX-003", "soft", "Mat 57 min 3–4x per week", "PASS",
+                  f"{mat57_count} Mat 57 classes", "≥3/week")
+        else:
+            _rule("MIX-003", "soft", "Mat 57 min 3–4x per week", "WARN",
+                  f"{mat57_count} Mat 57 classes", "≥3/week",
+                  f"Need {3 - mat57_count} more Mat 57 class(es) per week")
+
+        # ---- SOFT: MIX-007 Back Body Blaze morning ≤3x/week ----------
+        bbb_slots = [s for s in slots if "back body" in (s.get("class_name") or "").lower()]
+        bbb_morning = [s for s in bbb_slots if (s.get("time") or "")[:5] < "09:01"]
+        bbb_evening = [s for s in bbb_slots if (s.get("time") or "")[:5] >= "09:01"]
+        if bbb_evening:
+            names = ", ".join(f"{s.get('day_of_week','')} {s.get('time','')}" for s in bbb_evening[:2])
+            _rule("MIX-007", "soft", "Back Body Blaze morning only 07:30–09:00 ≤3x/week", "WARN",
+                  f"{len(bbb_evening)} non-morning slot(s): {names}", "07:30–09:00 only",
+                  "Back Body Blaze should be morning (07:30–09:00)")
+        elif len(bbb_morning) > 3:
+            _rule("MIX-007", "soft", "Back Body Blaze morning only 07:30–09:00 ≤3x/week", "WARN",
+                  f"{len(bbb_morning)} morning slot(s)", "≤3/week",
+                  f"Exceeds 3x/week — consider replacing {len(bbb_morning) - 3} with other formats")
+        elif bbb_slots:
+            _rule("MIX-007", "soft", "Back Body Blaze morning only 07:30–09:00 ≤3x/week", "PASS",
+                  f"{len(bbb_morning)} morning Back Body Blaze", "≤3/week, morning only")
+
+        # ---- SOFT: MIX-008 Amped Up ≤2x/week Reshma/Rohan -----------
+        amped_slots = [s for s in slots if "amped" in (s.get("class_name") or "").lower()]
+        amped_count = len(amped_slots)
+        amped_wrong_trainer = [
+            s for s in amped_slots
+            if (s.get("trainer_1") or "") not in ("Reshma Sharma", "Rohan Dahima")
+        ]
+        if amped_count > 2:
+            _rule("MIX-008", "soft", "Studio Amped Up ≤2x/week, Reshma or Rohan only", "WARN",
+                  f"{amped_count} Amped Up classes", "≤2/week",
+                  f"Over limit by {amped_count - 2}")
+        elif amped_wrong_trainer:
+            trainers = ", ".join(set(s.get("trainer_1", "?") for s in amped_wrong_trainer))
+            _rule("MIX-008", "soft", "Studio Amped Up ≤2x/week, Reshma or Rohan only", "WARN",
+                  f"Trainer(s): {trainers}", "Reshma Sharma or Rohan Dahima only",
+                  "Amped Up assigned to trainer outside designated pair")
+        elif amped_slots:
+            _rule("MIX-008", "soft", "Studio Amped Up ≤2x/week, Reshma or Rohan only", "PASS",
+                  f"{amped_count} class(es), correct trainers", "≤2/week, Reshma/Rohan")
+
+        # ---- SOFT: MIX-010 Strength Lab ≤2x/week Kwality Mon/Wed eve -
+        if location == "Kwality House, Kemps Corner":
+            sl_count = len(sl_slots)
+            sl_wrong = [
+                s for s in sl_slots
+                if s.get("day_of_week") not in ("Monday", "Wednesday")
+                or (s.get("time") or "")[:5] < "17:00"
+            ]
+            if sl_count > 2:
+                _rule("MIX-010", "soft", "Strength Lab ≤2x/week Kwality Mon/Wed evenings", "WARN",
+                      f"{sl_count} Strength Lab classes", "≤2/week",
+                      f"Over limit by {sl_count - 2}")
+            elif sl_wrong:
+                issues = "; ".join(f"{s.get('day_of_week','')} {s.get('time','')}" for s in sl_wrong[:2])
+                _rule("MIX-010", "soft", "Strength Lab ≤2x/week Kwality Mon/Wed evenings", "WARN",
+                      f"Wrong slot(s): {issues}", "Mon or Wed evening ≥17:00",
+                      "Strength Lab should be Monday or Wednesday evenings at Kwality")
+            elif sl_slots:
+                _rule("MIX-010", "soft", "Strength Lab ≤2x/week Kwality Mon/Wed evenings", "PASS",
+                      f"{sl_count} class(es) Mon/Wed evenings", "≤2/week, Mon/Wed eve")
+
+        # ---- SOFT: SLOT-001 Peak midday + prime evening fill ----------
+        midday_slots = [s for s in slots if "11:00" <= (s.get("time") or "")[:5] <= "11:30"]
+        evening_slots = [s for s in slots if "19:00" <= (s.get("time") or "")[:5] <= "19:30"]
+        midday_days = len({s.get("day_of_week") for s in midday_slots})
+        evening_days = len({s.get("day_of_week") for s in evening_slots})
+        if midday_days >= 5 and evening_days >= 5:
+            _rule("SLOT-001", "soft", "Fill peak midday 11:00–11:30 and prime evening 19:00–19:30", "PASS",
+                  f"Midday: {midday_days} days, Evening: {evening_days} days", "≥5 days each")
+        else:
+            issues = []
+            if midday_days < 5:
+                issues.append(f"midday only {midday_days}/7 days")
+            if evening_days < 5:
+                issues.append(f"prime evening only {evening_days}/7 days")
+            _rule("SLOT-001", "soft", "Fill peak midday 11:00–11:30 and prime evening 19:00–19:30", "WARN",
+                  f"Midday: {midday_days} days, Evening: {evening_days} days", "≥5 days each",
+                  "; ".join(issues))
+
+        # ---- SOFT: SLOT-002 Morning + early evening fill --------------
+        morning_slots = [s for s in slots if "08:00" <= (s.get("time") or "")[:5] <= "09:30"]
+        early_eve_slots = [s for s in slots if "17:45" <= (s.get("time") or "")[:5] <= "18:15"]
+        morning_days = len({s.get("day_of_week") for s in morning_slots})
+        early_eve_days = len({s.get("day_of_week") for s in early_eve_slots})
+        if morning_days >= 6 and early_eve_days >= 5:
+            _rule("SLOT-002", "soft", "Fill morning 08:00–09:30 and early evening 17:45–18:15", "PASS",
+                  f"Morning: {morning_days} days, Early eve: {early_eve_days} days", "Morning ≥6, Early eve ≥5 days")
+        else:
+            issues = []
+            if morning_days < 6:
+                issues.append(f"morning only {morning_days}/7 days")
+            if early_eve_days < 5:
+                issues.append(f"early evening only {early_eve_days}/7 days")
+            _rule("SLOT-002", "soft", "Fill morning 08:00–09:30 and early evening 17:45–18:15", "WARN",
+                  f"Morning: {morning_days} days, Early eve: {early_eve_days} days",
+                  "Morning ≥6, Early eve ≥5 days", "; ".join(issues))
+
+        # ---- HARD: aggregate per-slot constraint violations -----------
+        hard_violation_map: Dict[str, int] = defaultdict(int)
+        hard_violation_examples: Dict[str, str] = {}
+        for s in slots:
+            for v in s.get("constraint_violations", []) or []:
+                hard_violation_map[v] += 1
+                if v not in hard_violation_examples:
+                    hard_violation_examples[v] = f"{s.get('day_of_week','')} {s.get('time','')} {s.get('trainer_1','')}"
+
+        if hard_violation_map:
+            for v_desc, v_count in sorted(hard_violation_map.items(), key=lambda x: -x[1])[:8]:
+                short_id = "HARD-" + str(abs(hash(v_desc)) % 1000).zfill(3)
+                _rule(short_id, "hard", v_desc[:80], "FAIL",
+                      f"{v_count} violation(s)",
+                      "0 violations",
+                      f"Example: {hard_violation_examples.get(v_desc, '')}")
+        else:
+            _rule("HARD-ALL", "hard", "No hard constraint violations in schedule", "PASS",
+                  "0 violations", "0 violations")
+
+        # ---- SCORE: schedule score vs target --------------------------
+        schedule_score = self._calculate_schedule_score(location, slots, score_baselines)
+        score_target = int(target_schedule_score(location))
+        if schedule_score >= score_target:
+            _rule("SCORE-001", "score", "Schedule score meets location target", "PASS",
+                  f"{schedule_score:.1f}/100", f"≥{score_target}")
+        else:
+            _rule("SCORE-001", "score", "Schedule score meets location target", "FAIL",
+                  f"{schedule_score:.1f}/100", f"≥{score_target}",
+                  f"Score {schedule_score:.1f} below {score_target} target — check low-scoring slots and violations")
+
+        # ---- SCORE: slots below threshold ----------------------------
+        low50 = [s for s in slots if float(s.get("score") or 0) < 50]
+        low30 = [s for s in slots if float(s.get("score") or 0) < 30]
+        if not low50:
+            _rule("SCORE-002", "score", "No slots below score 50 (quality gate)", "PASS",
+                  "0 slots below 50", "<50 threshold")
+        else:
+            examples = ", ".join(
+                f"{s.get('day_of_week','')} {s.get('time','')} {s.get('class_name','')[:20]}"
+                for s in low50[:3]
+            )
+            _rule("SCORE-002", "score", "No slots below score 50 (quality gate)", "FAIL",
+                  f"{len(low50)} slot(s) below 50", "<50 threshold",
+                  f"Examples: {examples}")
+
+        if low30:
+            examples = ", ".join(
+                f"{s.get('day_of_week','')} {s.get('time','')} {s.get('class_name','')[:20]}"
+                for s in low30[:3]
+            )
+            _rule("SCORE-003", "score", "No slots below score 30 (critical quality gate)", "FAIL",
+                  f"{len(low30)} slot(s) below 30", "0 slots below 30",
+                  f"Examples: {examples}")
+
+        # ---- Per-slot score breakdown for UI -------------------------
+        slot_scores = []
+        for s in slots:
+            raw_bd = s.get("score_breakdown") or {}
+            components = raw_bd.get("components", []) if isinstance(raw_bd, dict) else []
+            score_val = float(s.get("score") or 0)
+            slot_scores.append({
+                "day": s.get("day_of_week", ""),
+                "time": (s.get("time") or "")[:5],
+                "class": s.get("class_name", ""),
+                "trainer": s.get("trainer_1", ""),
+                "score": round(score_val, 1),
+                "below_threshold": score_val < 50,
+                "components": [
+                    {
+                        "label": c.get("label", c.get("key", "")),
+                        "points": round(float(c.get("points", 0)), 1),
+                        "max_points": round(float(c.get("max_points", 0) or 100), 1),
+                    }
+                    for c in components
+                ],
+                "recency_boost": round(float(raw_bd.get("recency_boost", 0) if isinstance(raw_bd, dict) else 0), 1),
+                "violations": list(s.get("constraint_violations", []) or []),
+            })
+
+        # ---- Summary -------------------------------------------------
+        passed = sum(1 for r in rules if r["status"] == "PASS")
+        warned = sum(1 for r in rules if r["status"] == "WARN")
+        failed = sum(1 for r in rules if r["status"] == "FAIL")
+
+        return {
+            "summary": {
+                "passed": passed,
+                "warned": warned,
+                "failed": failed,
+                "score": round(schedule_score, 1),
+                "score_target": score_target,
+            },
+            "rules": rules,
+            "slot_scores": sorted(slot_scores, key=lambda x: x["score"]),
+        }
+
+    # ------------------------------------------------------------------ #
     #  Web data JSON
     # ------------------------------------------------------------------ #
 
@@ -1115,6 +1533,15 @@ class OutputReporter:
 
         for loc, slots in by_location.items():
             web_data["locations"][loc] = [_enrich_slot(s, loc, trainer_metrics) for s in slots]
+
+        # Build compliance report per location (uses enriched slots so scores are resolved)
+        score_baselines = self._build_score_baselines(
+            [s for loc_slots in by_location.values() for s in loc_slots]
+        )
+        web_data["compliance_report"] = {
+            loc: self._build_compliance_report(loc, web_data["locations"][loc], score_baselines)
+            for loc in by_location
+        }
 
         # Add iteration data for web UI
         if all_by_location and len(all_by_location) > 1:

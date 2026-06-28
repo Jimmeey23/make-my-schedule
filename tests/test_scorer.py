@@ -12,6 +12,7 @@ from agents.scorer import (
     INCLUDE_SESSIONS,
     PROTECT_SCORE,
     PROTECT_SESSIONS,
+    _parse_pct,
 )
 
 
@@ -36,6 +37,14 @@ def test_scorer_interprets_performance_csv_rows_as_aggregated_slots(tmp_path, mo
     assert strong["avg_checkin"] == 12.0
     assert strong["avg_fill_rate"] == 0.8
     assert strong["recommendation"] == "PROTECT"
+
+
+def test_parse_pct_preserves_google_sheet_unformatted_percent_values():
+    assert _parse_pct("80.00%") == pytest.approx(0.8)
+    assert _parse_pct(0.8) == pytest.approx(0.8)
+    assert _parse_pct("0.8") == pytest.approx(0.8)
+    assert _parse_pct(1.2) == pytest.approx(1.0)
+    assert _parse_pct(80) == pytest.approx(0.8)
 
 
 def test_scorer_outputs_auditable_score_breakdown(tmp_path, monkeypatch):

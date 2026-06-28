@@ -1250,12 +1250,24 @@ def _select_primary_iteration(iterations: List[dict]) -> dict:
     if not iterations:
         return {"schedule": []}
 
+    def quality_tuple(iteration: dict) -> tuple:
+        schedule = iteration.get("schedule", [])
+        target_errors = len(_daily_target_errors(schedule))
+        tier_errors = len(_tier1_hour_errors(schedule))
+        violations = sum(len(slot.get("constraint_violations") or []) for slot in schedule)
+        avg_score = (
+            sum(float(slot.get("score") or slot.get("performance_score") or 0.0) for slot in schedule)
+            / max(len(schedule), 1)
+        )
+        avg_fill = (
+            sum(float(slot.get("predicted_fill_rate") or slot.get("historical_avg_fill") or 0.0) for slot in schedule)
+            / max(len(schedule), 1)
+        )
+        return (target_errors, tier_errors, violations, -avg_score, -avg_fill, -len(schedule))
+
     return min(
         iterations,
-        key=lambda iteration: (
-            len(_daily_target_errors(iteration.get("schedule", []))),
-            len(_tier1_hour_errors(iteration.get("schedule", []))),
-        ),
+        key=quality_tuple,
     )
 
 

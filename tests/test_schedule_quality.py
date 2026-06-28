@@ -4171,6 +4171,41 @@ def test_fallback_iteration_selector_prefers_tier1_hour_compliance(tmp_path, mon
     assert _select_primary_iteration([underloaded, compliant])["iteration_name"] == "compliant"
 
 
+def test_iteration_selector_uses_historic_quality_after_rule_compliance(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "rules").mkdir()
+    (tmp_path / "config").mkdir()
+    (tmp_path / "rules" / "trainer_profiles.json").write_text(json.dumps([]))
+    (tmp_path / "config" / "schedule_config.json").write_text(json.dumps({}))
+
+    weaker = {
+        "iteration_name": "valid but weaker",
+        "schedule": [
+            {
+                "trainer_1": "Trainer A",
+                "duration_min": 57,
+                "score": 40,
+                "predicted_fill_rate": 0.30,
+                "constraint_violations": [],
+            }
+        ],
+    }
+    stronger = {
+        "iteration_name": "valid and stronger",
+        "schedule": [
+            {
+                "trainer_1": "Trainer A",
+                "duration_min": 57,
+                "score": 85,
+                "predicted_fill_rate": 0.80,
+                "constraint_violations": [],
+            }
+        ],
+    }
+
+    assert _select_primary_iteration([weaker, stronger])["iteration_name"] == "valid and stronger"
+
+
 def test_optimiser_daily_top_up_uses_selected_target_within_range(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "config").mkdir()

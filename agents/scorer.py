@@ -164,14 +164,28 @@ def _copper_class_name(row) -> str:
 
 
 def _parse_pct(val) -> float:
-    """Parse "34.44%" → 0.3444. Returns 0.0 on failure."""
+    """Parse percentage/proportion inputs to a 0-1 fraction.
+
+    Google Sheets returns percent-formatted cells as raw proportions when using
+    UNFORMATTED_VALUE, while CSV exports usually contain strings like "34.44%".
+    """
     if pd.isna(val):
         return 0.0
-    s = str(val).strip().rstrip("%")
+    s = str(val).strip()
+    has_percent_sign = s.endswith("%")
+    if has_percent_sign:
+        s = s.rstrip("%").strip()
     try:
-        return float(s) / 100.0
+        parsed = float(s)
     except ValueError:
         return 0.0
+    if has_percent_sign:
+        return parsed / 100.0
+    if 0.0 <= parsed <= 2.0:
+        return min(parsed, 1.0)
+    if 1.0 < parsed <= 100.0:
+        return parsed / 100.0
+    return 0.0
 
 
 def _normalize_within_location(records: list, key: str, out_key: str, locations: list):

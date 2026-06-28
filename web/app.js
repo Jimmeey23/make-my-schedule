@@ -3824,6 +3824,11 @@ async function init(){
     loader.style.opacity="0";
     setTimeout(()=>loader.style.display="none",220);
   }
+  // Auto-show compliance report on fresh generation (pipeline sets ?ts= on reload)
+  const isFreshGeneration=new URLSearchParams(location.search).has("ts");
+  if(isFreshGeneration&&SCHEDULE_DATA&&SCHEDULE_DATA.compliance_report&&Object.keys(SCHEDULE_DATA.compliance_report).length){
+    setTimeout(()=>openComplianceReportModal(),400);
+  }
 }
 
 document.getElementById("modal-overlay").addEventListener("click",e=>{if(e.target===document.getElementById("modal-overlay"))closeModal()});
@@ -7871,3 +7876,197 @@ function nlEditApply(_edits) {
   // No-op: apply is now handled by nlEditConfirm → /api/nl-edit-apply
   return 0;
 }
+
+// ============================================================
+// COMPLIANCE REPORT MODAL
+// ============================================================
+function openComplianceReportModal(initialLoc){
+  const cr=SCHEDULE_DATA&&SCHEDULE_DATA.compliance_report;
+  if(!cr||!Object.keys(cr).length){
+    const box=document.getElementById("modal-box");
+    box.className="modal-box";
+    box.innerHTML=`<div class="modal-hdr"><div><div class="modal-class-name">Compliance Report</div><div class="modal-meta">No compliance data available — regenerate schedule</div></div><button class="modal-close" onclick="closeModal()">✕</button></div>`;
+    document.getElementById("modal-overlay").classList.add("open");
+    return;
+  }
+  const locs=Object.keys(cr);
+  let activeLoc=initialLoc||(locs.includes(_loc)?_loc:locs[0]);
+
+  function statusIcon(s){
+    return s==="PASS"?"✓":s==="WARN"?"⚠":"✗";
+  }
+  function statusCls(s){
+    return s==="PASS"?"cr-pass":s==="WARN"?"cr-warn":"cr-fail";
+  }
+  function catLabel(c){
+    return c==="business"?"Business":c==="soft"?"Soft Target":c==="hard"?"Hard Constraint":"Score";
+  }
+  function catOrder(c){
+    return c==="score"?0:c==="business"?1:c==="hard"?2:3;
+  }
+  function renderReport(loc){
+    const r=cr[loc];
+    if(!r)return`<div style="padding:32px;color:var(--text-muted);font-size:13px">No data for ${rvEscapeHtml(loc)}</div>`;
+    const s=r.summary||{};
+    const score=s.score||0;
+    const tgt=s.score_target||80;
+    const scoreCls=score>=tgt?"cr-pass":score>=tgt*0.9?"cr-warn":"cr-fail";
+    const rules=[...(r.rules||[])].sort((a,b)=>{
+      const statOrd={FAIL:0,WARN:1,PASS:2};
+      const so=(statOrd[a.status]||0)-(statOrd[b.status]||0);
+      if(so!==0)return so;
+      return catOrder(a.category)-catOrder(b.category);
+    });
+    const byCategory={};
+    for(const rule of rules){
+      if(!byCategory[rule.category])byCategory[rule.category]=[];
+      byCategory[rule.category].push(rule);
+    }
+    const catOrder2=["score","business","hard","soft"];
+    let rulesHtml="";
+    for(const cat of catOrder2){
+      const catRules=byCategory[cat];
+      if(!catRules||!catRules.length)continue;
+      rulesHtml+=`<div class="cr-cat-label">${catLabel(cat)}</div>`;
+      for(const rule of catRules){
+        const sc=statusCls(rule.status);
+        const si=statusIcon(rule.status);
+        rulesHtml+=`<div class="cr-rule ${sc}">
+          <span class="cr-rule-icon">${si}</span>
+          <div class="cr-rule-body">
+            <div class="cr-rule-label">${rvEscapeHtml(rule.label)}</div>
+            <div class="cr-rule-vals"><span class="cr-actual">Actual: ${rvEscapeHtml(rule.actual||"—")}</span><span class="cr-sep">·</span><span class="cr-expected">Expected: ${rvEscapeHtml(rule.expected||"—")}</span></div>
+            ${rule.reason&&rule.status!=="PASS"?`<div class="cr-rule-reason">${rvEscapeHtml(rule.reason)}</div>`:""}
+          </div>
+          <span class="cr-rule-id">${rvEscapeHtml(rule.id||"")}</span>
+        </div>`;
+      }
+    }
+    const slotScores=(r.slot_scores||[]).slice(0,200);
+    const belowThreshold=slotScores.filter(s=>s.below_threshold);
+    let slotHtml="";
+    if(slotScores.length){
+      slotHtml=`<div class="cr-section-title">Slot Score Breakdown <span style="color:var(--text-muted);font-weight:400;font-size:11px">(sorted lowest first)</span></div>
+      <div class="cr-slot-list">`;
+      for(const ss of slotScores){
+        const sc=ss.score>=70?"cr-pass":ss.score>=50?"cr-warn":"cr-fail";
+        const comps=(ss.components||[]).map(c=>`<span class="cr-comp">${rvEscapeHtml(c.label)}: <b>${c.points}</b>/${c.max_points}</span>`).join("");
+        const recency=ss.recency_boost?`<span class="cr-comp">Recency: <b>${ss.recency_boost>0?"+":""}${ss.recency_boost}</b></span>`:"";
+        const viols=(ss.violations||[]).length?`<div class="cr-slot-viols">${ss.violations.map(v=>`<span class="cr-viol-badge">${rvEscapeHtml(v)}</span>`).join("")}</div>`:"";
+        slotHtml+=`<div class="cr-slot-row ${sc}">
+          <div class="cr-slot-hdr">
+            <span class="cr-slot-score ${sc}">${ss.score}</span>
+            <span class="cr-slot-info">${rvEscapeHtml(ss.day||"")} ${rvEscapeHtml(ss.time||"")} · ${rvEscapeHtml(ss.class||"")} · ${rvEscapeHtml(ss.trainer||"")}</span>
+          </div>
+          ${comps||recency?`<div class="cr-slot-comps">${comps}${recency}</div>`:""}
+          ${viols}
+        </div>`;
+      }
+      slotHtml+="</div>";
+    }
+    return`<div class="cr-summary">
+      <div class="cr-sum-card ${scoreCls}">
+        <div class="cr-sum-val">${score}</div><div class="cr-sum-lbl">Score</div>
+        <div class="cr-sum-sub">Target ${tgt}</div>
+      </div>
+      <div class="cr-sum-card cr-pass"><div class="cr-sum-val">${s.passed||0}</div><div class="cr-sum-lbl">Passed</div></div>
+      <div class="cr-sum-card cr-warn"><div class="cr-sum-val">${s.warned||0}</div><div class="cr-sum-lbl">Warnings</div></div>
+      <div class="cr-sum-card cr-fail"><div class="cr-sum-val">${s.failed||0}</div><div class="cr-sum-lbl">Failed</div></div>
+    </div>
+    <div class="cr-rules-list">${rulesHtml}</div>
+    ${slotHtml}`;
+  }
+
+  function build(){
+    const tabsHtml=locs.map(l=>`<button class="cr-loc-tab${l===activeLoc?" active":""}" onclick="crSwitchLoc('${rvEscapeAttr(l)}')">${rvEscapeHtml(l.replace(", Kemps Corner","").replace(", Bandra",""))}</button>`).join("");
+    const box=document.getElementById("modal-box");
+    box.className="modal-box cr-modal";
+    box.innerHTML=`
+      <div class="cr-modal-hdr">
+        <div class="cr-modal-title">
+          <span class="cr-modal-icon">📋</span>
+          <div>
+            <div class="modal-class-name">Schedule Compliance Report</div>
+            <div class="modal-meta">Rules met, warnings, and score breakdown for generated schedule</div>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="cr-loc-tabs">${tabsHtml}</div>
+      <div class="cr-modal-body" id="cr-body">${renderReport(activeLoc)}</div>
+    `;
+    document.getElementById("modal-overlay").classList.add("open");
+  }
+
+  window.crSwitchLoc=function(loc){
+    activeLoc=loc;
+    const body=document.getElementById("cr-body");
+    const tabs=document.querySelectorAll(".cr-loc-tab");
+    tabs.forEach(t=>t.classList.toggle("active",t.textContent===loc.replace(", Kemps Corner","").replace(", Bandra","")));
+    if(body)body.innerHTML=renderReport(loc);
+  };
+
+  build();
+}
+
+(function _injectComplianceStyles(){
+  if(document.getElementById("cr-styles"))return;
+  const s=document.createElement("style");
+  s.id="cr-styles";
+  s.textContent=`
+.cr-modal{max-width:780px;width:94vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.cr-modal-hdr{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 24px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.cr-modal-title{display:flex;align-items:center;gap:12px}
+.cr-modal-icon{font-size:22px;line-height:1}
+.cr-loc-tabs{display:flex;gap:4px;padding:10px 24px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.cr-loc-tab{padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);transition:all .14s}
+.cr-loc-tab.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.cr-modal-body{overflow-y:auto;padding:20px 24px 28px;flex:1;min-height:0}
+.cr-summary{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.cr-sum-card{padding:12px 16px;border-radius:8px;text-align:center;min-width:80px;flex:1;border:1.5px solid transparent}
+.cr-sum-card.cr-pass{background:#f0fdf4;border-color:#bbf7d0}
+.cr-sum-card.cr-warn{background:#fffbeb;border-color:#fde68a}
+.cr-sum-card.cr-fail{background:#fef2f2;border-color:#fecaca}
+.cr-sum-val{font-size:26px;font-weight:800;line-height:1}
+.cr-sum-card.cr-pass .cr-sum-val{color:#16a34a}
+.cr-sum-card.cr-warn .cr-sum-val{color:#d97706}
+.cr-sum-card.cr-fail .cr-sum-val{color:#dc2626}
+.cr-sum-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-top:2px}
+.cr-sum-sub{font-size:11px;color:var(--text-muted);margin-top:3px}
+.cr-cat-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin:16px 0 6px;padding:0 2px}
+.cr-rules-list{display:flex;flex-direction:column;gap:4px;margin-bottom:24px}
+.cr-rule{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-radius:7px;border:1px solid transparent}
+.cr-rule.cr-pass{background:#f0fdf4;border-color:#bbf7d0}
+.cr-rule.cr-warn{background:#fffbeb;border-color:#fde68a}
+.cr-rule.cr-fail{background:#fef2f2;border-color:#fecaca}
+.cr-rule-icon{font-size:13px;font-weight:800;flex-shrink:0;margin-top:1px;width:16px;text-align:center}
+.cr-rule.cr-pass .cr-rule-icon{color:#16a34a}
+.cr-rule.cr-warn .cr-rule-icon{color:#d97706}
+.cr-rule.cr-fail .cr-rule-icon{color:#dc2626}
+.cr-rule-body{flex:1;min-width:0}
+.cr-rule-label{font-size:12px;font-weight:600;color:var(--text);line-height:1.35}
+.cr-rule-vals{display:flex;gap:6px;margin-top:3px;flex-wrap:wrap}
+.cr-actual,.cr-expected{font-size:11px;color:var(--text-muted)}
+.cr-sep{font-size:11px;color:var(--border-strong)}
+.cr-rule-reason{font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4;font-style:italic}
+.cr-rule-id{font-size:10px;color:var(--text-light);flex-shrink:0;align-self:flex-start;margin-top:2px;font-family:monospace}
+.cr-section-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.cr-slot-list{display:flex;flex-direction:column;gap:4px}
+.cr-slot-row{padding:8px 10px;border-radius:6px;border:1px solid transparent}
+.cr-slot-row.cr-pass{background:#f0fdf4;border-color:#bbf7d0}
+.cr-slot-row.cr-warn{background:#fffbeb;border-color:#fde68a}
+.cr-slot-row.cr-fail{background:#fef2f2;border-color:#fecaca}
+.cr-slot-hdr{display:flex;align-items:center;gap:8px}
+.cr-slot-score{font-size:13px;font-weight:800;width:34px;text-align:center;flex-shrink:0}
+.cr-slot-score.cr-pass{color:#16a34a}
+.cr-slot-score.cr-warn{color:#d97706}
+.cr-slot-score.cr-fail{color:#dc2626}
+.cr-slot-info{font-size:12px;color:var(--text);font-weight:500}
+.cr-slot-comps{display:flex;gap:8px;flex-wrap:wrap;margin-top:5px;padding-left:42px}
+.cr-comp{font-size:11px;color:var(--text-muted)}
+.cr-comp b{color:var(--text)}
+.cr-slot-viols{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;padding-left:42px}
+.cr-viol-badge{font-size:10px;padding:2px 7px;border-radius:100px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;font-weight:500}
+  `;
+  document.head.appendChild(s);
+})();
