@@ -5349,6 +5349,11 @@ function settExportConfig(){
 }
 
 function renderSettingsView(area){
+  // Delegate to advanced configurator if available
+  if(typeof renderConfigurator==="function"){
+    renderConfigurator(area);
+    return;
+  }
   const wrap=document.createElement("div");
   wrap.className="sett-view";
   wrap.innerHTML=`
