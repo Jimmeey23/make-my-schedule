@@ -4883,7 +4883,7 @@ def test_data_ingestor_uses_google_oauth_credentials_for_sessions_sheet(tmp_path
     assert output["source"]["sheet_title"] == "Sessions Sheet"
     assert output["source"]["row_count"] == 1
     assert captured["spreadsheet_id"] == "16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys"
-    assert captured["range"] == "'Sessions Sheet'!A:ZZ"
+    assert captured["range"] == "'Sessions Sheet'!A1:Z50000"
 
 
 def test_data_ingestor_falls_back_to_sessions_tab_when_gid_points_to_wrong_tab(tmp_path, monkeypatch):
@@ -4968,7 +4968,7 @@ def test_data_ingestor_falls_back_to_sessions_tab_when_gid_points_to_wrong_tab(t
     output = ingestor.run()
 
     assert output["total_sessions"] == 1
-    assert captured_ranges[:2] == ["'Teacher Recurring'!A:ZZ", "'Sessions Sheet'!A:ZZ"]
+    assert captured_ranges[:2] == ["'Teacher Recurring'!A1:Z50000", "'Sessions Sheet'!A1:Z50000"]
     assert output["source"]["requested_sheet_title"] == "Teacher Recurring"
     assert output["source"]["sheet_title"] == "Sessions Sheet"
 
