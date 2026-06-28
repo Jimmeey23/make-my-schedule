@@ -4801,6 +4801,91 @@ def test_data_ingestor_uses_google_oauth_credentials_for_sessions_sheet(tmp_path
     assert captured["range"] == "'Sessions Sheet'!A:ZZ"
 
 
+def test_data_ingestor_falls_back_to_sessions_tab_when_gid_points_to_wrong_tab(tmp_path, monkeypatch):
+    import agents.ingestor as ingestor_module
+
+    captured_ranges = []
+
+    class FakeMetadataResponse:
+        def execute(self):
+            return {
+                "sheets": [
+                    {"properties": {"sheetId": 1, "title": "Teacher Recurring"}},
+                    {"properties": {"sheetId": 2, "title": "Sessions Sheet"}},
+                ]
+            }
+
+    class FakeValuesResponse:
+        def __init__(self, range_name):
+            self.range_name = range_name
+
+        def execute(self):
+            captured_ranges.append(self.range_name)
+            if "Teacher Recurring" in self.range_name:
+                return {"values": [["Trainer", "Monday", "Tuesday"], ["Trainer A", "Y", "N"]]}
+            return {
+                "values": [
+                    [
+                        "Trainer",
+                        "SessionName",
+                        "Capacity",
+                        "CheckedIn",
+                        "LateCancelled",
+                        "Booked",
+                        "Location",
+                        "Date",
+                        "Time",
+                        "Revenue",
+                        "Class",
+                    ],
+                    [
+                        "Anisha Shah",
+                        "Studio FIT",
+                        "15",
+                        "6",
+                        "0",
+                        "6",
+                        "Kwality House, Kemps Corner",
+                        "2024-02-28",
+                        "11:30:00",
+                        "4773.06",
+                        "Studio FIT",
+                    ],
+                ]
+            }
+
+    class FakeValues:
+        def get(self, **kwargs):
+            return FakeValuesResponse(kwargs["range"])
+
+    class FakeSpreadsheets:
+        def get(self, **kwargs):
+            return FakeMetadataResponse()
+
+        def values(self):
+            return FakeValues()
+
+    class FakeService:
+        def spreadsheets(self):
+            return FakeSpreadsheets()
+
+    monkeypatch.setattr(ingestor_module, "google_build", lambda *args, **kwargs: FakeService())
+    monkeypatch.setattr(
+        ingestor_module.DataIngestor,
+        "_load_google_credentials",
+        lambda self: object(),
+    )
+    monkeypatch.setattr(ingestor_module, "STATE_DIR", tmp_path)
+
+    ingestor = ingestor_module.DataIngestor(
+        "https://docs.google.com/spreadsheets/d/test-sheet/edit?gid=1#gid=1"
+    )
+    output = ingestor.run()
+
+    assert output["total_sessions"] == 1
+    assert captured_ranges[:2] == ["'Teacher Recurring'!A:ZZ", "'Sessions Sheet'!A:ZZ"]
+
+
 def test_optimiser_candidate_rows_are_indexed_by_location_and_day():
     optimiser = ScheduleOptimiser(target_week_start="2026-05-04", locations=[])
     row_kw_mon = {"location": "Kwality House, Kemps Corner", "day": 0, "class": "Studio Barre 57"}

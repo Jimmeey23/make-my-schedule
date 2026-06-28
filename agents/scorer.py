@@ -278,7 +278,8 @@ class ClassScorer:
                 "Google Sheets OAuth credentials are required to read the historic performance source."
             )
         service = google_build("sheets", "v4", credentials=credentials, cache_discovery=False)
-        range_name = f"'{sheet_title.replace(\"'\", \"''\")}'!A:ZZ"
+        escaped_title = sheet_title.replace("'", "''")
+        range_name = f"'{escaped_title}'!A:ZZ"
         values = service.spreadsheets().values().get(
             spreadsheetId=spreadsheet_id,
             range=range_name,
@@ -332,9 +333,13 @@ class ClassScorer:
                 return f"{int(m.group(1)):02d}:{m.group(2)}"
             return s
 
-        def _load_performance_csv(csv_file: Path, label: str) -> pd.DataFrame:
-            df = pd.read_csv(csv_file, low_memory=False)
+        def _load_performance_frame(df: pd.DataFrame, label: str) -> pd.DataFrame:
+            df = df.copy()
             print(f"  Loaded {len(df):,} rows from {label}")
+
+            if COL_DAY not in df.columns and "Date" in df.columns:
+                parsed_dates = pd.to_datetime(df["Date"], errors="coerce", format="mixed")
+                df[COL_DAY] = parsed_dates.dt.day_name()
 
             session_names = df["SessionName"] if "SessionName" in df.columns else ""
             copper_mask = (
@@ -365,6 +370,9 @@ class ClassScorer:
             else:
                 df[COL_UID2] = df[COL_UID2].astype(str)
             return df
+
+        def _load_performance_csv(csv_file: Path, label: str) -> pd.DataFrame:
+            return _load_performance_frame(pd.read_csv(csv_file, low_memory=False), label)
 
         def _exclude_non_schedulable_classes(df: pd.DataFrame) -> pd.DataFrame:
             if df.empty:
@@ -406,22 +414,36 @@ class ClassScorer:
         # -----------------------------------------------------------------
         # 1. Load slot and trainer sources
         # -----------------------------------------------------------------
-        csv_file = Path(self.csv_path)
-        if not csv_file.exists():
-            raise FileNotFoundError(
-                f"CSV not found: {self.csv_path}. "
-                "Pass --csv or place file in project root."
-            )
-
         inactive = self._inactive_trainers()
-        slot_df = _prepare_scoring_metrics(_exclude_non_schedulable_classes(_load_performance_csv(csv_file, self.csv_path)))
 
-        trainer_csv_file = Path("Class Performance by Trainer.csv")
-        trainer_source = trainer_csv_file if trainer_csv_file.exists() else csv_file
-        trainer_label = str(trainer_source)
+        if self._source_is_google_sheet():
+            slot_source = f"Google Sheet tab: {DEFAULT_SLOTS_SHEET_TITLE}"
+            trainer_label = f"Google Sheet tab: {DEFAULT_TRAINER_SHEET_TITLE}"
+            slot_source_df = _load_performance_frame(
+                self._load_google_sheet(DEFAULT_SLOTS_SHEET_TITLE),
+                slot_source,
+            )
+            trainer_source_df = _load_performance_frame(
+                self._load_google_sheet(DEFAULT_TRAINER_SHEET_TITLE),
+                trainer_label,
+            )
+        else:
+            csv_file = Path(self.csv_path)
+            if not csv_file.exists():
+                raise FileNotFoundError(
+                    f"CSV not found: {self.csv_path}. "
+                    "Pass a docs.google.com spreadsheet URL for live data, or an explicit local CSV for tests/manual overrides."
+                )
+            slot_source_df = _load_performance_csv(csv_file, self.csv_path)
+            trainer_csv_file = Path("Class Performance by Trainer.csv")
+            trainer_source = trainer_csv_file if trainer_csv_file.exists() else csv_file
+            trainer_label = str(trainer_source)
+            trainer_source_df = _load_performance_csv(trainer_source, trainer_label)
+
+        slot_df = _prepare_scoring_metrics(_exclude_non_schedulable_classes(slot_source_df))
         trainer_df = _prepare_scoring_metrics(
             _exclude_inactive_trainers(
-                _exclude_non_schedulable_classes(_load_performance_csv(trainer_source, trainer_label)),
+                _exclude_non_schedulable_classes(trainer_source_df),
                 inactive,
             )
         )

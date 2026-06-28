@@ -1969,7 +1969,10 @@ def pull_supabase_config():
 class RulesHandler(BaseHTTPRequestHandler):
     # Set via class variable from CLI arg
     pipeline_week: str = "2026-05-04"
-    pipeline_csv: str = "Class Performance by Trainer.csv"
+    pipeline_csv: str = os.environ.get(
+        "PIPELINE_SOURCE_URL",
+        "https://docs.google.com/spreadsheets/d/16wFlke0bHFcmfn-3UyuYlGnImBq0DY7ouVYAlAFTZys/edit?gid=1313838163#gid=1313838163",
+    )
 
     def log_message(self, format, *args):
         print(f"  [{self.address_string()}] {format % args}")
@@ -1999,9 +2002,9 @@ class RulesHandler(BaseHTTPRequestHandler):
     def _authorized_for_unsafe_write(self) -> bool:
         if self._is_local_client():
             return True
-        token = os.environ.get("SCHEDULER_ADMIN_TOKEN", "")
+        token = os.environ.get("SCHEDULER_ADMIN_TOKEN", "").strip()
         if not token:
-            return True
+            return False
         provided = self.headers.get("X-Scheduler-Admin-Token", "")
         return provided == token
 

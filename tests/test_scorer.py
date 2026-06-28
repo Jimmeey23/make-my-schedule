@@ -162,6 +162,67 @@ def test_ud1_slot_ignores_attached_trainer_and_uses_trainer_csv_options(tmp_path
     assert trainer["time"] == "18:45"
 
 
+def test_google_sheet_source_uses_sheet_tabs_not_local_csv(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Path("state").mkdir()
+
+    slot_rows = [
+        {
+            "UniqueID1": "SLOT_0900",
+            "UniqueID2": "PLACEHOLDER",
+            "Trainer": "Placeholder Trainer",
+            "Class": "Studio Barre 57",
+            "Location": "Kwality House, Kemps Corner",
+            "Day": "Monday",
+            "Time": "09:00:00",
+            "CheckedIn": 240,
+            "Capacity": 300,
+            "Revenue": 120000,
+            "Classes": 20,
+            "ClassAvgInclEmpty": 12,
+            "ClassAvgExclEmpty": "80.00%",
+            "FillRate": 6000,
+        }
+    ]
+    trainer_rows = [
+        {
+            "UniqueID1": "SLOT_0900",
+            "UniqueID2": "ACTIVE",
+            "Trainer": "Active Trainer",
+            "Class": "Studio Barre 57",
+            "Location": "Kwality House, Kemps Corner",
+            "Day": "Monday",
+            "Time": "09:00:00",
+            "CheckedIn": 110,
+            "Capacity": 200,
+            "Revenue": 50000,
+            "Classes": 10,
+            "ClassAvgInclEmpty": 11,
+            "ClassAvgExclEmpty": "55.00%",
+            "FillRate": 5000,
+        }
+    ]
+    loaded_tabs = []
+
+    def fake_load_google_sheet(self, sheet_title):
+        loaded_tabs.append(sheet_title)
+        if sheet_title == "Sessions Sheet":
+            return __import__("pandas").DataFrame(slot_rows)
+        if sheet_title == "Teacher Recurring":
+            return __import__("pandas").DataFrame(trainer_rows)
+        raise AssertionError(sheet_title)
+
+    monkeypatch.setattr(ClassScorer, "_load_google_sheet", fake_load_google_sheet)
+
+    output = ClassScorer(
+        csv_path="https://docs.google.com/spreadsheets/d/test-sheet/edit?gid=123#gid=123"
+    ).run()
+
+    assert loaded_tabs == ["Sessions Sheet", "Teacher Recurring"]
+    slot = next(r for r in output["slot_group_ranking"] if r["unique_id_1"] == "SLOT_0900")
+    assert [t["trainer"] for t in slot["top_trainers"]] == ["Active Trainer"]
+
+
 def test_strength_lab_policy_protection_does_not_inflate_score_or_recommendation(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     Path("state").mkdir()

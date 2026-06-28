@@ -12,9 +12,9 @@ A 6-agent AI pipeline that ingests historical class data, scores every trainer×
 ### Agent Pipeline (run by `orchestrator.py`)
 | Step | Agent | Input | Output |
 |------|-------|-------|--------|
-| 1 | **Ingestor** (`agents/ingestor.py`) | `Sessions Performance Data.csv` | `state/01_sessions.json` |
+| 1 | **Ingestor** (`agents/ingestor.py`) | Google Sheets `Sessions Sheet` tab | `state/01_sessions.json` |
 | 2 | **Analyst** (`agents/analyst.py`) | `01_sessions.json` | `state/02_metrics.json` |
-| 3 | **Scorer** (`agents/scorer.py`) | `Class Performance by Trainer.csv` + `01_sessions.json` | `state/03_scores.json` |
+| 3 | **Scorer** (`agents/scorer.py`) | Google Sheets `Sessions Sheet` + `Teacher Recurring` tabs | `state/03_scores.json` |
 | 4 | **Rule Engine** (`agents/rule_engine.py`) | `03_scores.json` + rules | `state/04_constraints.json` |
 | 5 | **AI Planner** (`agents/ai_planner.py`) | `03_scores.json` + `02_metrics.json` + rules | `state/05_schedule.json` |
 | 6 | **Reporter** (`agents/reporter.py`) | `05_schedule.json` | `outputs/` (HTML, CSV, JSON) |
@@ -39,7 +39,7 @@ orchestrator.py          — Pipeline entry point
 serve.py                 — Web server (port 5000)
 rule_config.py           — Rule category definitions and config management
 agents/
-  ingestor.py            — CSV ingestion and normalisation
+  ingestor.py            — Google Sheets ingestion and normalisation
   analyst.py             — Recency-weighted historical metrics (8-week window)
   scorer.py              — Composite slot scoring with recency boost
   rule_engine.py         — Hard/soft constraint compilation
@@ -65,12 +65,12 @@ web/
 
 ### Start Web Server
 ```bash
-python3 serve.py --port 5000 --week 2026-05-04 --csv "Sessions Performance Data.csv"
+python3 serve.py --port 5000 --week 2026-05-04 --csv "$PIPELINE_SOURCE_URL"
 ```
 
 ### Run Full Pipeline (command line)
 ```bash
-python3 orchestrator.py --csv "Sessions Performance Data.csv" --week 2026-05-04
+python3 orchestrator.py --csv "$PIPELINE_SOURCE_URL" --week 2026-05-04
 ```
 
 ### Run from UI

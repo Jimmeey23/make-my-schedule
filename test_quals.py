@@ -1,8 +1,14 @@
 import json
 
-with open("rules/trainer_profiles.json") as f:
-    profiles = json.load(f)
 
-for p in profiles:
-    if p.get("qualifications", {}).get("powercycle"):
-        print(f"{p['name']} (Tier {p.get('tier', 3)})")
+def main():
+    with open("rules/trainer_profiles.json") as f:
+        profiles = json.load(f)
+
+    for profile in profiles:
+        if profile.get("qualifications", {}).get("powercycle"):
+            print(f"{profile['name']} (Tier {profile.get('tier', 3)})")
+
+
+if __name__ == "__main__":
+    main()

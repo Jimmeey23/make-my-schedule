@@ -25,6 +25,19 @@ VALID_LOCATIONS = [
 ]
 GOOGLE_SHEETS_SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 DEFAULT_GOOGLE_SHEET_RANGE = "A:ZZ"
+PREFERRED_SESSIONS_SHEET_TITLES = ("Sessions Sheet", "Sessions", "Session Data")
+REQUIRED_SESSION_COLUMNS = {
+    "Date",
+    "Time",
+    "Trainer",
+    "Class",
+    "Location",
+    "CheckedIn",
+    "Capacity",
+    "Booked",
+    "LateCancelled",
+    "Revenue",
+}
 
 
 def copper_class_name(row) -> str:
@@ -114,7 +127,7 @@ class DataIngestor:
                 raise RuntimeError(
                     "google-auth dependencies are missing. Install google-auth and google-api-python-client."
                 )
-            return GoogleUserCredentials(
+            credentials = GoogleUserCredentials(
                 token=None,
                 refresh_token=refresh_token,
                 token_uri="https://oauth2.googleapis.com/token",
@@ -148,40 +161,7 @@ class DataIngestor:
 
         return None
 
-    def _fetch_google_sheet_dataframe(self) -> pd.DataFrame | None:
-        target = self._google_sheet_target()
-        if not target:
-            return None
-        spreadsheet_id, gid = target
-        credentials = self._load_google_credentials()
-        if credentials is None or google_build is None:
-            raise RuntimeError(
-                "Google Sheets OAuth credentials are required to read the sessions source."
-            )
-
-        service = google_build("sheets", "v4", credentials=credentials, cache_discovery=False)
-        metadata = service.spreadsheets().get(
-            spreadsheetId=spreadsheet_id,
-            fields="sheets(properties(sheetId,title))",
-        ).execute()
-
-        sheet_title = None
-        for sheet in metadata.get("sheets", []):
-            properties = sheet.get("properties", {})
-            if gid is not None and int(properties.get("sheetId", -1)) == gid:
-                sheet_title = properties.get("title")
-                break
-
-        if not sheet_title:
-            sheets = metadata.get("sheets", [])
-            if len(sheets) == 1:
-                sheet_title = sheets[0].get("properties", {}).get("title")
-
-        if not sheet_title:
-            raise ValueError(
-                f"Could not resolve a worksheet title for spreadsheet {spreadsheet_id}"
-            )
-
+    def _sheet_dataframe(self, service, spreadsheet_id: str, sheet_title: str) -> pd.DataFrame:
         escaped_title = sheet_title.replace("'", "''")
         range_name = f"'{escaped_title}'!{DEFAULT_GOOGLE_SHEET_RANGE}"
         values = service.spreadsheets().values().get(
@@ -204,6 +184,73 @@ class DataIngestor:
             rows.append(normalized)
         return pd.DataFrame(rows, columns=header)
 
+    def _session_schema_score(self, df: pd.DataFrame) -> int:
+        columns = {str(col).strip() for col in df.columns}
+        return sum(1 for col in REQUIRED_SESSION_COLUMNS if col in columns)
+
+    def _is_sessions_dataframe(self, df: pd.DataFrame) -> bool:
+        return self._session_schema_score(df) == len(REQUIRED_SESSION_COLUMNS)
+
+    def _fetch_google_sheet_dataframe(self) -> pd.DataFrame | None:
+        target = self._google_sheet_target()
+        if not target:
+            return None
+        spreadsheet_id, gid = target
+        credentials = self._load_google_credentials()
+        if credentials is None or google_build is None:
+            raise RuntimeError(
+                "Google Sheets OAuth credentials are required to read the sessions source."
+            )
+
+        service = google_build("sheets", "v4", credentials=credentials, cache_discovery=False)
+        metadata = service.spreadsheets().get(
+            spreadsheetId=spreadsheet_id,
+            fields="sheets(properties(sheetId,title))",
+        ).execute()
+
+        requested_title = None
+        sheet_titles = []
+        for sheet in metadata.get("sheets", []):
+            properties = sheet.get("properties", {})
+            title = properties.get("title")
+            if title:
+                sheet_titles.append(title)
+            if gid is not None and int(properties.get("sheetId", -1)) == gid:
+                requested_title = title
+
+        if not sheet_titles:
+            raise ValueError(
+                f"No worksheets found for spreadsheet {spreadsheet_id}"
+            )
+
+        ordered_titles = []
+        for title in [requested_title, *PREFERRED_SESSIONS_SHEET_TITLES, *sheet_titles]:
+            if title and title not in ordered_titles:
+                ordered_titles.append(title)
+
+        best_title = None
+        best_score = -1
+        best_df = pd.DataFrame()
+        for title in ordered_titles:
+            df = self._sheet_dataframe(service, spreadsheet_id, title)
+            score = self._session_schema_score(df)
+            if score > best_score:
+                best_title = title
+                best_score = score
+                best_df = df
+            if self._is_sessions_dataframe(df):
+                if title != requested_title:
+                    print(f"[Agent 1] Using Google Sheet tab '{title}' for sessions data")
+                return df
+
+        missing = sorted(REQUIRED_SESSION_COLUMNS - {str(col).strip() for col in best_df.columns})
+        available = ", ".join(map(str, best_df.columns[:25]))
+        raise ValueError(
+            "Could not find a Google Sheets tab with the required sessions schema. "
+            f"Best match was '{best_title}' but it is missing: {', '.join(missing)}. "
+            f"Available columns: {available}"
+        )
+
     def _read_sessions_file(self) -> pd.DataFrame:
         if not self._source_is_url() or not self._looks_like_google_sheet():
             raise ValueError(
@@ -217,6 +264,13 @@ class DataIngestor:
     def run(self) -> dict:
         print("[Agent 1] Ingestor starting...")
         df = self._read_sessions_file()
+
+        missing_columns = sorted(REQUIRED_SESSION_COLUMNS - {str(col).strip() for col in df.columns})
+        if missing_columns:
+            raise ValueError(
+                "Sessions data is missing required columns: "
+                + ", ".join(missing_columns)
+            )
 
         # Parse date
         df["Date"] = pd.to_datetime(df["Date"].astype(str).str.strip(), errors="coerce", format="mixed")

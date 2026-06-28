@@ -130,7 +130,9 @@ def _require_admin_for_unsafe_request():
         return None
     if _is_local_request():
         return None
-    token = os.environ.get("SCHEDULER_ADMIN_TOKEN", "")
+    token = os.environ.get("SCHEDULER_ADMIN_TOKEN", "").strip()
+    if not token:
+        return _json({"error": "Admin token required"}, 401)
     provided = request.headers.get("X-Scheduler-Admin-Token", "")
     if provided == token:
         return None
