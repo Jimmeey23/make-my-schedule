@@ -17,7 +17,7 @@ function cfgRenderAI(container) {
     <div class="cfg-section-header">
       <div>
         <div class="cfg-section-title">AI & Generation</div>
-        <div class="cfg-section-desc">AI provider, model, API keys, scoring weights, and generation behavior.</div>
+        <div class="cfg-section-desc">OpenAI model, API keys, scoring weights, and generation behavior.</div>
       </div>
       <div class="cfg-section-actions">
         <button class="cfg-action-btn primary" onclick="cfgSaveAI()">Save AI Settings</button>
@@ -26,25 +26,15 @@ function cfgRenderAI(container) {
 
     <div class="cfg-cards-row">
       <div class="cfg-card">
-        <div class="cfg-card-title">Primary AI Provider</div>
+        <div class="cfg-card-title">OpenAI Configuration</div>
         <div class="cfg-form-grid">
           <div class="cfg-form-field">
             <label>Provider</label>
-            <select class="cfg-select" id="cfg-ai-provider">
-              <option value="openrouter" ${(opts.ai_provider || 'openrouter') === 'openrouter' ? 'selected' : ''}>OpenRouter</option>
-              <option value="openai"     ${opts.ai_provider === 'openai'     ? 'selected' : ''}>OpenAI</option>
-              <option value="deepseek"   ${opts.ai_provider === 'deepseek'   ? 'selected' : ''}>DeepSeek</option>
-            </select>
+            <input class="cfg-input" id="cfg-ai-provider" value="openai" disabled>
           </div>
           <div class="cfg-form-field">
             <label>Model ID</label>
-            <input class="cfg-input" id="cfg-ai-model"
-              value="${rvEscapeHtml(opts.ai_model || 'gpt-4.1-mini')}" placeholder="e.g. gpt-4.1-mini">
-          </div>
-          <div class="cfg-form-field">
-            <label>Backup Model ID</label>
-            <input class="cfg-input" id="cfg-ai-backup"
-              value="${rvEscapeHtml(opts.ai_backup_model || '')}" placeholder="fallback model">
+            <input class="cfg-input" id="cfg-ai-model" value="gpt-5.4-mini" disabled>
           </div>
           <div class="cfg-form-field">
             <label>API Key</label>
@@ -53,34 +43,8 @@ function cfgRenderAI(container) {
               placeholder="sk-…" autocomplete="new-password">
           </div>
           <div class="cfg-form-field">
-            <label>Base URL (leave blank for default)</label>
-            <input class="cfg-input" id="cfg-ai-base-url"
-              value="${rvEscapeHtml(opts.ai_base_url || '')}"
-              placeholder="https://openrouter.ai/api/v1">
-          </div>
-        </div>
-      </div>
-
-      <div class="cfg-card">
-        <div class="cfg-card-title">DeepSeek Configuration</div>
-        <div class="cfg-form-grid">
-          <div class="cfg-form-field">
-            <label>DeepSeek Model</label>
-            <input class="cfg-input" id="cfg-ds-model"
-              value="${rvEscapeHtml(opts.deepseek_model || 'deepseek-v4-flash')}"
-              placeholder="deepseek-v4-flash">
-          </div>
-          <div class="cfg-form-field">
-            <label>DeepSeek API Key</label>
-            <input class="cfg-input" id="cfg-ds-key" type="password"
-              value="${opts.deepseek_api_key ? '••••••••' : ''}"
-              placeholder="sk-…" autocomplete="new-password">
-          </div>
-          <div class="cfg-form-field">
-            <label>DeepSeek Base URL</label>
-            <input class="cfg-input" id="cfg-ds-base-url"
-              value="${rvEscapeHtml(opts.deepseek_base_url || 'https://api.deepseek.com')}"
-              placeholder="https://api.deepseek.com">
+            <label>Base URL</label>
+            <input class="cfg-input" id="cfg-ai-base-url" value="https://api.openai.com/v1" disabled>
           </div>
         </div>
       </div>
@@ -135,17 +99,16 @@ function cfgRenderAI(container) {
 async function cfgSaveAI() {
   if (!_cfgDraft.settings_options) _cfgDraft.settings_options = {};
   const o = _cfgDraft.settings_options;
-  o.ai_provider    = document.getElementById('cfg-ai-provider')?.value || 'openrouter';
-  o.ai_model       = (document.getElementById('cfg-ai-model')?.value    || '').trim();
-  o.ai_backup_model = (document.getElementById('cfg-ai-backup')?.value  || '').trim();
-  o.ai_base_url    = (document.getElementById('cfg-ai-base-url')?.value || '').trim();
-  o.deepseek_model    = (document.getElementById('cfg-ds-model')?.value    || '').trim();
-  o.deepseek_base_url = (document.getElementById('cfg-ds-base-url')?.value || '').trim();
+  o.ai_provider = 'openai';
+  o.ai_model = 'gpt-5.4-mini';
+  o.ai_backup_model = '';
+  o.ai_base_url = 'https://api.openai.com/v1';
+  o.deepseek_model = '';
+  o.deepseek_base_url = '';
   // Only write API keys if changed (not placeholder)
   const aiKey = document.getElementById('cfg-ai-key')?.value || '';
   if (aiKey && !aiKey.startsWith('••')) o.ai_api_key = aiKey.trim();
-  const dsKey = document.getElementById('cfg-ds-key')?.value || '';
-  if (dsKey && !dsKey.startsWith('••')) o.deepseek_api_key = dsKey.trim();
+  o.deepseek_api_key = '';
   // Weights
   ['score_weight_checkin', 'score_weight_fill', 'score_weight_trend', 'score_weight_tier'].forEach(key => {
     const el = document.getElementById('cfg-w-' + key);

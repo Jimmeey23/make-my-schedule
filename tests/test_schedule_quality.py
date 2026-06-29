@@ -306,7 +306,7 @@ def test_requested_format_trainer_priority_boosts_specific_trainers():
     )
 
 
-def test_ai_planner_retries_backup_model_when_primary_plan_is_invalid(tmp_path, monkeypatch):
+def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_invalid(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "state").mkdir()
     (tmp_path / "rules").mkdir()
@@ -360,15 +360,13 @@ def test_ai_planner_retries_backup_model_when_primary_plan_is_invalid(tmp_path, 
     monkeypatch.setattr(ai_planner_module, "_enforce_global_trainer_overlaps", lambda slots, profiles: slots)
 
     planner = AISchedulePlanner(target_week_start="2026-05-04", locations=["Kwality House, Kemps Corner"])
-    output = planner.run()
+    with pytest.raises(RuntimeError, match="could not produce a valid AI plan"):
+        planner.run()
 
-    assert calls == ["primary-model", "z-ai/glm-4.5-air:free"]
-    assert output["ai_models"][:2] == ["primary-model", "z-ai/glm-4.5-air:free"]
-    assert "openai/gpt-oss-120b:free" in output["ai_models"]
-    assert len(output["schedule"]) == 20
+    assert calls == ["gpt-5.4-mini"]
 
 
-def test_ai_planner_retries_backup_model_when_primary_plan_is_partial(tmp_path, monkeypatch):
+def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_partial(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "state").mkdir()
     (tmp_path / "rules").mkdir()
@@ -443,11 +441,10 @@ def test_ai_planner_retries_backup_model_when_primary_plan_is_partial(tmp_path, 
     monkeypatch.setattr(ai_planner_module, "_enforce_global_trainer_overlaps", lambda slots, profiles: slots)
 
     planner = AISchedulePlanner(target_week_start="2026-05-04", locations=["Copper & Cloves"])
-    output = planner.run()
+    with pytest.raises(RuntimeError, match="could not produce a valid AI plan"):
+        planner.run()
 
-    assert calls == ["primary-model", "z-ai/glm-4.5-air:free"]
-    assert len(output["schedule"]) == 9
-    assert output["ai_repaired_locations"] == []
+    assert calls == ["gpt-5.4-mini"]
 
 
 def test_ai_planner_selects_best_valid_variant_when_enabled(tmp_path, monkeypatch):
@@ -2164,7 +2161,8 @@ def test_pipeline_request_uses_saved_ai_key_when_ai_generation_requested(tmp_pat
 
     assert options["week"] == "2026-05-11"
     assert options["use_ai"] is True
-    assert options["child_env"]["OPENROUTER_API_KEY"] == "saved-test-key"
+    assert options["child_env"]["OPENAI_API_KEY"] == "saved-test-key"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
     assert options["child_env"]["SCHEDULER_FORCE_AI_ONLY"] == "1"
     assert "SCHEDULER_FORCE_GREEDY" not in options["child_env"]
 
@@ -2179,7 +2177,6 @@ def test_pipeline_request_prefers_env_ai_key_over_saved_control_center_key(tmp_p
         }
     }))
     monkeypatch.setattr(flask_app_module, "SCHEDULE_CONFIG_PATH", config_path)
-    monkeypatch.setenv("OPENROUTER_API_KEY", "env-openrouter-key")
     monkeypatch.setenv("OPENAI_API_KEY", "env-openai-key")
 
     options = flask_app_module._resolve_pipeline_request_options({
@@ -2187,19 +2184,20 @@ def test_pipeline_request_prefers_env_ai_key_over_saved_control_center_key(tmp_p
         "use_ai": True,
     })
 
-    assert options["child_env"]["OPENROUTER_API_KEY"] == "env-openrouter-key"
+    assert options["child_env"]["OPENAI_API_KEY"] == "env-openai-key"
+    assert "OPENROUTER_API_KEY" not in options["child_env"]
 
 
-def test_pipeline_request_prefers_env_ai_key_over_payload_control_center_key(monkeypatch):
-    monkeypatch.setenv("OPENROUTER_API_KEY", "env-openrouter-key")
+def test_pipeline_request_prefers_openai_env_key_over_payload_control_center_key(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "env-openai-key")
 
     options = flask_app_module._resolve_pipeline_request_options({
         "week_start": "2026-05-11",
         "use_ai": True,
-        "api_key": "payload-openrouter-key",
+        "api_key": "payload-openai-key",
     })
 
-    assert options["child_env"]["OPENROUTER_API_KEY"] == "env-openrouter-key"
+    assert options["child_env"]["OPENAI_API_KEY"] == "env-openai-key"
 
 
 def test_serve_pipeline_request_uses_saved_ai_key_when_ai_generation_requested(tmp_path, monkeypatch):
@@ -2221,7 +2219,8 @@ def test_serve_pipeline_request_uses_saved_ai_key_when_ai_generation_requested(t
 
     assert options["week"] == "2026-05-11"
     assert options["use_ai"] is True
-    assert options["child_env"]["OPENROUTER_API_KEY"] == "saved-test-key"
+    assert options["child_env"]["OPENAI_API_KEY"] == "saved-test-key"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
     assert options["child_env"]["SCHEDULER_FORCE_AI_ONLY"] == "1"
     assert "SCHEDULER_FORCE_GREEDY" not in options["child_env"]
 
@@ -2236,7 +2235,6 @@ def test_serve_pipeline_request_prefers_env_ai_key_over_saved_control_center_key
         }
     }))
     monkeypatch.setattr(serve_module, "SCHEDULE_CONFIG_PATH", config_path)
-    monkeypatch.setenv("OPENROUTER_API_KEY", "env-openrouter-key")
     monkeypatch.setenv("OPENAI_API_KEY", "env-openai-key")
 
     options = serve_module._resolve_pipeline_request_options({
@@ -2244,22 +2242,62 @@ def test_serve_pipeline_request_prefers_env_ai_key_over_saved_control_center_key
         "use_ai": True,
     }, "2026-05-04")
 
-    assert options["child_env"]["OPENROUTER_API_KEY"] == "env-openrouter-key"
+    assert options["child_env"]["OPENAI_API_KEY"] == "env-openai-key"
+    assert "OPENROUTER_API_KEY" not in options["child_env"]
 
 
-def test_serve_pipeline_request_prefers_env_ai_key_over_payload_control_center_key(monkeypatch):
-    monkeypatch.setenv("OPENROUTER_API_KEY", "env-openrouter-key")
+def test_serve_pipeline_request_prefers_openai_env_key_over_payload_control_center_key(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "env-openai-key")
 
     options = serve_module._resolve_pipeline_request_options({
         "week_start": "2026-05-11",
         "use_ai": True,
-        "api_key": "payload-openrouter-key",
+        "api_key": "payload-openai-key",
     }, "2026-05-04")
 
-    assert options["child_env"]["OPENROUTER_API_KEY"] == "env-openrouter-key"
+    assert options["child_env"]["OPENAI_API_KEY"] == "env-openai-key"
 
 
-def test_pipeline_request_prefers_openrouter_claude_primary_and_keeps_deepseek_available(tmp_path, monkeypatch):
+def test_serve_pipeline_request_forces_openai_gpt54mini_only(tmp_path, monkeypatch):
+    clear_ai_env(monkeypatch)
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    config_path = config_dir / "schedule_config.json"
+    config_path.write_text(json.dumps({
+        "settings_options": {
+            "deepseek_api_key": "saved-deepseek-key",
+            "deepseek_model": "deepseek-v4-flash",
+            "ai_provider": "deepseek",
+            "ai_api_key": "saved-openrouter-key",
+            "ai_model": "~anthropic/claude-sonnet-latest",
+            "ai_backup_model": "z-ai/glm-4.5-air:free",
+            "ai_optimize_model": "gpt-4.1",
+        }
+    }))
+    monkeypatch.setattr(serve_module, "SCHEDULE_CONFIG_PATH", config_path)
+
+    options = serve_module._resolve_pipeline_request_options({
+        "week_start": "2026-05-11",
+        "use_ai": True,
+        "api_key": "payload-openai-key",
+        "ai_provider": "openrouter",
+        "ai_model": "gpt-4.1",
+        "deepseek_api_key": "payload-deepseek-key",
+    }, "2026-05-04")
+
+    child_env = options["child_env"]
+    assert child_env["OPENAI_API_KEY"] == "payload-openai-key"
+    assert child_env["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert child_env["OPENAI_BASE_URL"] == "https://api.openai.com/v1"
+    assert child_env["SCHEDULER_FORCE_AI_ONLY"] == "1"
+    assert "OPENROUTER_API_KEY" not in child_env
+    assert "OPENROUTER_MODEL" not in child_env
+    assert "OPENROUTER_BACKUP_MODEL" not in child_env
+    assert "DEEPSEEK_API_KEY" not in child_env
+    assert "DEEPSEEK_MODEL" not in child_env
+
+
+def test_pipeline_request_coerces_old_provider_config_to_openai_only(tmp_path, monkeypatch):
     clear_ai_env(monkeypatch)
     config_dir = tmp_path / "config"
     config_dir.mkdir()
@@ -2281,16 +2319,17 @@ def test_pipeline_request_prefers_openrouter_claude_primary_and_keeps_deepseek_a
         "use_ai": True,
     })
 
-    assert options["child_env"]["DEEPSEEK_API_KEY"] == "saved-deepseek-key"
-    assert options["child_env"]["DEEPSEEK_MODEL"] == "deepseek-v4-flash"
-    assert options["child_env"]["DEEPSEEK_BASE_URL"] == "https://api.deepseek.com"
-    assert options["child_env"]["OPENROUTER_API_KEY"] == "saved-openrouter-key"
-    assert options["child_env"]["OPENROUTER_MODEL"] == "~anthropic/claude-sonnet-latest"
-    assert options["child_env"]["OPENROUTER_BACKUP_MODEL"] == "z-ai/glm-4.5-air:free"
+    assert options["child_env"]["OPENAI_API_KEY"] == "saved-openrouter-key"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert options["child_env"]["OPENAI_BASE_URL"] == "https://api.openai.com/v1"
+    assert "DEEPSEEK_API_KEY" not in options["child_env"]
+    assert "OPENROUTER_API_KEY" not in options["child_env"]
+    assert "OPENROUTER_BACKUP_MODEL" not in options["child_env"]
     assert options["child_env"]["SCHEDULER_FORCE_AI_ONLY"] == "1"
 
 
-def test_pipeline_request_prefers_env_deepseek_and_openrouter_over_saved_keys(tmp_path, monkeypatch):
+def test_pipeline_request_ignores_env_deepseek_and_openrouter_keys(tmp_path, monkeypatch):
+    clear_ai_env(monkeypatch)
     config_dir = tmp_path / "config"
     config_dir.mkdir()
     config_path = config_dir / "schedule_config.json"
@@ -2310,11 +2349,12 @@ def test_pipeline_request_prefers_env_deepseek_and_openrouter_over_saved_keys(tm
         "use_ai": True,
     })
 
-    assert options["child_env"]["DEEPSEEK_API_KEY"] == "env-deepseek-key"
-    assert options["child_env"]["OPENROUTER_API_KEY"] == "env-openrouter-key"
+    assert options["child_env"]["OPENAI_API_KEY"] == "saved-openrouter-key"
+    assert "DEEPSEEK_API_KEY" not in options["child_env"]
+    assert "OPENROUTER_API_KEY" not in options["child_env"]
 
 
-def test_serve_pipeline_request_prefers_openrouter_claude_primary_and_keeps_deepseek_available(tmp_path, monkeypatch):
+def test_serve_pipeline_request_coerces_old_provider_config_to_openai_only(tmp_path, monkeypatch):
     clear_ai_env(monkeypatch)
     config_dir = tmp_path / "config"
     config_dir.mkdir()
@@ -2336,16 +2376,17 @@ def test_serve_pipeline_request_prefers_openrouter_claude_primary_and_keeps_deep
         "use_ai": True,
     }, "2026-05-04")
 
-    assert options["child_env"]["DEEPSEEK_API_KEY"] == "saved-deepseek-key"
-    assert options["child_env"]["DEEPSEEK_MODEL"] == "deepseek-v4-flash"
-    assert options["child_env"]["DEEPSEEK_BASE_URL"] == "https://api.deepseek.com"
-    assert options["child_env"]["OPENROUTER_API_KEY"] == "saved-openrouter-key"
-    assert options["child_env"]["OPENROUTER_MODEL"] == "~anthropic/claude-sonnet-latest"
-    assert options["child_env"]["OPENROUTER_BACKUP_MODEL"] == "z-ai/glm-4.5-air:free"
+    assert options["child_env"]["OPENAI_API_KEY"] == "saved-openrouter-key"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert options["child_env"]["OPENAI_BASE_URL"] == "https://api.openai.com/v1"
+    assert "DEEPSEEK_API_KEY" not in options["child_env"]
+    assert "OPENROUTER_API_KEY" not in options["child_env"]
+    assert "OPENROUTER_BACKUP_MODEL" not in options["child_env"]
     assert options["child_env"]["SCHEDULER_FORCE_AI_ONLY"] == "1"
 
 
-def test_serve_pipeline_request_prefers_env_deepseek_and_openrouter_over_saved_keys(tmp_path, monkeypatch):
+def test_serve_pipeline_request_ignores_env_deepseek_and_openrouter_keys(tmp_path, monkeypatch):
+    clear_ai_env(monkeypatch)
     config_dir = tmp_path / "config"
     config_dir.mkdir()
     config_path = config_dir / "schedule_config.json"
@@ -2365,8 +2406,9 @@ def test_serve_pipeline_request_prefers_env_deepseek_and_openrouter_over_saved_k
         "use_ai": True,
     }, "2026-05-04")
 
-    assert options["child_env"]["DEEPSEEK_API_KEY"] == "env-deepseek-key"
-    assert options["child_env"]["OPENROUTER_API_KEY"] == "env-openrouter-key"
+    assert options["child_env"]["OPENAI_API_KEY"] == "saved-openrouter-key"
+    assert "DEEPSEEK_API_KEY" not in options["child_env"]
+    assert "OPENROUTER_API_KEY" not in options["child_env"]
 
 
 def test_serve_optimize_schedule_endpoint_is_registered(monkeypatch):
@@ -2401,7 +2443,7 @@ def test_serve_optimize_schedule_endpoint_is_registered(monkeypatch):
         thread.join(timeout=5)
 
 
-def test_serve_optimize_schedule_defaults_to_deepseek_key(tmp_path, monkeypatch):
+def test_serve_optimize_schedule_rejects_deepseek_only_config(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     clear_ai_env(monkeypatch)
@@ -2424,50 +2466,13 @@ def test_serve_optimize_schedule_defaults_to_deepseek_key(tmp_path, monkeypatch)
     config_path.write_text(json.dumps({
         "settings_options": {"deepseek_api_key": "deepseek-key"}
     }))
-    captured = {}
-
-    class FakeResponse:
-        status_code = 200
-
-        def json(self):
-            return {"choices": [{"message": {"content": '{"summary":"No changes","operations":[]}'}}]}
-
-    class FakeClient:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def post(self, url, headers=None, json=None):
-            captured["url"] = url
-            captured["headers"] = headers
-            captured["body"] = json
-            return FakeResponse()
-
-    class FakeTimeout:
-        def __init__(self, *args, **kwargs):
-            pass
-
-    class FakeHttpx:
-        Client = FakeClient
-        Timeout = FakeTimeout
-        TimeoutException = TimeoutError
-
-    monkeypatch.setitem(sys.modules, "httpx", FakeHttpx)
     monkeypatch.setattr(serve_module, "WEB_DIR", web_dir)
     monkeypatch.setattr(serve_module, "SCHEDULE_CONFIG_PATH", config_path)
 
     result = serve_module._run_optimize_with_ai({"location": "Supreme HQ, Bandra"})
 
-    assert result["ok"] is True
-    assert result["model"] == "deepseek-v4-flash"
-    assert captured["url"] == "https://api.deepseek.com/chat/completions"
-    assert captured["headers"]["Authorization"] == "Bearer deepseek-key"
-    assert captured["body"]["thinking"] == {"type": "disabled"}
+    assert result["ok"] is False
+    assert "Add an AI API key" in result["error"]
 
 
 def test_serve_optimize_schedule_prefers_env_key_over_control_center_key(tmp_path, monkeypatch):
@@ -2538,9 +2543,10 @@ def test_serve_optimize_schedule_prefers_env_key_over_control_center_key(tmp_pat
     result = serve_module._run_optimize_with_ai({"location": "Supreme HQ, Bandra"})
 
     assert result["ok"] is True
-    assert captured["url"] == "https://api.deepseek.com/chat/completions"
-    assert captured["headers"]["Authorization"] == "Bearer env-deepseek-key"
-    assert captured["body"]["model"] == "deepseek-v4-flash"
+    assert captured["url"] == "https://api.openai.com/v1/chat/completions"
+    assert captured["headers"]["Authorization"] == "Bearer saved-optimize-key"
+    assert captured["body"]["model"] == "gpt-5.4-mini"
+    assert "thinking" not in captured["body"]
 
 
 def test_serve_accepts_british_optimise_schedule_alias(monkeypatch):
@@ -5806,7 +5812,7 @@ def test_ai_repair_uses_single_global_repair_for_multiple_locations(tmp_path, mo
     assert {slot["trainer_1"] for slot in output["schedule"]} == {"Trainer A", "Trainer B"}
 
 
-def test_deepseek_structural_underfill_skips_free_model_and_repairs(tmp_path, monkeypatch):
+def test_openai_structural_underfill_repairs_without_backup_model(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "state").mkdir()
     (tmp_path / "rules").mkdir()
@@ -5849,16 +5855,10 @@ def test_deepseek_structural_underfill_skips_free_model_and_repairs(tmp_path, mo
     monkeypatch.setenv("SCHEDULER_FORCE_AI_ONLY", "1")
     monkeypatch.setattr(ai_planner_module, "OPENAI_AVAILABLE", True)
     monkeypatch.setattr(ai_planner_module, "create_ai_client", lambda: (object(), {
-        "provider": "deepseek",
-        "model": "deepseek-v4-flash",
-        "base_url": "https://api.deepseek.com",
+        "provider": "openai",
+        "model": "gpt-5.4-mini",
+        "base_url": "https://api.openai.com/v1",
     }))
-    monkeypatch.setattr(ai_planner_module, "get_ai_fallback_settings", lambda settings: [{
-        "provider": "openrouter",
-        "model": "~anthropic/claude-sonnet-latest",
-        "base_url": "https://openrouter.ai/api/v1",
-        "api_key": "fallback",
-    }])
 
     def fake_call(self, client, model_name, system_prompt, user_prompt, location, max_tokens=None):
         calls.append(model_name)
@@ -5879,7 +5879,7 @@ def test_deepseek_structural_underfill_skips_free_model_and_repairs(tmp_path, mo
     planner = AISchedulePlanner(target_week_start="2026-05-04", locations=["Kenkere House"])
     output = planner.run()
 
-    assert calls == ["deepseek-v4-flash"]
+    assert calls == ["gpt-5.4-mini"]
     assert output["schedule"][0]["rationale"] == "greedy_fallback"
 
 

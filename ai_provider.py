@@ -6,14 +6,12 @@ from typing import Optional, Tuple
 
 PROJECT_ROOT = Path(__file__).parent
 ENV_PATH = PROJECT_ROOT / ".env"
-DEFAULT_MODEL = "gpt-4.1-mini"
-DEFAULT_BACKUP_MODEL = "deepseek-v4-flash"
+OPENAI_ONLY_MODEL = "gpt-5.4-mini"
+DEFAULT_MODEL = OPENAI_ONLY_MODEL
+DEFAULT_BACKUP_MODEL = ""
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
-DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
-DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash"
-DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+DEFAULT_OPENAI_MODEL = OPENAI_ONLY_MODEL
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
-DEFAULT_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_TIMEOUT_SECONDS = 30
 PLACEHOLDER_VALUES = {
     "your_openrouter_api_key_here",
@@ -76,32 +74,14 @@ def get_ai_settings() -> Optional[dict]:
 
     openai_key = _clean_key(os.environ.get("OPENAI_API_KEY"))
     if openai_key:
+        model = os.environ.get("OPENAI_MODEL") or OPENAI_ONLY_MODEL
+        base_url = os.environ.get("OPENAI_BASE_URL") or DEFAULT_OPENAI_BASE_URL
         return _settings(
             provider="openai",
             api_key=openai_key,
-            model=os.environ.get("OPENAI_MODEL") or DEFAULT_OPENAI_MODEL,
-            backup_model=os.environ.get("OPENAI_BACKUP_MODEL") or os.environ.get("AI_BACKUP_MODEL") or "",
-            base_url=os.environ.get("OPENAI_BASE_URL") or DEFAULT_OPENAI_BASE_URL,
-        )
-
-    deepseek_key = _clean_key(os.environ.get("DEEPSEEK_API_KEY"))
-    if deepseek_key:
-        return _settings(
-            provider="deepseek",
-            api_key=deepseek_key,
-            model=os.environ.get("DEEPSEEK_MODEL") or DEFAULT_DEEPSEEK_MODEL,
-            backup_model=os.environ.get("DEEPSEEK_BACKUP_MODEL") or "",
-            base_url=os.environ.get("DEEPSEEK_BASE_URL") or DEFAULT_DEEPSEEK_BASE_URL,
-        )
-
-    openrouter_key = _clean_key(os.environ.get("OPENROUTER_API_KEY"))
-    if openrouter_key:
-        return _settings(
-            provider="openrouter",
-            api_key=openrouter_key,
-            model=os.environ.get("OPENROUTER_MODEL") or DEFAULT_OPENAI_MODEL,
-            backup_model=os.environ.get("OPENROUTER_BACKUP_MODEL") or os.environ.get("AI_BACKUP_MODEL") or DEFAULT_DEEPSEEK_MODEL,
-            base_url=os.environ.get("OPENROUTER_BASE_URL") or DEFAULT_OPENROUTER_BASE_URL,
+            model=model,
+            backup_model="",
+            base_url=base_url,
         )
 
     return None
@@ -109,40 +89,7 @@ def get_ai_settings() -> Optional[dict]:
 
 def get_ai_fallback_settings(primary_settings: Optional[dict] = None) -> list[dict]:
     load_dotenv_if_present()
-    primary_provider = str((primary_settings or {}).get("provider") or "").lower()
-    fallbacks: list[dict] = []
-
-    openai_key = _clean_key(os.environ.get("OPENAI_API_KEY"))
-    if openai_key and primary_provider != "openai":
-        fallbacks.append(_settings(
-            provider="openai",
-            api_key=openai_key,
-            model=os.environ.get("OPENAI_MODEL") or DEFAULT_OPENAI_MODEL,
-            backup_model=os.environ.get("OPENAI_BACKUP_MODEL") or os.environ.get("AI_BACKUP_MODEL") or "",
-            base_url=os.environ.get("OPENAI_BASE_URL") or DEFAULT_OPENAI_BASE_URL,
-        ))
-
-    deepseek_key = _clean_key(os.environ.get("DEEPSEEK_API_KEY"))
-    if deepseek_key and primary_provider != "deepseek":
-        fallbacks.append(_settings(
-            provider="deepseek",
-            api_key=deepseek_key,
-            model=os.environ.get("DEEPSEEK_MODEL") or DEFAULT_DEEPSEEK_MODEL,
-            backup_model=os.environ.get("DEEPSEEK_BACKUP_MODEL") or "",
-            base_url=os.environ.get("DEEPSEEK_BASE_URL") or DEFAULT_DEEPSEEK_BASE_URL,
-        ))
-
-    openrouter_key = _clean_key(os.environ.get("OPENROUTER_API_KEY"))
-    if openrouter_key and primary_provider != "openrouter":
-        fallbacks.append(_settings(
-            provider="openrouter",
-            api_key=openrouter_key,
-            model=os.environ.get("OPENROUTER_MODEL") or DEFAULT_OPENAI_MODEL,
-            backup_model=os.environ.get("OPENROUTER_BACKUP_MODEL") or os.environ.get("AI_BACKUP_MODEL") or DEFAULT_DEEPSEEK_MODEL,
-            base_url=os.environ.get("OPENROUTER_BASE_URL") or DEFAULT_OPENROUTER_BASE_URL,
-        ))
-
-    return fallbacks
+    return []
 
 
 def create_ai_client() -> Tuple[Optional[OpenAI], Optional[dict]]:
@@ -264,22 +211,11 @@ def call_ai(
 
     explicit_key = _clean_key(api_key)
     if explicit_key:
-        provider_name = str(provider or "openai").strip().lower()
-        if provider_name == "openai":
-            default_model = DEFAULT_OPENAI_MODEL
-            default_base_url = DEFAULT_OPENAI_BASE_URL
-        elif provider_name == "openrouter":
-            default_model = DEFAULT_MODEL
-            default_base_url = DEFAULT_BASE_URL
-        else:
-            provider_name = "deepseek"
-            default_model = DEFAULT_DEEPSEEK_MODEL
-            default_base_url = DEFAULT_DEEPSEEK_BASE_URL
         settings = _settings(
-            provider=provider_name,
+            provider="openai",
             api_key=explicit_key,
-            model=str(model or default_model).strip(),
-            base_url=str(base_url or default_base_url).strip(),
+            model=OPENAI_ONLY_MODEL,
+            base_url=DEFAULT_OPENAI_BASE_URL,
         )
         client = OpenAI(
             api_key=settings["api_key"],
@@ -310,16 +246,9 @@ def call_ai(
     return content
 
 # ---------------------------------------------------------------------------
-# Fallback chat implementation – tries primary model first, then configured fallbacks, then GLM/Owl.
+# Chat implementation: OpenAI-only, no alternate provider fallbacks.
 # ---------------------------------------------------------------------------
 import json
-
-GLM_MODEL = "z-ai/glm-4.5-air:free"
-OWL_MODEL = "openrouter/owl-alpha"
-
-def _make_client(key: str):
-    """Create an OpenAI-compatible client for a given API key."""
-    return OpenAI(api_key=key, base_url="https://openrouter.ai/api/v1")
 
 def _call_model(client: OpenAI, system_prompt: str, user_prompt: str, model: str, max_tokens: int = 1024):
     """Low‑level call that returns the assistant reply or raises.
@@ -334,51 +263,19 @@ def _call_model(client: OpenAI, system_prompt: str, user_prompt: str, model: str
     return resp.choices[0].message.content
 
 def get_chat_reply(system_prompt: str, user_prompt: str) -> str:
-    """Try the primary configured AI, then configured fallbacks, then GLM/Owl.
-    Returns the first successful reply. Raises RuntimeError if none work.
-    """
-    # Primary – use whatever key/model the app already configured via ai_provider.get_ai_settings()
+    """Return an OpenAI-only chat reply. Raises RuntimeError if OpenAI is unavailable."""
     primary_settings = get_ai_settings()
     if primary_settings:
         try:
             client = OpenAI(
                 api_key=primary_settings["api_key"],
-                base_url=primary_settings.get("base_url") or DEFAULT_BASE_URL,
+                base_url=DEFAULT_OPENAI_BASE_URL,
                 default_headers={
                     "HTTP-Referer": "https://studio-scheduler.local",
                     "X-Title": "Studio Scheduler",
                 },
             )
-            return _call_model(client, system_prompt, user_prompt, primary_settings["model"])
+            return _call_model(client, system_prompt, user_prompt, OPENAI_ONLY_MODEL)
         except Exception as e:
-            print(f"[AI] Primary model failed ({primary_settings['model']}): {e}")
-    for fallback in get_ai_fallback_settings(primary_settings):
-        try:
-            client = OpenAI(
-                api_key=fallback["api_key"],
-                base_url=fallback.get("base_url") or DEFAULT_BASE_URL,
-                default_headers={
-                    "HTTP-Referer": "https://studio-scheduler.local",
-                    "X-Title": "Studio Scheduler",
-                },
-            )
-            return _call_model(client, system_prompt, user_prompt, fallback["model"])
-        except Exception as e:
-            print(f"[AI] {fallback['provider']} fallback failed ({fallback['model']}): {e}")
-    # GLM fallback – expects GLM_API_KEY in env
-    glm_key = os.getenv("GLM_API_KEY")
-    if glm_key:
-        try:
-            client = _make_client(glm_key)
-            return _call_model(client, system_prompt, user_prompt, GLM_MODEL)
-        except Exception as e:
-            print(f"[AI] GLM fallback failed: {e}")
-    # Owl fallback – expects OWL_API_KEY in env
-    owl_key = os.getenv("OWL_API_KEY")
-    if owl_key:
-        try:
-            client = _make_client(owl_key)
-            return _call_model(client, system_prompt, user_prompt, OWL_MODEL)
-        except Exception as e:
-            print(f"[AI] Owl fallback failed: {e}")
-    raise RuntimeError("All AI providers failed – configure at least one API key.")
+            print(f"[AI] OpenAI model failed ({OPENAI_ONLY_MODEL}): {e}")
+    raise RuntimeError("OpenAI provider failed or OPENAI_API_KEY is not configured.")

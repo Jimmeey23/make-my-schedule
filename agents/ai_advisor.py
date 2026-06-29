@@ -60,7 +60,7 @@ class AISchedulingAdvisor:
 
         client, settings = create_ai_client()
         if not client or not settings:
-            print("[Agent 7] No OPENROUTER_API_KEY found — skipping AI analysis")
+            print("[Agent 7] No OPENAI_API_KEY found — skipping AI analysis")
             return {"status": "skipped", "reason": "No API key"}
 
         # --- Load required state files ---

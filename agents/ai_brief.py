@@ -2,7 +2,7 @@
 Agent 4.5 — AI Scheduling Brief
 Calls an OpenRouter/OpenAI-compatible API to produce context-aware scheduling hints before the optimiser runs.
 Writes structured JSON that Agent 5 reads to bias slot selection and trainer assignment.
-Gracefully skips if OPENROUTER_API_KEY is absent or the openai package is not installed.
+Gracefully skips if OPENAI_API_KEY is absent or the openai package is not installed.
 """
 import json
 from collections import defaultdict
@@ -79,7 +79,7 @@ class AISchedulingBrief:
 
         client, settings = create_ai_client()
         if not client or not settings:
-            print("[Agent 4.5] No OPENROUTER_API_KEY — skipping AI brief")
+            print("[Agent 4.5] No OPENAI_API_KEY — skipping AI brief")
             return {"status": "skipped", "reason": "no_api_key"}
 
         try:

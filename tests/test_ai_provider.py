@@ -4,7 +4,49 @@ import types
 import ai_provider
 
 
-def test_get_ai_settings_prefers_openrouter_claude_primary(monkeypatch):
+def test_get_ai_settings_uses_only_openai_gpt54mini_even_with_other_provider_keys(monkeypatch):
+    monkeypatch.setattr(ai_provider, "load_dotenv_if_present", lambda: None)
+    for key in (
+        "OPENROUTER_API_KEY",
+        "OPENROUTER_MODEL",
+        "DEEPSEEK_API_KEY",
+        "DEEPSEEK_MODEL",
+        "OPENAI_API_KEY",
+        "OPENAI_MODEL",
+        "AI_BACKUP_MODEL",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "openrouter-key")
+    monkeypatch.setenv("OPENROUTER_MODEL", "~anthropic/claude-sonnet-latest")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
+    monkeypatch.setenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4.1")
+    monkeypatch.setenv("AI_BACKUP_MODEL", "z-ai/glm-4.5-air:free")
+
+    settings = ai_provider.get_ai_settings()
+
+    assert settings["provider"] == "openai"
+    assert settings["api_key"] == "openai-key"
+    assert settings["model"] == "gpt-5.4-mini"
+    assert settings["backup_model"] == ""
+    assert settings["base_url"] == "https://api.openai.com/v1"
+
+
+def test_get_ai_fallback_settings_is_empty_for_openai_only_policy(monkeypatch):
+    monkeypatch.setattr(ai_provider, "load_dotenv_if_present", lambda: None)
+    for key in ("OPENAI_API_KEY", "OPENROUTER_API_KEY", "DEEPSEEK_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "openrouter-key")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
+
+    assert ai_provider.get_ai_fallback_settings({"provider": "openai"}) == []
+
+
+def test_get_ai_settings_ignores_openrouter_and_deepseek_without_openai_key(monkeypatch):
     monkeypatch.setattr(ai_provider, "load_dotenv_if_present", lambda: None)
     for key in (
         "OPENROUTER_API_KEY",
@@ -20,15 +62,10 @@ def test_get_ai_settings_prefers_openrouter_claude_primary(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "openrouter-key")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
 
-    settings = ai_provider.get_ai_settings()
-
-    assert settings["provider"] == "openrouter"
-    assert settings["api_key"] == "openrouter-key"
-    assert settings["model"] == "~anthropic/claude-sonnet-latest"
-    assert settings["base_url"] == "https://openrouter.ai/api/v1"
+    assert ai_provider.get_ai_settings() is None
 
 
-def test_get_ai_fallback_settings_uses_openai_then_deepseek(monkeypatch):
+def test_get_ai_fallback_settings_ignores_non_openai_providers(monkeypatch):
     monkeypatch.setattr(ai_provider, "load_dotenv_if_present", lambda: None)
     for key in (
         "OPENROUTER_API_KEY",
@@ -46,17 +83,10 @@ def test_get_ai_fallback_settings_uses_openai_then_deepseek(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-key")
 
-    fallbacks = ai_provider.get_ai_fallback_settings({"provider": "openrouter"})
-
-    assert [f["provider"] for f in fallbacks] == ["openai", "deepseek"]
-    assert [f["model"] for f in fallbacks] == [
-        "gpt-4.1",
-        "deepseek-v4-flash",
-    ]
-    assert [f["api_key"] for f in fallbacks] == ["openai-key", "deepseek-key"]
+    assert ai_provider.get_ai_fallback_settings({"provider": "openrouter"}) == []
 
 
-def test_call_ai_uses_supplied_runtime_settings(monkeypatch):
+def test_call_ai_coerces_explicit_runtime_settings_to_openai_only(monkeypatch):
     captured = {}
 
     monkeypatch.setattr(ai_provider, "OPENAI_AVAILABLE", True)
@@ -93,11 +123,11 @@ def test_call_ai_uses_supplied_runtime_settings(monkeypatch):
 
     assert raw == '{"summary":"ok","operations":[]}'
     assert captured["client_kwargs"]["api_key"] == "deepseek-key"
-    assert captured["client_kwargs"]["base_url"] == "https://api.deepseek.com"
-    assert captured["model"] == "deepseek-v4-flash"
+    assert captured["client_kwargs"]["base_url"] == "https://api.openai.com/v1"
+    assert captured["model"] == "gpt-5.4-mini"
     assert captured["max_tokens"] == 321
     assert captured["user_prompt"] == "optimise this schedule"
-    assert captured["settings_override"]["provider"] == "deepseek"
+    assert captured["settings_override"]["provider"] == "openai"
 
 
 def test_deepseek_chat_completion_disables_thinking_and_requests_json(monkeypatch):

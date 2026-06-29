@@ -63,7 +63,6 @@ from ai_provider import (
     OPENAI_AVAILABLE,
     create_ai_client,
     create_chat_completion,
-    get_ai_fallback_settings,
 )
 from rule_config import build_rules_catalog, get_active_format_rules, load_rules_config
 
@@ -1089,37 +1088,14 @@ def _location_parallelism(model_sequence: List[str], location_count: int) -> int
 
 
 def _ai_attempt_settings(primary_settings: dict) -> List[dict]:
-    attempts: List[dict] = []
-    seen: set[tuple] = set()
-
-    def add(settings: dict, model: str = "") -> None:
-        if not settings:
-            return
-        next_settings = dict(settings)
-        model_name = str(model or next_settings.get("model") or "").strip()
-        if not model_name:
-            return
-        next_settings["model"] = model_name
-        key = (
-            str(next_settings.get("provider") or ""),
-            str(next_settings.get("base_url") or ""),
-            model_name,
-        )
-        if key in seen:
-            return
-        seen.add(key)
-        attempts.append(next_settings)
-
-    add(primary_settings, str(primary_settings.get("model") or ""))
-    add(primary_settings, str(primary_settings.get("backup_model") or ""))
-
-    try:
-        for fallback in get_ai_fallback_settings(primary_settings):
-            add(fallback)
-    except Exception as exc:
-        print(f"  [Agent 5] [WARN] Could not load fallback AI settings: {exc}")
-
-    return attempts
+    if not primary_settings:
+        return []
+    next_settings = dict(primary_settings)
+    next_settings["provider"] = "openai"
+    next_settings["model"] = "gpt-5.4-mini"
+    next_settings["backup_model"] = ""
+    next_settings["base_url"] = "https://api.openai.com/v1"
+    return [next_settings]
 
 
 def _ai_run_metadata(
@@ -1310,16 +1286,6 @@ class AISchedulePlanner:
             atomic_write_json(path, output, indent=2)
         prune_draft_schedule_files(STATE_DIR, keep_groups=5)
 
-    def _is_deepseek_attempt(self, model_name: str) -> bool:
-        settings = self._ai_settings_by_model.get(model_name) or {}
-        return str(settings.get("provider") or "").lower() == "deepseek"
-
-    def _skip_ai_backup_after_structural_failure(self, model_name: str) -> bool:
-        return (
-            self._is_deepseek_attempt(model_name)
-            and not _is_truthy_env(os.environ.get("AI_USE_FREE_MODEL_AFTER_DEEPSEEK_UNDERFILL", "0"))
-        )
-
     def run(self) -> dict:
         _clear_disabled_cache()
         force_ai_only = os.environ.get("SCHEDULER_FORCE_AI_ONLY") == "1"
@@ -1344,7 +1310,7 @@ class AISchedulePlanner:
                     f"{message}. Set AI API key and runtime settings in Control Center."
                 )
             print(f"{message} — falling back to greedy optimiser")
-            print("[Agent 5]   Set DEEPSEEK_API_KEY or fallback OPENROUTER_API_KEY and model settings")
+            print("[Agent 5]   Set OPENAI_API_KEY or add an OpenAI key in Control Center")
             return self._fallback()
 
         attempt_settings = _ai_attempt_settings(settings)
@@ -1424,9 +1390,6 @@ class AISchedulePlanner:
                             f"{location}: {attempt_model} variant {variant_idx + 1} only {len(slots)} slots parsed; need {min_slots}"
                         )
                         attempts.extend(errors[:2])
-                        if self._skip_ai_backup_after_structural_failure(attempt_model):
-                            attempts.append(f"{location}: repaired deterministically after DeepSeek underfill")
-                            break
                         continue
 
                     slots = _validate_slots(slots, location, profiles_by_name)
@@ -1440,9 +1403,6 @@ class AISchedulePlanner:
                             f"{location}: {attempt_model} variant {variant_idx + 1} only {len(slots)} slots remained after hard-limit enforcement"
                         )
                         attempts.extend(errors[:2])
-                        if self._skip_ai_backup_after_structural_failure(attempt_model):
-                            attempts.append(f"{location}: repaired deterministically after DeepSeek hard-limit underfill")
-                            break
                         continue
                     if attempt_model != model_sequence[0]:
                         attempts.append(f"{location}: recovered with backup model {attempt_model}")
