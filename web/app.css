@@ -33,7 +33,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 }
 .hdr-left{display:flex;align-items:center;gap:10px;min-width:0;flex-shrink:0}
 .logo{
-  width:68px;height:68px;background:transparent;border:none;border-radius:18px;
+  width:68px;height:68px;background:transparent;border:none;border-radius:0;
   display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;
   box-shadow:none;position:relative;overflow:visible;isolation:isolate;
   animation:logoDrift 7s cubic-bezier(.45,0,.55,1) infinite;
@@ -45,7 +45,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   content:none;
 }
 .logo-img{
-  width:100%;height:100%;object-fit:contain;display:block;position:relative;z-index:1;border-radius:14px;
+  width:100%;height:100%;object-fit:contain;display:block;position:relative;z-index:1;border-radius:0;background:transparent;
   transform:scale(1.05);
   filter:drop-shadow(0 0 0px rgba(124,58,237,0));
   animation:logoBreath 4.8s cubic-bezier(.45,0,.55,1) infinite, athenaGlow 4.8s ease-in-out infinite;
@@ -138,12 +138,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 #initial-loader .ld-logo-img {
   width: 72px; height: 72px; border-radius: 18px;
   object-fit: contain; object-position: center;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(124,58,237,.35);
-  box-shadow:
-    0 16px 36px rgba(0,0,0,.45),
-    0 0 0 6px rgba(124,58,237,.1),
-    0 0 32px rgba(124,58,237,.25);
+  background: transparent;
+  border: none;
+  box-shadow: none;
   position: relative;
   filter: drop-shadow(0 0 8px rgba(139,92,246,.4));
   animation: ldLogoLoop 3.8s cubic-bezier(.45,0,.55,1) infinite, athenaLoaderGlow 3.8s ease-in-out infinite;
