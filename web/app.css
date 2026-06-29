@@ -47,6 +47,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .logo-img{
   width:100%;height:100%;object-fit:contain;display:block;position:relative;z-index:1;border-radius:0;background:transparent;
   transform:scale(1.05);
+  mix-blend-mode:multiply;
   filter:drop-shadow(0 0 0px rgba(124,58,237,0));
   animation:logoBreath 4.8s cubic-bezier(.45,0,.55,1) infinite, athenaGlow 4.8s ease-in-out infinite;
 }
@@ -136,11 +137,12 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   display: flex; align-items: center; gap: 14px;
 }
 #initial-loader .ld-logo-img {
-  width: 72px; height: 72px; border-radius: 18px;
+  width: 72px; height: 72px; border-radius: 0;
   object-fit: contain; object-position: center;
   background: transparent;
   border: none;
   box-shadow: none;
+  mix-blend-mode: screen;
   position: relative;
   filter: drop-shadow(0 0 8px rgba(139,92,246,.4));
   animation: ldLogoLoop 3.8s cubic-bezier(.45,0,.55,1) infinite, athenaLoaderGlow 3.8s ease-in-out infinite;
