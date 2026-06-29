@@ -45,9 +45,10 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   content:none;
 }
 .logo-img{
-  width:100%;height:100%;object-fit:cover;display:block;position:relative;z-index:1;border-radius:18px;
-  transform:scale(1.78);
-  animation:logoBreath 4.8s cubic-bezier(.45,0,.55,1) infinite;
+  width:100%;height:100%;object-fit:contain;display:block;position:relative;z-index:1;border-radius:14px;
+  transform:scale(1.05);
+  filter:drop-shadow(0 0 0px rgba(124,58,237,0));
+  animation:logoBreath 4.8s cubic-bezier(.45,0,.55,1) infinite, athenaGlow 4.8s ease-in-out infinite;
 }
 .brand-wordmark{display:flex;align-items:baseline;gap:8px;font-family:'Plus Jakarta Sans',sans-serif;line-height:1}
 .brand-wordmark{animation:titleRise .7s cubic-bezier(.16,1,.3,1) both}
@@ -56,8 +57,8 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   color:#10212E;text-shadow:0 10px 24px rgba(15,23,42,.08)
 }
 .brand-wordmark .brand-57{
-  font-size:30px;font-weight:900;letter-spacing:.01em;line-height:.9;
-  color:#1D4ED8;text-shadow:0 10px 24px rgba(59,130,246,.16);
+  font-size:22px;font-weight:900;letter-spacing:.06em;line-height:.9;
+  color:#7C3AED;text-shadow:0 10px 24px rgba(124,58,237,.22);
   animation:title57Shift 4.4s cubic-bezier(.45,0,.55,1) infinite
 }
 .brand-product{font-size:9px;color:#64748B;margin-top:3px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;white-space:nowrap}
@@ -71,9 +72,14 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 @keyframes logoBreath{0%,100%{transform:scale(1)}45%{transform:scale(1.045)}70%{transform:scale(.99)}}
 @keyframes titleRise{from{opacity:0;transform:translateY(15px) scale(0.95)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes title57Shift{
-  0%,100%{color:#2563EB;text-shadow:0 10px 24px rgba(59,130,246,.14);transform:translateY(0)}
-  33%{color:#14B8A6;text-shadow:0 10px 24px rgba(20,184,166,.14);transform:translateY(-1px)}
-  66%{color:#F97316;text-shadow:0 10px 24px rgba(249,115,22,.16);transform:translateY(0)}
+  0%,100%{color:#7C3AED;text-shadow:0 10px 24px rgba(124,58,237,.22);transform:translateY(0)}
+  33%{color:#6D28D9;text-shadow:0 10px 24px rgba(109,40,217,.2);transform:translateY(-1px)}
+  66%{color:#8B5CF6;text-shadow:0 10px 24px rgba(139,92,246,.28);transform:translateY(0)}
+}
+@keyframes athenaGlow{
+  0%,100%{filter:drop-shadow(0 0 4px rgba(124,58,237,.18)) drop-shadow(0 0 0px rgba(139,92,246,0))}
+  45%{filter:drop-shadow(0 0 14px rgba(124,58,237,.55)) drop-shadow(0 0 28px rgba(139,92,246,.22))}
+  72%{filter:drop-shadow(0 0 6px rgba(109,40,217,.3)) drop-shadow(0 0 2px rgba(124,58,237,.1))}
 }
 @keyframes physique57ColorLoop{
   0%,100%{color:#D45B63;text-shadow:0 0 0 rgba(212,91,99,0)}
@@ -100,13 +106,13 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 /* ambient orbs */
 #initial-loader .ld-orb1 {
   position: absolute; width: 480px; height: 480px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(99,102,241,.22) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(124,58,237,.28) 0%, transparent 70%);
   top: -120px; left: -100px;
   animation: ldOrb 7s ease-in-out infinite alternate;
 }
 #initial-loader .ld-orb2 {
   position: absolute; width: 360px; height: 360px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(249,115,22,.18) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(139,92,246,.2) 0%, transparent 70%);
   bottom: -80px; right: -60px;
   animation: ldOrb 9s ease-in-out infinite alternate-reverse;
 }
@@ -130,17 +136,22 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   display: flex; align-items: center; gap: 14px;
 }
 #initial-loader .ld-logo-img {
-  width: 64px; height: 64px; border-radius: 18px;
-  background:
-    #FFFFFF
-    url("images/planner57-logo-final.png") center/142% no-repeat;
-  border: 1px solid rgba(255,255,255,.72);
+  width: 72px; height: 72px; border-radius: 18px;
+  object-fit: contain; object-position: center;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(124,58,237,.35);
   box-shadow:
-    0 16px 36px rgba(0,0,0,.38),
-    0 0 0 6px rgba(255,255,255,.08),
-    inset 0 1px 0 rgba(255,255,255,.95);
+    0 16px 36px rgba(0,0,0,.45),
+    0 0 0 6px rgba(124,58,237,.1),
+    0 0 32px rgba(124,58,237,.25);
   position: relative;
-  animation: ldLogoLoop 3.8s cubic-bezier(.45,0,.55,1) infinite;
+  filter: drop-shadow(0 0 8px rgba(139,92,246,.4));
+  animation: ldLogoLoop 3.8s cubic-bezier(.45,0,.55,1) infinite, athenaLoaderGlow 3.8s ease-in-out infinite;
+}
+@keyframes athenaLoaderGlow {
+  0%,100%{filter:drop-shadow(0 0 6px rgba(124,58,237,.4)) drop-shadow(0 0 2px rgba(139,92,246,.2))}
+  45%{filter:drop-shadow(0 0 22px rgba(124,58,237,.75)) drop-shadow(0 0 40px rgba(139,92,246,.35))}
+  72%{filter:drop-shadow(0 0 10px rgba(109,40,217,.5)) drop-shadow(0 0 4px rgba(124,58,237,.25))}
 }
 @keyframes ldLogoLoop {
   0%,100%{transform:translateY(0) rotate(0deg) scale(1)}
@@ -157,7 +168,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
   line-height: 1;
 }
-#initial-loader .ld-brand-name span{-webkit-text-fill-color:#FFD37E;color:#FFD37E}
+#initial-loader .ld-brand-name span{-webkit-text-fill-color:#A78BFA;color:#A78BFA}
 #initial-loader .ld-brand-sub {
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 11px; font-weight: 600; color: rgba(255,255,255,.35);
@@ -177,7 +188,7 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 }
 #initial-loader .ld-progress-bar {
   height: 100%; width: 40%;
-  background: linear-gradient(90deg, #6366F1, #F97316, #6366F1);
+  background: linear-gradient(90deg, #7C3AED, #A78BFA, #7C3AED);
   background-size: 200%;
   border-radius: 99px;
   animation: ldShimmer 1.6s linear infinite, ldGrow 2s cubic-bezier(.4,0,.2,1) forwards;
