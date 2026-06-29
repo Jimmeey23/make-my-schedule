@@ -93,114 +93,109 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 .hdr-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:900;color:#0F172A;letter-spacing:-0.02em;line-height:1.05}
 .hdr-sub{font-size:12px;color:#64748B;margin-top:4px;font-weight:700;letter-spacing:.01em}
 
-/* GLOBAL LOADER — premium dark edition */
+/* GLOBAL LOADER — Athena edition */
 #initial-loader {
   position: fixed; inset: 0; z-index: 99999;
-  background: linear-gradient(135deg, #0B0F1A 0%, #0F1729 40%, #111827 100%);
+  background: radial-gradient(ellipse at 50% 0%, #1A0E35 0%, #0D0B1A 45%, #07060F 100%);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.35s ease;
   overflow: hidden;
 }
 #initial-loader.hidden { opacity: 0; pointer-events: none; }
 
 /* ambient orbs */
 #initial-loader .ld-orb1 {
-  position: absolute; width: 480px; height: 480px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(124,58,237,.28) 0%, transparent 70%);
-  top: -120px; left: -100px;
-  animation: ldOrb 7s ease-in-out infinite alternate;
+  position: absolute; width: 600px; height: 600px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(109,40,217,.22) 0%, transparent 65%);
+  top: -200px; left: -160px;
+  animation: ldOrb 8s ease-in-out infinite alternate;
 }
 #initial-loader .ld-orb2 {
-  position: absolute; width: 360px; height: 360px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(139,92,246,.2) 0%, transparent 70%);
-  bottom: -80px; right: -60px;
-  animation: ldOrb 9s ease-in-out infinite alternate-reverse;
+  position: absolute; width: 440px; height: 440px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(139,92,246,.16) 0%, transparent 65%);
+  bottom: -140px; right: -100px;
+  animation: ldOrb 11s ease-in-out infinite alternate-reverse;
 }
-@keyframes ldOrb { 0%{transform:scale(1) translate(0,0)} 100%{transform:scale(1.15) translate(20px,20px)} }
+#initial-loader .ld-orb3 {
+  position: absolute; width: 320px; height: 320px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(167,139,250,.1) 0%, transparent 65%);
+  bottom: 10%; left: 8%;
+  animation: ldOrb 13s ease-in-out infinite alternate;
+}
+@keyframes ldOrb { 0%{transform:scale(1) translate(0,0)} 100%{transform:scale(1.2) translate(24px,16px)} }
 
-/* card */
+/* card — frameless, centered column */
 #initial-loader .ld-card {
   position: relative; z-index: 1;
-  display: flex; flex-direction: column; align-items: center; gap: 20px;
-  background: rgba(255,255,255,.035);
-  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 28px; padding: 40px 48px 36px;
-  box-shadow: 0 32px 80px rgba(0,0,0,.55);
-  animation: ldCardIn .45s cubic-bezier(.22,1,.36,1) both;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  background: none; border: none; border-radius: 0; padding: 0; box-shadow: none;
+  animation: ldCardIn .6s cubic-bezier(.22,1,.36,1) both;
 }
-@keyframes ldCardIn { from{opacity:0;transform:translateY(18px) scale(.97)} to{opacity:1;transform:none} }
+@keyframes ldCardIn { from{opacity:0;transform:translateY(24px) scale(.96)} to{opacity:1;transform:none} }
 
-/* logo row */
-#initial-loader .ld-logo-row {
-  display: flex; align-items: center; gap: 14px;
+/* logo wrap — dark bg masks any white pixels in PNG, matches loader bg */
+#initial-loader .ld-logo-wrap {
+  background: #0D0B1A;
+  border-radius: 28px;
+  padding: 24px 36px 20px;
+  margin-bottom: 28px;
+  box-shadow:
+    0 0 0 1px rgba(124,58,237,.18),
+    0 0 60px rgba(109,40,217,.2),
+    0 24px 64px rgba(0,0,0,.6);
+  animation: athenaWrapGlow 4.5s ease-in-out infinite;
 }
+@keyframes athenaWrapGlow {
+  0%,100%{ box-shadow: 0 0 0 1px rgba(124,58,237,.18), 0 0 40px rgba(109,40,217,.18), 0 24px 64px rgba(0,0,0,.6); }
+  50%{     box-shadow: 0 0 0 1px rgba(139,92,246,.35), 0 0 80px rgba(124,58,237,.38), 0 24px 64px rgba(0,0,0,.6); }
+}
+
+/* logo image — transparent, floats gently */
 #initial-loader .ld-logo-img {
-  width: 72px; height: 72px; border-radius: 0;
-  object-fit: contain; object-position: center;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  mix-blend-mode: screen;
-  position: relative;
-  filter: drop-shadow(0 0 8px rgba(139,92,246,.4));
-  animation: ldLogoLoop 3.8s cubic-bezier(.45,0,.55,1) infinite, athenaLoaderGlow 3.8s ease-in-out infinite;
+  width: 220px; height: auto; display: block;
+  animation: ldLogoFloat 5s ease-in-out infinite;
 }
-@keyframes athenaLoaderGlow {
-  0%,100%{filter:drop-shadow(0 0 6px rgba(124,58,237,.4)) drop-shadow(0 0 2px rgba(139,92,246,.2))}
-  45%{filter:drop-shadow(0 0 22px rgba(124,58,237,.75)) drop-shadow(0 0 40px rgba(139,92,246,.35))}
-  72%{filter:drop-shadow(0 0 10px rgba(109,40,217,.5)) drop-shadow(0 0 4px rgba(124,58,237,.25))}
+@keyframes ldLogoFloat {
+  0%,100%{ transform: translateY(0); }
+  50%{ transform: translateY(-7px); }
 }
-@keyframes ldLogoLoop {
-  0%,100%{transform:translateY(0) rotate(0deg) scale(1)}
-  38%{transform:translateY(-4px) rotate(-2deg) scale(1.06)}
-  72%{transform:translateY(1px) rotate(1.5deg) scale(.99)}
-}
-#initial-loader .ld-brand {
-  display: flex; flex-direction: column;
-}
-#initial-loader .ld-brand-name {
+
+/* tagline */
+#initial-loader .ld-tagline {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 27px; font-weight: 900; letter-spacing: .04em;
-  background: linear-gradient(135deg, #fff 30%, rgba(255,255,255,.55));
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-  line-height: 1;
-}
-#initial-loader .ld-brand-name span{-webkit-text-fill-color:#A78BFA;color:#A78BFA}
-#initial-loader .ld-brand-sub {
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 11px; font-weight: 600; color: rgba(255,255,255,.35);
-  letter-spacing: .08em; text-transform: uppercase; margin-top: 3px;
+  font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+  color: rgba(167,139,250,.5);
+  margin-bottom: 28px;
 }
 
 /* divider */
 #initial-loader .ld-divider {
-  width: 100%; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent);
+  width: 200px; height: 1px; margin-bottom: 20px;
+  background: linear-gradient(90deg, transparent, rgba(124,58,237,.35), transparent);
 }
 
 /* progress track */
 #initial-loader .ld-progress-track {
-  width: 220px; height: 3px; background: rgba(255,255,255,.08);
-  border-radius: 99px; overflow: hidden;
+  width: 200px; height: 2px; background: rgba(255,255,255,.06);
+  border-radius: 99px; overflow: hidden; margin-bottom: 14px;
 }
 #initial-loader .ld-progress-bar {
-  height: 100%; width: 40%;
-  background: linear-gradient(90deg, #7C3AED, #A78BFA, #7C3AED);
+  height: 100%; width: 8%;
+  background: linear-gradient(90deg, #5B21B6, #A78BFA, #7C3AED);
   background-size: 200%;
   border-radius: 99px;
-  animation: ldShimmer 1.6s linear infinite, ldGrow 2s cubic-bezier(.4,0,.2,1) forwards;
+  animation: ldShimmer 1.8s linear infinite, ldGrow 2.4s cubic-bezier(.4,0,.2,1) forwards;
 }
 @keyframes ldShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-@keyframes ldGrow { from{width:8%} to{width:92%} }
+@keyframes ldGrow { from{width:8%} to{width:90%} }
 
 /* status text */
 #initial-loader .ld-status {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 12px; font-weight: 600; color: rgba(255,255,255,.38);
-  letter-spacing: .02em; min-height: 16px;
-  animation: ldFadeIn .4s ease;
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,.3);
+  letter-spacing: .04em; min-height: 16px;
+  animation: ldFadeIn .5s ease;
 }
 @keyframes ldFadeIn { from{opacity:0} to{opacity:1} }
 
