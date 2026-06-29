@@ -134,26 +134,29 @@ button{font-family:inherit;cursor:pointer;border:none;background:none}
 }
 @keyframes ldCardIn { from{opacity:0;transform:translateY(24px) scale(.96)} to{opacity:1;transform:none} }
 
-/* logo wrap — dark bg masks any white pixels in PNG, matches loader bg */
+/* logo wrap — white isolated context so multiply kills all white/artifact pixels cleanly */
 #initial-loader .ld-logo-wrap {
-  background: #0D0B1A;
+  background: #ffffff;
   border-radius: 28px;
-  padding: 24px 36px 20px;
-  margin-bottom: 28px;
+  padding: 20px 36px 16px;
+  margin-bottom: 32px;
+  isolation: isolate;
   box-shadow:
-    0 0 0 1px rgba(124,58,237,.18),
-    0 0 60px rgba(109,40,217,.2),
-    0 24px 64px rgba(0,0,0,.6);
+    0 0 0 1px rgba(124,58,237,.22),
+    0 0 0 5px rgba(124,58,237,.07),
+    0 20px 56px rgba(0,0,0,.55),
+    0 0 80px rgba(109,40,217,.18);
   animation: athenaWrapGlow 4.5s ease-in-out infinite;
 }
 @keyframes athenaWrapGlow {
-  0%,100%{ box-shadow: 0 0 0 1px rgba(124,58,237,.18), 0 0 40px rgba(109,40,217,.18), 0 24px 64px rgba(0,0,0,.6); }
-  50%{     box-shadow: 0 0 0 1px rgba(139,92,246,.35), 0 0 80px rgba(124,58,237,.38), 0 24px 64px rgba(0,0,0,.6); }
+  0%,100%{ box-shadow: 0 0 0 1px rgba(124,58,237,.2), 0 0 0 5px rgba(124,58,237,.06), 0 20px 56px rgba(0,0,0,.55), 0 0 60px rgba(109,40,217,.14); }
+  50%{     box-shadow: 0 0 0 1px rgba(139,92,246,.45), 0 0 0 5px rgba(124,58,237,.12), 0 20px 56px rgba(0,0,0,.55), 0 0 100px rgba(124,58,237,.36); }
 }
 
-/* logo image — transparent, floats gently */
+/* logo img — multiply within isolated white context removes white bg + all compression artifacts */
 #initial-loader .ld-logo-img {
   width: 220px; height: auto; display: block;
+  mix-blend-mode: multiply;
   animation: ldLogoFloat 5s ease-in-out infinite;
 }
 @keyframes ldLogoFloat {
