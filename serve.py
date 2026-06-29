@@ -946,7 +946,7 @@ def _run_optimize_with_ai(payload: dict) -> dict:
     body = {
         "model": model,
         "temperature": 0,
-        "max_tokens": int(settings_options.get("ai_optimize_max_tokens") or 4000),
+        "max_completion_tokens": int(settings_options.get("ai_optimize_max_tokens") or 4000),
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": system_prompt},
@@ -1644,6 +1644,501 @@ def _move_class_in_schedule(payload):
     return {"moved": 1, "slot": moved, "supabase_saved": supabase_saved}
 
 
+_DAY_ALIASES = {
+    "mon": "Monday", "monday": "Monday",
+    "tue": "Tuesday", "tues": "Tuesday", "tuesday": "Tuesday",
+    "wed": "Wednesday", "weds": "Wednesday", "wednesday": "Wednesday",
+    "thu": "Thursday", "thur": "Thursday", "thurs": "Thursday", "thursday": "Thursday",
+    "fri": "Friday", "friday": "Friday",
+    "sat": "Saturday", "saturday": "Saturday",
+    "sun": "Sunday", "sunday": "Sunday",
+}
+
+_CLASS_ALIASES = {
+    "mat57": "Studio Mat 57", "mat 57": "Studio Mat 57",
+    "barre57": "Studio Barre 57", "barre 57": "Studio Barre 57",
+    "cardio barre": "Studio Cardio Barre", "cardiobarre": "Studio Cardio Barre",
+    "cardio barre express": "Studio Cardio Barre Express",
+    "cardio barre plus": "Studio Cardio Barre Plus",
+    "mat express": "Studio Mat 57 Express", "mat57 express": "Studio Mat 57 Express",
+    "back body blaze": "Studio Back Body Blaze",
+    "bbe": "Studio Back Body Blaze",
+    "fit": "Studio FIT",
+    "sweat": "Studio SWEAT In 30", "sweat in 30": "Studio SWEAT In 30",
+    "powercycle": "Studio PowerCycle", "power cycle": "Studio PowerCycle",
+    "cycle": "Studio PowerCycle",
+    "strength lab": "Studio Strength Lab",
+    "recovery": "Studio Recovery",
+    "foundations": "Studio Foundations",
+    "amped up": "Studio Amped Up!", "amped": "Studio Amped Up!",
+    "barre express": "Studio Barre 57 Express",
+}
+
+
+def _normalize_day(val: str) -> str:
+    return _DAY_ALIASES.get(str(val or "").strip().lower(), str(val or "").strip().title())
+
+
+def _normalize_time(val: str) -> str:
+    """Convert '6pm', '6:00pm', '18:00', '18' → 'HH:MM'."""
+    import re
+    s = str(val or "").strip().lower().replace(" ", "")
+    if not s:
+        return ""
+    m = re.match(r"^(\d{1,2})(?::(\d{2}))?([ap]m)?$", s)
+    if not m:
+        return val
+    hour = int(m.group(1))
+    minute = int(m.group(2) or 0)
+    meridiem = m.group(3)
+    if meridiem == "pm" and hour < 12:
+        hour += 12
+    elif meridiem == "am" and hour == 12:
+        hour = 0
+    return f"{hour:02d}:{minute:02d}"
+
+
+def _normalize_class(val: str, known_classes: list) -> str:
+    s = str(val or "").strip()
+    key = s.lower()
+    if key in _CLASS_ALIASES:
+        return _CLASS_ALIASES[key]
+    # exact match against known classes (case-insensitive)
+    for c in known_classes:
+        if c.lower() == key:
+            return c
+    # partial match: known class contains the alias or vice versa
+    for c in known_classes:
+        if key in c.lower() or c.lower() in key:
+            return c
+    return s
+
+
+def _normalize_trainer(val: str, known_trainers: list) -> str:
+    s = str(val or "").strip()
+    key = s.lower()
+    # exact match
+    for t in known_trainers:
+        if t.lower() == key:
+            return t
+    # first-name match ("karan" → "Karanvir Bhatia")
+    for t in known_trainers:
+        parts = t.lower().split()
+        if parts and (parts[0] == key or parts[0].startswith(key) or key.startswith(parts[0])):
+            return t
+    # partial match anywhere in name
+    for t in known_trainers:
+        if key in t.lower():
+            return t
+    return s
+
+
+def _normalize_location(val: str, known_locations: list) -> str:
+    s = str(val or "").strip()
+    if not s:
+        return s
+    key = s.lower()
+    for loc in known_locations:
+        if loc.lower() == key or key in loc.lower() or loc.lower() in key:
+            return loc
+    return s
+
+
+def _load_known_trainers() -> list:
+    try:
+        profiles = json.loads(_trainer_profiles_path().read_text())
+        return [p["name"] for p in profiles if p.get("active") and p.get("name")]
+    except Exception:
+        return []
+
+
+def _load_known_classes() -> list:
+    try:
+        path = PROJECT_ROOT / "rules" / "class_formats.json"
+        data = json.loads(path.read_text())
+        return [d["name"] for d in data if d.get("name")]
+    except Exception:
+        return list(_CLASS_ALIASES.values())
+
+
+def _nl_edit_plan(payload: dict) -> dict:
+    """Use AI to parse a natural-language instruction into structured schedule edits."""
+    instruction = str((payload or {}).get("instruction") or "").strip()
+    if not instruction:
+        return {"error": "Empty instruction"}
+
+    schedule_snapshot = (payload or {}).get("schedule_snapshot") or {}
+    context = (payload or {}).get("context") or {}
+    active_location = str(context.get("location") or "").strip()
+
+    # Load trainer names, availability, and class names for the prompt
+    known_trainers = _load_known_trainers()
+    known_classes = _load_known_classes()
+
+    # Build trainer availability map: name → {available_days, week_off_days} for active location
+    trainer_availability = {}
+    try:
+        profiles = json.loads(_trainer_profiles_path().read_text())
+        for p in profiles:
+            if not p.get("active") or not p.get("name"):
+                continue
+            loc_data = (p.get("locations") or {}).get(active_location) or {}
+            if not loc_data and p.get("locations"):
+                # fallback: any location
+                loc_data = next(iter(p["locations"].values()), {})
+            avail = loc_data.get("available_days") or []
+            off = loc_data.get("week_off_days") or []
+            trainer_availability[p["name"]] = {
+                "available": avail,
+                "off": off,
+            }
+    except Exception:
+        pass
+
+    # Load current schedule from disk (more reliable than frontend snapshot)
+    all_rows = []
+    known_locations = []
+    try:
+        sched_path = WEB_DIR / "schedule_data.json"
+        if sched_path.exists():
+            sched_data = json.loads(sched_path.read_text())
+            known_locations = list((sched_data.get("locations") or {}).keys())
+            target_locs = [active_location] if active_location else known_locations
+            for loc in target_locs:
+                for r in (sched_data.get("locations") or {}).get(loc, []):
+                    all_rows.append(
+                        f"{r.get('location',loc)} | {r.get('day_of_week','')} {r.get('time','')} | "
+                        f"{r.get('class_name','')} | {r.get('trainer_1','')}"
+                    )
+    except Exception:
+        pass
+
+    schedule_text = "\n".join(all_rows[:300]) if all_rows else "No schedule loaded."
+    class_list = ", ".join(known_classes) if known_classes else "unknown"
+    location_list = ", ".join(known_locations) if known_locations else "unknown"
+    active_loc_hint = f" Active location: {active_location}." if active_location else ""
+
+    # Compact trainer availability: "Name (off: Wed, Mon)" or "Name (available: Tue–Sun)"
+    avail_lines = []
+    for name in known_trainers[:40]:
+        av = trainer_availability.get(name, {})
+        off_days = av.get("off") or []
+        if off_days:
+            avail_lines.append(f"{name} (off: {', '.join(off_days)})")
+        else:
+            avail_lines.append(name)
+    trainer_list = "\n".join(avail_lines) if avail_lines else "unknown"
+
+    system_prompt = (
+        "You are a studio schedule editor. Parse the user's instruction into structured schedule edits.\n"
+        "Return ONLY valid JSON — no markdown fences, no explanation.\n\n"
+        "SCHEMA (all fields required, use empty string if not applicable):\n"
+        '{"summary":"one-line summary","intent":"clear|unclear","confidence":0.0,'
+        '"route_to_optimizer":false,"optimizer_scope":{},'
+        '"edits":[{"action":"add|remove|move|swap_trainer",'
+        '"location":"EXACT location name","day":"","time":"HH:MM 24h","class_name":"EXACT class name","trainer_1":"EXACT trainer full name",'
+        '"new_day":"","new_time":"HH:MM 24h","new_class":"","new_trainer":"",'
+        '"best_fit_trainer_candidates":[],"best_fit_class_candidates":[]}],'
+        '"warnings":[],"constraint_checks":[]}\n\n'
+        "RULES:\n"
+        "- action=add: all slot details go under new_day/new_time/new_class/new_trainer; location is required\n"
+        "- action=remove: match existing row using day/time/class_name/trainer_1/location\n"
+        "- action=move: source in day/time/class_name/trainer_1; destination in new_day/new_time; keep same location unless stated\n"
+        "- action=swap_trainer: source in day/time/class_name/trainer_1; replacement in new_trainer\n"
+        "- day/new_day: full English day name, title case: Monday Tuesday Wednesday Thursday Friday Saturday Sunday\n"
+        "- time/new_time: 24-hour HH:MM format ONLY (18:00 not 6pm)\n"
+        f"- class_name/new_class: use EXACT names from this list: {class_list}\n"
+        f"- trainer_1/new_trainer: use EXACT full names. Each entry below shows off-days in parentheses:\n{trainer_list}\n"
+        f"- location: use EXACT location name from: {location_list}{active_loc_hint}\n"
+        "- Resolve short names: 'karan'→'Karanvir Bhatia', 'anisha'→'Anisha Shah', 'rohan'→'Rohan Dahima', 'reshma'→'Reshma Sharma', 'atulan'→'Atulan Purohit', 'pranjali'→'Pranjali Jain', 'vivaran'→'Vivaran Dhasmana', 'mrigakshi'→'Mrigakshi Jaiswal', 'pushyank'→'Pushyank Nahar', 'kajol'→'Kajol Kanchan', 'shruti'→'Shruti Kulkarni'\n"
+        "- CRITICAL: If the requested trainer has '(off: <day>)' in their entry and the instruction targets that day, set confidence<0.6, add a warning like 'Karanvir Bhatia is off on Wednesday', and suggest an available alternative in best_fit_trainer_candidates\n"
+        "- If location not specified, use the active location\n"
+        "- confidence: 0.9+ if all fields unambiguous and trainer is available; 0.5-0.7 if inferred or trainer unavailable; <0.4 if unclear\n"
+        "- route_to_optimizer: true ONLY if optimizing a whole day/slot block, not a specific single class\n"
+        f"\nCURRENT SCHEDULE (location | day time | class | trainer):\n{schedule_text}"
+    )
+
+    try:
+        from ai_provider import create_ai_client, OPENAI_AVAILABLE
+        if not OPENAI_AVAILABLE:
+            return {"error": "AI not available"}
+        client, settings = create_ai_client()
+        if not client:
+            return {"error": "AI not configured. Add an OpenAI API key in Settings."}
+
+        resp = client.chat.completions.create(
+            model=(settings or {}).get("model") or DEFAULT_OPENAI_MODEL,
+            temperature=0.1,
+            max_completion_tokens=1500,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": instruction},
+            ],
+        )
+        raw = (resp.choices[0].message.content or "").strip()
+        # strip markdown fences if present
+        if raw.startswith("```"):
+            raw = "\n".join(raw.split("\n")[1:])
+            if raw.endswith("```"):
+                raw = raw[:-3].strip()
+        result = json.loads(raw)
+    except json.JSONDecodeError:
+        return {
+            "summary": "Could not parse AI response",
+            "intent": "unclear",
+            "confidence": 0.0,
+            "edits": [],
+            "warnings": ["AI returned an unstructured response. Try rephrasing your instruction."],
+            "constraint_checks": [],
+            "route_to_optimizer": False,
+        }
+    except Exception as exc:
+        return {"error": f"AI error: {exc}"}
+
+    # Post-process: normalize fields the AI may have returned in wrong format
+    known_trainers_set = known_trainers
+    known_classes_set = known_classes
+    known_locs = known_locations or [active_location]
+    for edit in result.get("edits") or []:
+        for day_field in ("day", "new_day"):
+            if edit.get(day_field):
+                edit[day_field] = _normalize_day(edit[day_field])
+        for time_field in ("time", "new_time"):
+            if edit.get(time_field):
+                edit[time_field] = _normalize_time(edit[time_field])
+        for cls_field in ("class_name", "new_class"):
+            if edit.get(cls_field):
+                edit[cls_field] = _normalize_class(edit[cls_field], known_classes_set)
+        for tr_field in ("trainer_1", "new_trainer"):
+            if edit.get(tr_field):
+                edit[tr_field] = _normalize_trainer(edit[tr_field], known_trainers_set)
+        if edit.get("location"):
+            edit["location"] = _normalize_location(edit["location"], known_locs)
+        else:
+            edit["location"] = active_location or (known_locs[0] if known_locs else "")
+
+        # Generate server-side best_fit_trainer_candidates for add/swap actions
+        if edit.get("action") in ("add", "swap_trainer"):
+            day_target = edit.get("new_day") or edit.get("day") or ""
+            time_target = edit.get("new_time") or edit.get("time") or ""
+            loc_target = edit.get("location") or ""
+            cls_target = edit.get("new_class") or edit.get("class_name") or ""
+            requested_trainer = edit.get("new_trainer") or edit.get("trainer_1") or ""
+            candidates = _find_trainer_candidates(
+                day=day_target, location=loc_target, class_name=cls_target,
+                profiles=[], exclude=requested_trainer, time_str=time_target,
+            )
+            edit["best_fit_trainer_candidates"] = candidates
+
+    return result
+
+
+def _qual_key(class_name: str) -> str:
+    """Map class name to trainer qualification key."""
+    n = class_name.lower()
+    if "mat 57" in n or "mat57" in n:
+        return "mat_57"
+    if "barre 57" in n or "barre57" in n:
+        return "all_barre"
+    if "cardio barre" in n:
+        return "cardio_barre"
+    if "powercycle" in n or "power cycle" in n:
+        return "powercycle"
+    if "strength lab" in n:
+        return "strength_lab"
+    if "foundations" in n:
+        return "foundations"
+    if "back body blaze" in n:
+        return "back_body_blaze"
+    if "sweat" in n:
+        return "fit"
+    if "fit" in n:
+        return "fit"
+    if "amped" in n:
+        return "amped_up"
+    if "recovery" in n:
+        return "studio_recovery"
+    return ""
+
+
+def _find_trainer_candidates(day: str, location: str, class_name: str, profiles: list,
+                              exclude: str = "", time_str: str = "") -> list:
+    """Return up to 5 available, qualified trainers for the given day/location/class."""
+    try:
+        raw_profiles = json.loads(_trainer_profiles_path().read_text())
+    except Exception:
+        return []
+
+    # Determine shift of the requested time for AM/PM conflict checking
+    target_shift = None
+    if time_str:
+        try:
+            hour = int(time_str.split(":")[0])
+            target_shift = "AM" if hour < 12 else "PM"
+        except Exception:
+            pass
+
+    # Load current schedule to detect conflicts
+    existing_assignments: dict[str, list[str]] = {}  # trainer → [shift, ...]
+    try:
+        sched_path = WEB_DIR / "schedule_data.json"
+        if sched_path.exists():
+            sched = json.loads(sched_path.read_text())
+            for loc_rows in (sched.get("locations") or {}).values():
+                for r in (loc_rows or []):
+                    if r.get("day_of_week") == day:
+                        t = r.get("trainer_1") or ""
+                        tm = r.get("time") or ""
+                        if t and tm:
+                            try:
+                                h = int(tm.split(":")[0])
+                                shift = "AM" if h < 12 else "PM"
+                                existing_assignments.setdefault(t, []).append(shift)
+                            except Exception:
+                                pass
+    except Exception:
+        pass
+
+    qual_key = _qual_key(class_name)
+    results = []
+    for p in raw_profiles:
+        if not p.get("active"):
+            continue
+        name = p.get("name") or ""
+        if not name or name == exclude:
+            continue
+        # Check qualification
+        if qual_key:
+            quals = p.get("qualifications") or {}
+            if not quals.get(qual_key):
+                continue
+        # Check availability at location on day
+        loc_data = (p.get("locations") or {}).get(location) or {}
+        if not loc_data:
+            continue
+        available_days = loc_data.get("available_days") or []
+        week_off_days = loc_data.get("week_off_days") or []
+        if day and (day not in available_days or day in week_off_days):
+            continue
+        # Check AM/PM same-day conflict
+        if target_shift:
+            trainer_shifts = existing_assignments.get(name, [])
+            if target_shift in trainer_shifts:
+                continue  # already teaching this shift on this day
+            if trainer_shifts and target_shift not in trainer_shifts:
+                continue  # has the other shift — cross-shift not allowed
+        results.append({
+            "name": name,
+            "tier": p.get("tier") or 3,
+            "avg_checkin": round(float(loc_data.get("avg_checkin") or 0), 1),
+            "avg_fill_rate": round(float(loc_data.get("avg_fill_rate") or 0), 1),
+            "session_count": int(loc_data.get("session_count") or 0),
+            "available": True,
+        })
+
+    results.sort(key=lambda x: (x["tier"], -x["avg_checkin"]))
+    return results[:5]
+
+
+def _nl_edit_apply(payload: dict) -> dict:
+    """Apply a list of structured edits returned by /api/nl-edit."""
+    edits = (payload or {}).get("edits") or []
+    iteration = str((payload or {}).get("iteration") or "Main")
+    known_trainers = _load_known_trainers()
+    known_classes = _load_known_classes()
+
+    # Collect known locations from schedule
+    known_locations = []
+    try:
+        sched_path = WEB_DIR / "schedule_data.json"
+        if sched_path.exists():
+            known_locations = list((json.loads(sched_path.read_text()).get("locations") or {}).keys())
+    except Exception:
+        pass
+
+    def norm(edit: dict) -> dict:
+        """Normalize all fields in an edit dict before applying."""
+        e = dict(edit)
+        for f in ("day", "new_day"):
+            if e.get(f):
+                e[f] = _normalize_day(e[f])
+        for f in ("time", "new_time"):
+            if e.get(f):
+                e[f] = _normalize_time(e[f])
+        for f in ("class_name", "new_class"):
+            if e.get(f):
+                e[f] = _normalize_class(e[f], known_classes)
+        for f in ("trainer_1", "new_trainer"):
+            if e.get(f):
+                e[f] = _normalize_trainer(e[f], known_trainers)
+        if e.get("location"):
+            e["location"] = _normalize_location(e["location"], known_locations)
+        return e
+
+    applied = 0
+    errors = []
+
+    for raw_edit in edits:
+        action = str(raw_edit.get("action") or "").strip()
+        edit = norm(raw_edit)
+        try:
+            if action == "add":
+                slot = {
+                    "location": edit.get("location") or "",
+                    "day_of_week": edit.get("new_day") or edit.get("day") or "",
+                    "time": edit.get("new_time") or edit.get("time") or "",
+                    "class_name": edit.get("new_class") or edit.get("class_name") or "",
+                    "trainer_1": edit.get("new_trainer") or edit.get("trainer_1") or "",
+                }
+                _add_class_to_schedule({"slot": slot, "iteration": iteration})
+                applied += 1
+            elif action == "remove":
+                slot = {
+                    "location": edit.get("location") or "",
+                    "day_of_week": edit.get("day") or "",
+                    "time": edit.get("time") or "",
+                    "class_name": edit.get("class_name") or "",
+                    "trainer_1": edit.get("trainer_1") or "",
+                }
+                _remove_class_from_schedule({"slot": slot, "iteration": iteration})
+                applied += 1
+            elif action == "move":
+                slot = {
+                    "location": edit.get("location") or "",
+                    "day_of_week": edit.get("day") or "",
+                    "time": edit.get("time") or "",
+                    "class_name": edit.get("class_name") or "",
+                    "trainer_1": edit.get("trainer_1") or "",
+                }
+                target = {
+                    "location": edit.get("new_location") or edit.get("location") or "",
+                    "day_of_week": edit.get("new_day") or edit.get("day") or "",
+                    "time": edit.get("new_time") or edit.get("time") or "",
+                }
+                _move_class_in_schedule({"slot": slot, "target": target, "iteration": iteration})
+                applied += 1
+            elif action == "swap_trainer":
+                slot = {
+                    "location": edit.get("location") or "",
+                    "day_of_week": edit.get("day") or "",
+                    "time": edit.get("time") or "",
+                    "class_name": edit.get("class_name") or "",
+                    "trainer_1": edit.get("trainer_1") or "",
+                }
+                _replace_trainer_in_schedule({
+                    "slot": slot,
+                    "new_trainer": edit.get("new_trainer") or "",
+                    "iteration": iteration,
+                })
+                applied += 1
+            else:
+                errors.append({"action": action, "error": f"Unknown action: {action}"})
+        except Exception as exc:
+            errors.append({"action": action, "slot": edit, "error": str(exc)})
+
+    return {"applied": applied, "errors": errors}
+
+
 def _regenerate_index_from_template(schedule_data=None):
     from agents.reporter import OPTIMISATION_OPPORTUNITIES, _rules_panel_html
 
@@ -1878,6 +2373,7 @@ def pull_supabase_config():
 
 
 class RulesHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
     # Set via class variable from CLI arg
     pipeline_week: str = "2026-05-04"
     pipeline_csv: str = os.environ.get(
@@ -2383,7 +2879,7 @@ class RulesHandler(BaseHTTPRequestHandler):
                     resp = client.chat.completions.create(
                         model=settings.get("model") or DEFAULT_OPENAI_MODEL,
                         temperature=0.4,
-                        max_tokens=800,
+                        max_completion_tokens=800,
                         messages=messages,
                     )
                     reply = resp.choices[0].message.content.strip() if resp.choices else "No response from AI."
@@ -2402,6 +2898,28 @@ class RulesHandler(BaseHTTPRequestHandler):
                 result = _optimize_schedule_request(payload)
                 status = 200 if result.get("ok") else 400
                 self._send_json(status, result)
+            except json.JSONDecodeError as e:
+                self._send_json(400, {"error": f"Invalid JSON: {e}"})
+            except Exception as e:
+                self._send_json(500, {"error": str(e)})
+            return
+
+        if path == "/api/nl-edit":
+            try:
+                payload = json.loads(body_raw)
+                result = _nl_edit_plan(payload)
+                self._send_json(200, result)
+            except json.JSONDecodeError as e:
+                self._send_json(400, {"error": f"Invalid JSON: {e}"})
+            except Exception as e:
+                self._send_json(500, {"error": str(e)})
+            return
+
+        if path == "/api/nl-edit-apply":
+            try:
+                payload = json.loads(body_raw)
+                result = _nl_edit_apply(payload)
+                self._send_json(200, result)
             except json.JSONDecodeError as e:
                 self._send_json(400, {"error": f"Invalid JSON: {e}"})
             except Exception as e:

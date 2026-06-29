@@ -271,7 +271,7 @@ def _build_chat_reply(payload: dict) -> str:
         response = client.chat.completions.create(
             model=(settings or {}).get("model") or DEFAULT_OPENAI_MODEL,
             temperature=0.4,
-            max_tokens=800,
+            max_completion_tokens=800,
             messages=messages,
         )
         return response.choices[0].message.content.strip() if response.choices else "No response from AI."

@@ -149,7 +149,7 @@ def create_chat_completion(
             payload = {
                 "model": model,
                 "temperature": 0,
-                "max_tokens": max_tokens,
+                "max_completion_tokens": max_tokens,
                 "messages": messages,
             }
             if str(settings.get("provider") or "").lower() == "deepseek":
@@ -190,7 +190,7 @@ def create_chat_completion(
     return client.chat.completions.create(
         model=model,
         temperature=0,
-        max_tokens=max_tokens,
+        max_completion_tokens=max_tokens,
         timeout=timeout,
         messages=messages,
     )
@@ -257,7 +257,7 @@ def _call_model(client: OpenAI, system_prompt: str, user_prompt: str, model: str
     resp = client.chat.completions.create(
         model=model,
         temperature=0,
-        max_tokens=max_tokens,
+        max_completion_tokens=max_tokens,
         messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
     )
     return resp.choices[0].message.content

@@ -60734,8 +60734,8 @@
         "date": "2026-05-07",
         "day_of_week": "Thursday",
         "time": "18:00",
-        "class_name": "Studio Barre 57",
-        "trainer_1": "Atulan Purohit",
+        "class_name": "Studio PowerCycle",
+        "trainer_1": "Cauveri Vikrant",
         "trainer_2": "",
         "cover": "",
         "room": "Studio 1",
@@ -60745,7 +60745,7 @@
         "score": 36.9,
         "recommendation": "PROTECT_EXACT",
         "is_experimental": false,
-        "scheduling_reason": "Top performer: Atulan Purohit \u2014 16 sessions, 30% fill, score 36.9",
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio PowerCycle with Cauveri Vikrant has score 46.87 and fill 45% over 62 sessions for this exact day/time/location.",
         "historical_avg_fill": 0.3036,
         "historical_avg_checkin": 4.53,
         "historical_session_count": 16,
@@ -61658,7 +61658,8 @@
         "slot_avg_checkin": 4.22,
         "slot_avg_fill_rate": 0.0475,
         "slot_session_count": 18,
-        "slot_empty_sessions": 2
+        "slot_empty_sessions": 2,
+        "ai_optimized": true
       },
       {
         "location": "Supreme HQ, Bandra",
@@ -65281,7 +65282,7 @@
         "date": "2026-05-07",
         "day_of_week": "Thursday",
         "time": "08:00",
-        "class_name": "Studio Barre 57",
+        "class_name": "Studio PowerCycle",
         "trainer_1": "Anisha Shah",
         "trainer_2": "",
         "cover": "",
@@ -65292,7 +65293,7 @@
         "score": 50.0,
         "recommendation": "CONSIDER",
         "is_experimental": false,
-        "scheduling_reason": "Top trainer rejected: Atulan Purohit \u2014 availability/load constraint (time window, shift, overlap, daily/weekly cap, or movement lock). Coverage: best available trainer-class combo for this slot",
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio PowerCycle with Anisha Shah has score 62.43 and fill 62% over 75 sessions for this exact day/time/location.",
         "historical_avg_fill": 0.0383,
         "historical_avg_checkin": 3.83,
         "historical_session_count": 6,
@@ -65801,7 +65802,8 @@
         "slot_avg_checkin": 3.83,
         "slot_avg_fill_rate": 0.0383,
         "slot_session_count": 6,
-        "slot_empty_sessions": 0
+        "slot_empty_sessions": 0,
+        "ai_optimized": true
       },
       {
         "location": "Supreme HQ, Bandra",
@@ -103892,7 +103894,7 @@
         "date": "2026-05-10",
         "day_of_week": "Sunday",
         "time": "17:00",
-        "class_name": "Studio Barre 57",
+        "class_name": "Studio Mat 57",
         "trainer_1": "Reshma Sharma",
         "trainer_2": "",
         "cover": "",
@@ -103903,7 +103905,7 @@
         "score": 18.69,
         "recommendation": "PROTECT_EXACT",
         "is_experimental": false,
-        "scheduling_reason": "Top trainer rejected: Karanvir Bhatia \u2014 availability/load constraint (time window, shift, overlap, daily/weekly cap, or movement lock). Protected slot \u2014 alternate trainer selected. Slot history: 84 sessions, 36% fill, 5.1 avg check-ins",
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Mat 57 with Reshma Sharma has score 38.43 and fill 42% over 21 sessions for this exact day/time/location.",
         "historical_avg_fill": 0.2143,
         "historical_avg_checkin": 3.0,
         "historical_session_count": 2,
@@ -105791,7 +105793,8 @@
         "slot_avg_checkin": 5.06,
         "slot_avg_fill_rate": 0.0512,
         "slot_session_count": 84,
-        "slot_empty_sessions": 1
+        "slot_empty_sessions": 1,
+        "ai_optimized": true
       },
       {
         "location": "Supreme HQ, Bandra",
@@ -237792,6 +237795,16 @@
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
         "slot_empty_sessions": null
+      },
+      {
+        "location": "Kwality House, Kemps Corner",
+        "day_of_week": "Wednesday",
+        "time": "18:00",
+        "class_name": "Studio Mat 57",
+        "trainer_1": "Simran Dutt",
+        "recommendation": "MANUAL",
+        "manual_added": true,
+        "scheduling_reason": "Manual class added from calendar"
       }
     ],
     "Copper & Cloves": [

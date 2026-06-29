@@ -13,7 +13,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css" />
-<link rel="stylesheet" href="configurator.css" />
 
 </head>
 <body class="theme-light">
@@ -83,7 +82,8 @@
     <button class="vbtn" id="vbtn-heatmap" onclick="setView('heatmap')">▧ Heatmap</button>
     <button class="vbtn" id="vbtn-rooms" onclick="setView('rooms')">▣ Rooms</button>
     <button class="vbtn" id="vbtn-analytics" onclick="setView('analytics')">▦ Analytics</button>
-    <button class="vbtn" id="vbtn-settings" onclick="setView('settings')">⚙ Settings</button>
+    <button class="vbtn" id="vbtn-control" onclick="openControlCenterModal('overview')">Control Center</button>
+    <button class="vbtn" id="vbtn-compliance" onclick="openComplianceReportModal()" title="View rules compliance and score breakdown for generated schedule">📋 Report</button>
   </div>
   <div class="ctrl-right">
     <div id="iter-row" style="display:flex;gap:3px"></div>
@@ -60975,8 +60975,8 @@ const SCHEDULE_DATA = [{
         "date": "2026-05-07",
         "day_of_week": "Thursday",
         "time": "18:00",
-        "class_name": "Studio Barre 57",
-        "trainer_1": "Atulan Purohit",
+        "class_name": "Studio PowerCycle",
+        "trainer_1": "Cauveri Vikrant",
         "trainer_2": "",
         "cover": "",
         "room": "Studio 1",
@@ -60986,7 +60986,7 @@ const SCHEDULE_DATA = [{
         "score": 36.9,
         "recommendation": "PROTECT_EXACT",
         "is_experimental": false,
-        "scheduling_reason": "Top performer: Atulan Purohit \u2014 16 sessions, 30% fill, score 36.9",
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio PowerCycle with Cauveri Vikrant has score 46.87 and fill 45% over 62 sessions for this exact day/time/location.",
         "historical_avg_fill": 0.3036,
         "historical_avg_checkin": 4.53,
         "historical_session_count": 16,
@@ -61899,7 +61899,8 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": 4.22,
         "slot_avg_fill_rate": 0.0475,
         "slot_session_count": 18,
-        "slot_empty_sessions": 2
+        "slot_empty_sessions": 2,
+        "ai_optimized": true
       },
       {
         "location": "Supreme HQ, Bandra",
@@ -65522,7 +65523,7 @@ const SCHEDULE_DATA = [{
         "date": "2026-05-07",
         "day_of_week": "Thursday",
         "time": "08:00",
-        "class_name": "Studio Barre 57",
+        "class_name": "Studio PowerCycle",
         "trainer_1": "Anisha Shah",
         "trainer_2": "",
         "cover": "",
@@ -65533,7 +65534,7 @@ const SCHEDULE_DATA = [{
         "score": 50.0,
         "recommendation": "CONSIDER",
         "is_experimental": false,
-        "scheduling_reason": "Top trainer rejected: Atulan Purohit \u2014 availability/load constraint (time window, shift, overlap, daily/weekly cap, or movement lock). Coverage: best available trainer-class combo for this slot",
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio PowerCycle with Anisha Shah has score 62.43 and fill 62% over 75 sessions for this exact day/time/location.",
         "historical_avg_fill": 0.0383,
         "historical_avg_checkin": 3.83,
         "historical_session_count": 6,
@@ -66042,7 +66043,8 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": 3.83,
         "slot_avg_fill_rate": 0.0383,
         "slot_session_count": 6,
-        "slot_empty_sessions": 0
+        "slot_empty_sessions": 0,
+        "ai_optimized": true
       },
       {
         "location": "Supreme HQ, Bandra",
@@ -104133,7 +104135,7 @@ const SCHEDULE_DATA = [{
         "date": "2026-05-10",
         "day_of_week": "Sunday",
         "time": "17:00",
-        "class_name": "Studio Barre 57",
+        "class_name": "Studio Mat 57",
         "trainer_1": "Reshma Sharma",
         "trainer_2": "",
         "cover": "",
@@ -104144,7 +104146,7 @@ const SCHEDULE_DATA = [{
         "score": 18.69,
         "recommendation": "PROTECT_EXACT",
         "is_experimental": false,
-        "scheduling_reason": "Top trainer rejected: Karanvir Bhatia \u2014 availability/load constraint (time window, shift, overlap, daily/weekly cap, or movement lock). Protected slot \u2014 alternate trainer selected. Slot history: 84 sessions, 36% fill, 5.1 avg check-ins",
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Mat 57 with Reshma Sharma has score 38.43 and fill 42% over 21 sessions for this exact day/time/location.",
         "historical_avg_fill": 0.2143,
         "historical_avg_checkin": 3.0,
         "historical_session_count": 2,
@@ -106032,7 +106034,8 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": 5.06,
         "slot_avg_fill_rate": 0.0512,
         "slot_session_count": 84,
-        "slot_empty_sessions": 1
+        "slot_empty_sessions": 1,
+        "ai_optimized": true
       },
       {
         "location": "Supreme HQ, Bandra",
@@ -134206,7 +134209,7 @@ const SCHEDULE_DATA = [{
         "date": "2026-05-04",
         "day_of_week": "Monday",
         "time": "17:45",
-        "class_name": "Studio Strength Lab (Full Body)",
+        "class_name": "Studio Barre 57 Express",
         "trainer_1": "Rohan Dahima",
         "trainer_2": "",
         "cover": "",
@@ -134217,7 +134220,7 @@ const SCHEDULE_DATA = [{
         "score": 20.0,
         "recommendation": "EXPERIMENTAL",
         "is_experimental": true,
-        "scheduling_reason": "Experimental: no historical data for Studio Strength Lab (Full Body) with Rohan Dahima \u2014 included for class variety",
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Barre 57 Express with Rohan Dahima has score 32.12 and fill 28% over 10 sessions for this exact day/time/location.",
         "historical_avg_fill": 0.0,
         "historical_avg_checkin": 0.0,
         "historical_session_count": 0,
@@ -134293,7 +134296,8 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": null,
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
-        "slot_empty_sessions": null
+        "slot_empty_sessions": null,
+        "ai_optimized": true
       },
       {
         "location": "Kwality House, Kemps Corner",
@@ -147255,8 +147259,8 @@ const SCHEDULE_DATA = [{
         "date": "2026-05-05",
         "day_of_week": "Tuesday",
         "time": "10:00",
-        "class_name": "Studio Cardio Barre Express",
-        "trainer_1": "Anisha Shah",
+        "class_name": "Studio PowerCycle",
+        "trainer_1": "Bret Saldanha",
         "trainer_2": "",
         "cover": "",
         "room": "Studio 1",
@@ -147266,7 +147270,7 @@ const SCHEDULE_DATA = [{
         "score": 35.0,
         "recommendation": "CONSIDER",
         "is_experimental": false,
-        "scheduling_reason": "Top trainer rejected: Karanvir Bhatia \u2014 availability/load constraint (time window, shift, overlap, daily/weekly cap, or movement lock). Score 35.0/100 (CONSIDER) \u2014 1 sessions, avg fill 18%, avg check-in 2.0",
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio PowerCycle with Bret Saldanha has score 29.55 and fill 39% over 16 sessions for this exact day/time/location.",
         "historical_avg_fill": 0.033,
         "historical_avg_checkin": 3.15,
         "historical_session_count": 46,
@@ -149142,7 +149146,8 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": null,
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
-        "slot_empty_sessions": null
+        "slot_empty_sessions": null,
+        "ai_optimized": true
       },
       {
         "location": "Kwality House, Kemps Corner",
@@ -159137,7 +159142,7 @@ const SCHEDULE_DATA = [{
         "day_of_week": "Wednesday",
         "time": "11:30",
         "class_name": "Studio Barre 57",
-        "trainer_1": "Rohan Dahima",
+        "trainer_1": "Anisha Shah",
         "trainer_2": "",
         "cover": "",
         "room": "Studio 1",
@@ -159147,7 +159152,7 @@ const SCHEDULE_DATA = [{
         "score": 48.48,
         "recommendation": "PROTECT_EXACT",
         "is_experimental": false,
-        "scheduling_reason": "Top performer: Rohan Dahima \u2014 28 sessions, 37% fill, score 48.5",
+        "scheduling_reason": "Server-vetted exact trainer-slot improvement: Anisha Shah has score 49.11 and fill 44% over 3 sessions for this class/day/time/location.",
         "historical_avg_fill": 0.3714,
         "historical_avg_checkin": 7.43,
         "historical_session_count": 28,
@@ -161491,7 +161496,8 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": 5.8,
         "slot_avg_fill_rate": 0.0588,
         "slot_session_count": 82,
-        "slot_empty_sessions": 1
+        "slot_empty_sessions": 1,
+        "ai_optimized": true
       },
       {
         "location": "Kwality House, Kemps Corner",
@@ -179322,7 +179328,7 @@ const SCHEDULE_DATA = [{
         "date": "2026-05-07",
         "day_of_week": "Thursday",
         "time": "17:45",
-        "class_name": "Studio PowerCycle",
+        "class_name": "Studio Barre 57 Express",
         "trainer_1": "Karan Bhatia",
         "trainer_2": "",
         "cover": "",
@@ -179333,7 +179339,7 @@ const SCHEDULE_DATA = [{
         "score": 28.39,
         "recommendation": "PROTECT_EXACT",
         "is_experimental": false,
-        "scheduling_reason": "Top performer: Karan Bhatia \u2014 16 sessions, 38% fill, score 28.4",
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Barre 57 Express with Karan Bhatia has score 34.37 and fill 46% over 9 sessions for this exact day/time/location.",
         "historical_avg_fill": 0.3774,
         "historical_avg_checkin": 4.0,
         "historical_session_count": 16,
@@ -180111,7 +180117,8 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": 3.88,
         "slot_avg_fill_rate": 0.0413,
         "slot_session_count": 17,
-        "slot_empty_sessions": 1
+        "slot_empty_sessions": 1,
+        "ai_optimized": true
       },
       {
         "location": "Kwality House, Kemps Corner",
@@ -195486,7 +195493,7 @@ const SCHEDULE_DATA = [{
         "date": "2026-05-08",
         "day_of_week": "Friday",
         "time": "19:00",
-        "class_name": "Studio Mat 57",
+        "class_name": "Studio Cardio Barre Plus",
         "trainer_1": "Pranjali Jain",
         "trainer_2": "",
         "cover": "",
@@ -195497,7 +195504,7 @@ const SCHEDULE_DATA = [{
         "score": 20.0,
         "recommendation": "EXPERIMENTAL",
         "is_experimental": true,
-        "scheduling_reason": "Experimental: no historical data for Studio Mat 57 with Pranjali Jain \u2014 included for class variety",
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Cardio Barre Plus with Pranjali Jain has score 32.16 and fill 24% over 4 sessions for this exact day/time/location.",
         "historical_avg_fill": 0.0,
         "historical_avg_checkin": 0.0,
         "historical_session_count": 0,
@@ -195612,7 +195619,8 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": null,
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
-        "slot_empty_sessions": null
+        "slot_empty_sessions": null,
+        "ai_optimized": true
       },
       {
         "location": "Kwality House, Kemps Corner",
@@ -238028,6 +238036,16 @@ const SCHEDULE_DATA = [{
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
         "slot_empty_sessions": null
+      },
+      {
+        "location": "Kwality House, Kemps Corner",
+        "day_of_week": "Wednesday",
+        "time": "18:00",
+        "class_name": "Studio Mat 57",
+        "trainer_1": "Simran Dutt",
+        "recommendation": "MANUAL",
+        "manual_added": true,
+        "scheduling_reason": "Manual class added from calendar"
       }
     ],
     "Copper & Cloves": [
@@ -298585,11 +298603,6 @@ const WEEK_LABEL   = ["04 May – 10 May 2026"][0] || SCHEDULE_DATA.generated_fo
 const OPPORTUNITIES = [["Kenkere 10:00 AM \u2014 56.5% fill, only 144 sessions. Expand to 5 days/week for highest ROI.", "Supreme 09:30 AM \u2014 46.7% fill, 349 sessions. Add daily slot with Cauveri or Atulan.", "Anisha Shah at Kwality on Fridays \u2014 avg 7.7 check-in. 1 Friday morning slot would lift the weakest day.", "Kwality Thursday fill rate \u2014 33.5%, lowest despite high volume. Swap 1-2 Thu slots to stronger class/trainer combos.", "Kenkere Saturday 4th morning \u2014 40.6% fill. Kajol or Shruti Kulkarni as candidates.", "Supreme Friday underperformance \u2014 31.2% fill. Test Vivaran or Cauveri on Fridays instead."]][0] || [];
 </script>
 <script src="app.js"></script>
-<script src="cfg-shell.js"></script>
-<script src="cfg-people.js"></script>
-<script src="cfg-schedule.js"></script>
-<script src="cfg-rules.js"></script>
-<script src="cfg-system.js"></script>
 
 <button class="chat-fab" id="chat-fab" onclick="chatToggle()" title="Ask AI about the schedule">
   <img class="chat-fab-logo" src="images/p57-internal-feedback-logo.jpg" alt="Athena Scheduler AI assistant">
