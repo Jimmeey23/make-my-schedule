@@ -4208,6 +4208,88 @@ function controlCenterEnsurePanel(panelName){
   if(panelName==="rules")renderRulesView(host); else renderSettingsView(host);
   host.dataset.loaded="1";
 }
+
+function renderControlCenterShell(){
+  const box=document.getElementById("modal-box"); if(!box)return;
+  box.className="modal-box control-center-modal";
+  box.innerHTML=`
+    <div class="modal-hdr control-center-hdr">
+      <div class="cc-title-stack">
+        <div class="cc-title-mark">⚙</div>
+        <div>
+          <div class="cc-title-line">
+            <div class="modal-class-name">Settings Console</div>
+            <span class="cc-live-chip">Persistent</span>
+          </div>
+          <div class="modal-meta">Applied to every generation: targets, trainers, assignment days, off days, class mix, rules, pins, and AI configuration.</div>
+        </div>
+      </div>
+      <div class="cc-header-actions" aria-label="Control center shortcuts">
+        <button class="cc-header-pill" type="button" onclick="controlCenterSetSection('overview')">Overview</button>
+        <button class="cc-header-pill" type="button" onclick="controlCenterSetSection('scheduling')">Schedule</button>
+        <button class="cc-header-pill" type="button" onclick="controlCenterSetSection('trainers')">Trainers</button>
+        <button class="cc-header-pill" type="button" onclick="controlCenterSetSection('rules')">Rules</button>
+        <button class="cc-header-pill" type="button" onclick="controlCenterSetSection('ai')">AI &amp; Generation</button>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="control-center-shell">
+      <aside class="control-center-rail">
+        <div class="cc-rail-header">
+          <div class="cc-rail-title">Control Room</div>
+          <div class="cc-rail-sub">Edit the generation contract from one organized command surface.</div>
+        </div>
+        <div class="cc-rail-nav-wrap">
+          <div class="control-center-nav">${renderControlCenterNav()}</div>
+        </div>
+      </aside>
+
+      <main class="control-center-main">
+        <section class="control-center-intro">
+          <div class="control-center-intro-copy">
+            <div class="control-center-nav-title" id="control-center-heading">Settings Console</div>
+            <div class="control-center-nav-desc" id="control-center-description"></div>
+          </div>
+          <div class="control-center-intro-actions">
+            <button class="cc-intro-action" type="button" onclick="controlCenterSetSection('overview')">Overview</button>
+            <button class="cc-intro-action" type="button" onclick="controlCenterSetSection('scheduling')">Schedule Setup</button>
+            <button class="cc-intro-action" type="button" onclick="controlCenterSetSection('rules')">Rules</button>
+            <button class="cc-intro-action" type="button" onclick="controlCenterSetSection('trainers')">Trainer Setup</button>
+            <button class="cc-intro-action" type="button" onclick="controlCenterSetSection('ai')">AI &amp; Generation</button>
+          </div>
+          <div class="cc-status-strip">
+            <div class="cc-status-tile"><span>Rules source</span><b>Canonical JSON</b></div>
+            <div class="cc-status-tile"><span>Save mode</span><b>Persistent</b></div>
+            <div class="cc-status-tile"><span>Generation</span><b>Standard + AI</b></div>
+            <div class="cc-status-tile"><span>Validation</span><b>Pre-assignment</b></div>
+          </div>
+        </section>
+
+        <section class="control-center-panel" id="control-center-settings-panel" hidden></section>
+        <section class="control-center-panel" id="control-center-rules-panel" hidden></section>
+      </main>
+
+      <aside class="control-center-inspector">
+        <div class="cc-inspector-card accent sett-generation-contract">
+          <div class="cc-inspector-title">Generation Contract</div>
+          <div class="cc-inspector-copy">Saved settings are the canonical source for every Standard, AI, and repair generation. Trainer assignment days, week off dates, inactive status, class mix caps, and hard custom rules are validated before assignment.</div>
+        </div>
+        <div class="cc-inspector-card">
+          <div class="cc-inspector-title">Quick Jump</div>
+          <div class="cc-inspector-copy">Use the rail for section navigation, or jump straight into the most common edit areas below.</div>
+          <div class="cc-inspector-actions">
+            <button class="cc-inspector-btn" type="button" onclick="controlCenterSetSection('overview')">Open Overview</button>
+            <button class="cc-inspector-btn" type="button" onclick="controlCenterSetSection('scheduling')">Open Schedule Setup</button>
+            <button class="cc-inspector-btn" type="button" onclick="controlCenterSetSection('trainers')">Open Trainer Setup</button>
+            <button class="cc-inspector-btn" type="button" onclick="controlCenterSetSection('rules')">Open Rules</button>
+            <button class="cc-inspector-btn primary" type="button" onclick="controlCenterSetSection('ai')">Open AI &amp; Generation</button>
+          </div>
+        </div>
+      </aside>
+    </div>`;
+}
+
 function controlCenterSetSection(sectionKey){
   const section=CONTROL_CENTER_SECTIONS[sectionKey]||CONTROL_CENTER_SECTIONS.overview;
   _controlCenterSection=sectionKey in CONTROL_CENTER_SECTIONS?sectionKey:"overview";
