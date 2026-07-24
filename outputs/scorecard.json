@@ -1,172 +1,19 @@
 {
   "generated_for_week": "2026-05-04",
   "locations": {
-    "Supreme HQ, Bandra": {
-      "total_classes": 70,
-      "target_schedule_score": 80,
-      "schedule_score": 52.3,
-      "avg_slot_score": 47.3,
-      "predicted_avg_fill_rate": 0.432,
-      "historical_avg_fill_rate": 0.42,
-      "zero_history_slots": 4,
-      "zero_history_pct": 0.057,
-      "experimental_pct": 0.057,
-      "barre_pct": 0.643,
-      "barre_family_count": 27,
-      "barre_family_pct": 0.386,
-      "format_counts": {
-        "Studio Barre 57": 20,
-        "Studio Mat 57": 8,
-        "Studio FIT": 8,
-        "Studio Cardio Barre": 7,
-        "Studio PowerCycle": 23,
-        "Studio Strength Lab": 0,
-        "Studio HIIT": 0,
-        "Studio Amped Up!": 0,
-        "Studio Recovery": 2,
-        "Studio Back Body Blaze": 2,
-        "Studio Foundations": 0
-      },
-      "class_mix": {
-        "Studio Cardio Barre": 0.1,
-        "Studio Barre 57": 0.286,
-        "Studio FIT": 0.114,
-        "Studio PowerCycle": 0.329,
-        "Studio Mat 57": 0.114,
-        "Studio Back Body Blaze": 0.029,
-        "Studio Recovery": 0.029
-      },
-      "hard_constraint_violations": [],
-      "soft_constraint_penalties": 0,
-      "optimisation_opportunities": [
-        "Kenkere 10:00 AM \u2014 56.5% fill, only 144 sessions. Expand to 5 days/week for highest ROI.",
-        "Supreme 09:30 AM \u2014 46.7% fill, 349 sessions. Add daily slot with Cauveri or Atulan.",
-        "Anisha Shah at Kwality on Fridays \u2014 avg 7.7 check-in. 1 Friday morning slot would lift the weakest day.",
-        "Kwality Thursday fill rate \u2014 33.5%, lowest despite high volume. Swap 1-2 Thu slots to stronger class/trainer combos.",
-        "Kenkere Saturday 4th morning \u2014 40.6% fill. Kajol or Shruti Kulkarni as candidates.",
-        "Supreme Friday underperformance \u2014 31.2% fill. Test Vivaran or Cauveri on Fridays instead."
-      ],
-      "room_utilisation": {
-        "studio_a": {
-          "used_min": 1698,
-          "avail_min": 5460,
-          "pct": 31.1
-        },
-        "studio_b": {
-          "used_min": 942,
-          "avail_min": 5460,
-          "pct": 17.3
-        },
-        "powercycle": {
-          "used_min": 945,
-          "avail_min": 5460,
-          "pct": 17.3
-        }
-      },
-      "peak_cluster_fill_count": 28,
-      "format_mix_cov": 0.769,
-      "trainer_hours_histogram": {
-        "<5h": 11,
-        "5-10h": 5,
-        "10-13h": 0,
-        "13-15h": 0,
-        ">15h": 0
-      },
-      "trainer_count": 16
-    },
-    "Kwality House, Kemps Corner": {
-      "total_classes": 79,
-      "target_schedule_score": 80,
-      "schedule_score": 59.8,
-      "avg_slot_score": 54.8,
-      "predicted_avg_fill_rate": 0.45,
-      "historical_avg_fill_rate": 0.43,
-      "zero_history_slots": 8,
-      "zero_history_pct": 0.101,
-      "experimental_pct": 0.127,
-      "barre_pct": 0.62,
-      "barre_family_count": 29,
-      "barre_family_pct": 0.367,
-      "format_counts": {
-        "Studio Barre 57": 20,
-        "Studio Mat 57": 8,
-        "Studio FIT": 7,
-        "Studio Cardio Barre": 9,
-        "Studio PowerCycle": 17,
-        "Studio Strength Lab": 11,
-        "Studio HIIT": 0,
-        "Studio Amped Up!": 2,
-        "Studio Recovery": 0,
-        "Studio Back Body Blaze": 3,
-        "Studio Foundations": 0
-      },
-      "class_mix": {
-        "Studio Mat 57": 0.101,
-        "Studio Barre 57": 0.253,
-        "Studio Strength Lab": 0.139,
-        "Studio PowerCycle": 0.215,
-        "Studio FIT": 0.089,
-        "Studio Trainer's Choice": 0.025,
-        "Studio Amped Up!": 0.025,
-        "Studio Cardio Barre": 0.114,
-        "Studio Back Body Blaze": 0.038
-      },
-      "hard_constraint_violations": [],
-      "soft_constraint_penalties": 0,
-      "optimisation_opportunities": [
-        "Kenkere 10:00 AM \u2014 56.5% fill, only 144 sessions. Expand to 5 days/week for highest ROI.",
-        "Supreme 09:30 AM \u2014 46.7% fill, 349 sessions. Add daily slot with Cauveri or Atulan.",
-        "Anisha Shah at Kwality on Fridays \u2014 avg 7.7 check-in. 1 Friday morning slot would lift the weakest day.",
-        "Kwality Thursday fill rate \u2014 33.5%, lowest despite high volume. Swap 1-2 Thu slots to stronger class/trainer combos.",
-        "Kenkere Saturday 4th morning \u2014 40.6% fill. Kajol or Shruti Kulkarni as candidates.",
-        "Supreme Friday underperformance \u2014 31.2% fill. Test Vivaran or Cauveri on Fridays instead."
-      ],
-      "room_utilisation": {
-        "studio_a": {
-          "used_min": 1782,
-          "avail_min": 5460,
-          "pct": 32.6
-        },
-        "strength_lab": {
-          "used_min": 627,
-          "avail_min": 3900,
-          "pct": 16.1
-        },
-        "powercycle": {
-          "used_min": 720,
-          "avail_min": 5460,
-          "pct": 13.2
-        },
-        "studio_b": {
-          "used_min": 1008,
-          "avail_min": 5460,
-          "pct": 18.5
-        }
-      },
-      "peak_cluster_fill_count": 32,
-      "format_mix_cov": 0.687,
-      "trainer_hours_histogram": {
-        "<5h": 14,
-        "5-10h": 2,
-        "10-13h": 1,
-        "13-15h": 0,
-        ">15h": 0
-      },
-      "trainer_count": 17
-    },
     "Copper & Cloves": {
-      "total_classes": 10,
+      "total_classes": 9,
       "target_schedule_score": 50,
-      "schedule_score": 33.7,
-      "avg_slot_score": 28.7,
+      "schedule_score": 33.6,
+      "avg_slot_score": 28.6,
       "predicted_avg_fill_rate": 0.215,
-      "historical_avg_fill_rate": 0.195,
-      "zero_history_slots": 1,
-      "zero_history_pct": 0.1,
-      "experimental_pct": 0.1,
+      "historical_avg_fill_rate": 0.0,
+      "zero_history_slots": 9,
+      "zero_history_pct": 1.0,
+      "experimental_pct": 0.0,
       "barre_pct": 1.0,
-      "barre_family_count": 5,
-      "barre_family_pct": 0.5,
+      "barre_family_count": 4,
+      "barre_family_pct": 0.444,
       "format_counts": {
         "Studio Barre 57": 0,
         "Studio Mat 57": 0,
@@ -181,136 +28,8 @@
         "Studio Foundations": 0
       },
       "class_mix": {
-        "Copper + Cloves Mat 57": 0.4,
-        "Copper + Cloves Barre 57": 0.5,
-        "Copper + Cloves FIT": 0.1
-      },
-      "hard_constraint_violations": [],
-      "soft_constraint_penalties": 0,
-      "optimisation_opportunities": [
-        "Kenkere 10:00 AM \u2014 56.5% fill, only 144 sessions. Expand to 5 days/week for highest ROI.",
-        "Supreme 09:30 AM \u2014 46.7% fill, 349 sessions. Add daily slot with Cauveri or Atulan.",
-        "Anisha Shah at Kwality on Fridays \u2014 avg 7.7 check-in. 1 Friday morning slot would lift the weakest day.",
-        "Kwality Thursday fill rate \u2014 33.5%, lowest despite high volume. Swap 1-2 Thu slots to stronger class/trainer combos.",
-        "Kenkere Saturday 4th morning \u2014 40.6% fill. Kajol or Shruti Kulkarni as candidates.",
-        "Supreme Friday underperformance \u2014 31.2% fill. Test Vivaran or Cauveri on Fridays instead."
-      ],
-      "room_utilisation": {
-        "studio_a": {
-          "used_min": 570,
-          "avail_min": 5460,
-          "pct": 10.4
-        }
-      },
-      "peak_cluster_fill_count": 2,
-      "format_mix_cov": 0.51,
-      "trainer_hours_histogram": {
-        "<5h": 5,
-        "5-10h": 0,
-        "10-13h": 0,
-        "13-15h": 0,
-        ">15h": 0
-      },
-      "trainer_count": 5
-    },
-    "Kenkere House": {
-      "total_classes": 46,
-      "target_schedule_score": 80,
-      "schedule_score": 44.0,
-      "avg_slot_score": 39.0,
-      "predicted_avg_fill_rate": 0.349,
-      "historical_avg_fill_rate": 0.275,
-      "zero_history_slots": 17,
-      "zero_history_pct": 0.37,
-      "experimental_pct": 0.391,
-      "barre_pct": 0.957,
-      "barre_family_count": 19,
-      "barre_family_pct": 0.413,
-      "format_counts": {
-        "Studio Barre 57": 15,
-        "Studio Mat 57": 10,
-        "Studio FIT": 14,
-        "Studio Cardio Barre": 4,
-        "Studio PowerCycle": 0,
-        "Studio Strength Lab": 0,
-        "Studio HIIT": 0,
-        "Studio Amped Up!": 0,
-        "Studio Recovery": 2,
-        "Studio Back Body Blaze": 1,
-        "Studio Foundations": 0
-      },
-      "class_mix": {
-        "Studio FIT": 0.304,
-        "Studio Barre 57": 0.326,
-        "Studio Cardio Barre": 0.087,
-        "Studio Back Body Blaze": 0.022,
-        "Studio Mat 57": 0.217,
-        "Studio Recovery": 0.043
-      },
-      "hard_constraint_violations": [],
-      "soft_constraint_penalties": 0,
-      "optimisation_opportunities": [
-        "Kenkere 10:00 AM \u2014 56.5% fill, only 144 sessions. Expand to 5 days/week for highest ROI.",
-        "Supreme 09:30 AM \u2014 46.7% fill, 349 sessions. Add daily slot with Cauveri or Atulan.",
-        "Anisha Shah at Kwality on Fridays \u2014 avg 7.7 check-in. 1 Friday morning slot would lift the weakest day.",
-        "Kwality Thursday fill rate \u2014 33.5%, lowest despite high volume. Swap 1-2 Thu slots to stronger class/trainer combos.",
-        "Kenkere Saturday 4th morning \u2014 40.6% fill. Kajol or Shruti Kulkarni as candidates.",
-        "Supreme Friday underperformance \u2014 31.2% fill. Test Vivaran or Cauveri on Fridays instead."
-      ],
-      "room_utilisation": {
-        "studio_a": {
-          "used_min": 2052,
-          "avail_min": 5460,
-          "pct": 37.6
-        },
-        "studio_b": {
-          "used_min": 570,
-          "avail_min": 3120,
-          "pct": 18.3
-        }
-      },
-      "peak_cluster_fill_count": 12,
-      "format_mix_cov": 0.733,
-      "trainer_hours_histogram": {
-        "<5h": 1,
-        "5-10h": 4,
-        "10-13h": 1,
-        "13-15h": 0,
-        ">15h": 0
-      },
-      "trainer_count": 6
-    },
-    "Courtside": {
-      "total_classes": 9,
-      "target_schedule_score": 75,
-      "schedule_score": 43.3,
-      "avg_slot_score": 38.3,
-      "predicted_avg_fill_rate": 0.327,
-      "historical_avg_fill_rate": 0.216,
-      "zero_history_slots": 5,
-      "zero_history_pct": 0.556,
-      "experimental_pct": 0.556,
-      "barre_pct": 1.0,
-      "barre_family_count": 3,
-      "barre_family_pct": 0.333,
-      "format_counts": {
-        "Studio Barre 57": 2,
-        "Studio Mat 57": 1,
-        "Studio FIT": 5,
-        "Studio Cardio Barre": 1,
-        "Studio PowerCycle": 0,
-        "Studio Strength Lab": 0,
-        "Studio HIIT": 0,
-        "Studio Amped Up!": 0,
-        "Studio Recovery": 0,
-        "Studio Back Body Blaze": 0,
-        "Studio Foundations": 0
-      },
-      "class_mix": {
-        "Studio Cardio Barre": 0.111,
-        "Studio FIT": 0.556,
-        "Studio Barre 57": 0.222,
-        "Studio Mat 57": 0.111
+        "Copper + Cloves Mat 57": 0.556,
+        "Copper + Cloves Barre 57": 0.444
       },
       "hard_constraint_violations": [],
       "soft_constraint_penalties": 0,
@@ -325,20 +44,240 @@
       "room_utilisation": {
         "studio_a": {
           "used_min": 513,
-          "avail_min": 5460,
-          "pct": 9.4
+          "avail_min": 4680,
+          "pct": 11.0
         }
       },
       "peak_cluster_fill_count": 2,
-      "format_mix_cov": 0.729,
+      "format_mix_cov": 0.111,
       "trainer_hours_histogram": {
-        "<5h": 8,
+        "<5h": 5,
         "5-10h": 0,
         "10-13h": 0,
         "13-15h": 0,
         ">15h": 0
       },
-      "trainer_count": 8
+      "trainer_count": 5
+    },
+    "Kenkere House": {
+      "total_classes": 47,
+      "target_schedule_score": 80,
+      "schedule_score": 46.0,
+      "avg_slot_score": 41.0,
+      "predicted_avg_fill_rate": 0.373,
+      "historical_avg_fill_rate": 0.0,
+      "zero_history_slots": 47,
+      "zero_history_pct": 1.0,
+      "experimental_pct": 0.0,
+      "barre_pct": 0.979,
+      "barre_family_count": 22,
+      "barre_family_pct": 0.468,
+      "format_counts": {
+        "Studio Barre 57": 17,
+        "Studio Mat 57": 10,
+        "Studio FIT": 12,
+        "Studio Cardio Barre": 5,
+        "Studio PowerCycle": 0,
+        "Studio Strength Lab": 0,
+        "Studio HIIT": 0,
+        "Studio Amped Up!": 0,
+        "Studio Recovery": 1,
+        "Studio Back Body Blaze": 2,
+        "Studio Foundations": 0
+      },
+      "class_mix": {
+        "Studio Mat 57": 0.213,
+        "Studio Barre 57": 0.362,
+        "Studio FIT": 0.255,
+        "Studio Cardio Barre": 0.106,
+        "Studio Back Body Blaze": 0.043,
+        "Studio Recovery": 0.021
+      },
+      "hard_constraint_violations": [],
+      "soft_constraint_penalties": 0,
+      "optimisation_opportunities": [
+        "Kenkere 10:00 AM \u2014 56.5% fill, only 144 sessions. Expand to 5 days/week for highest ROI.",
+        "Supreme 09:30 AM \u2014 46.7% fill, 349 sessions. Add daily slot with Cauveri or Atulan.",
+        "Anisha Shah at Kwality on Fridays \u2014 avg 7.7 check-in. 1 Friday morning slot would lift the weakest day.",
+        "Kwality Thursday fill rate \u2014 33.5%, lowest despite high volume. Swap 1-2 Thu slots to stronger class/trainer combos.",
+        "Kenkere Saturday 4th morning \u2014 40.6% fill. Kajol or Shruti Kulkarni as candidates.",
+        "Supreme Friday underperformance \u2014 31.2% fill. Test Vivaran or Cauveri on Fridays instead."
+      ],
+      "room_utilisation": {
+        "studio_a": {
+          "used_min": 1881,
+          "avail_min": 5460,
+          "pct": 34.5
+        },
+        "studio_b": {
+          "used_min": 798,
+          "avail_min": 3900,
+          "pct": 20.5
+        }
+      },
+      "peak_cluster_fill_count": 13,
+      "format_mix_cov": 0.727,
+      "trainer_hours_histogram": {
+        "<5h": 6,
+        "5-10h": 3,
+        "10-13h": 1,
+        "13-15h": 0,
+        ">15h": 0
+      },
+      "trainer_count": 10
+    },
+    "Kwality House, Kemps Corner": {
+      "total_classes": 74,
+      "target_schedule_score": 80,
+      "schedule_score": 67.2,
+      "avg_slot_score": 62.2,
+      "predicted_avg_fill_rate": 0.476,
+      "historical_avg_fill_rate": 0.0,
+      "zero_history_slots": 74,
+      "zero_history_pct": 1.0,
+      "experimental_pct": 0.0,
+      "barre_pct": 0.595,
+      "barre_family_count": 26,
+      "barre_family_pct": 0.351,
+      "format_counts": {
+        "Studio Barre 57": 18,
+        "Studio Mat 57": 8,
+        "Studio FIT": 7,
+        "Studio Cardio Barre": 8,
+        "Studio PowerCycle": 17,
+        "Studio Strength Lab": 11,
+        "Studio HIIT": 0,
+        "Studio Amped Up!": 1,
+        "Studio Recovery": 0,
+        "Studio Back Body Blaze": 2,
+        "Studio Foundations": 0
+      },
+      "class_mix": {
+        "Studio Strength Lab": 0.149,
+        "Studio PowerCycle": 0.23,
+        "Studio Mat 57": 0.108,
+        "Studio Barre 57": 0.243,
+        "Studio FIT": 0.095,
+        "Studio Trainer's Choice": 0.027,
+        "Studio Cardio Barre": 0.108,
+        "Studio Amped Up!": 0.014,
+        "Studio Back Body Blaze": 0.027
+      },
+      "hard_constraint_violations": [],
+      "soft_constraint_penalties": 0,
+      "optimisation_opportunities": [
+        "Kenkere 10:00 AM \u2014 56.5% fill, only 144 sessions. Expand to 5 days/week for highest ROI.",
+        "Supreme 09:30 AM \u2014 46.7% fill, 349 sessions. Add daily slot with Cauveri or Atulan.",
+        "Anisha Shah at Kwality on Fridays \u2014 avg 7.7 check-in. 1 Friday morning slot would lift the weakest day.",
+        "Kwality Thursday fill rate \u2014 33.5%, lowest despite high volume. Swap 1-2 Thu slots to stronger class/trainer combos.",
+        "Kenkere Saturday 4th morning \u2014 40.6% fill. Kajol or Shruti Kulkarni as candidates.",
+        "Supreme Friday underperformance \u2014 31.2% fill. Test Vivaran or Cauveri on Fridays instead."
+      ],
+      "room_utilisation": {
+        "strength_lab": {
+          "used_min": 627,
+          "avail_min": 3900,
+          "pct": 16.1
+        },
+        "powercycle": {
+          "used_min": 690,
+          "avail_min": 4680,
+          "pct": 14.7
+        },
+        "studio_a": {
+          "used_min": 1464,
+          "avail_min": 5460,
+          "pct": 26.8
+        },
+        "studio_b": {
+          "used_min": 1131,
+          "avail_min": 5460,
+          "pct": 20.7
+        }
+      },
+      "peak_cluster_fill_count": 38,
+      "format_mix_cov": 0.716,
+      "trainer_hours_histogram": {
+        "<5h": 16,
+        "5-10h": 2,
+        "10-13h": 1,
+        "13-15h": 0,
+        ">15h": 0
+      },
+      "trainer_count": 19
+    },
+    "Supreme HQ, Bandra": {
+      "total_classes": 72,
+      "target_schedule_score": 80,
+      "schedule_score": 54.5,
+      "avg_slot_score": 49.5,
+      "predicted_avg_fill_rate": 0.44,
+      "historical_avg_fill_rate": 0.0,
+      "zero_history_slots": 72,
+      "zero_history_pct": 1.0,
+      "experimental_pct": 0.0,
+      "barre_pct": 0.708,
+      "barre_family_count": 29,
+      "barre_family_pct": 0.403,
+      "format_counts": {
+        "Studio Barre 57": 21,
+        "Studio Mat 57": 10,
+        "Studio FIT": 10,
+        "Studio Cardio Barre": 8,
+        "Studio PowerCycle": 19,
+        "Studio Strength Lab": 0,
+        "Studio HIIT": 0,
+        "Studio Amped Up!": 0,
+        "Studio Recovery": 2,
+        "Studio Back Body Blaze": 2,
+        "Studio Foundations": 0
+      },
+      "class_mix": {
+        "Studio Mat 57": 0.139,
+        "Studio Cardio Barre": 0.111,
+        "Studio Barre 57": 0.292,
+        "Studio PowerCycle": 0.264,
+        "Studio FIT": 0.139,
+        "Studio Back Body Blaze": 0.028,
+        "Studio Recovery": 0.028
+      },
+      "hard_constraint_violations": [],
+      "soft_constraint_penalties": 0,
+      "optimisation_opportunities": [
+        "Kenkere 10:00 AM \u2014 56.5% fill, only 144 sessions. Expand to 5 days/week for highest ROI.",
+        "Supreme 09:30 AM \u2014 46.7% fill, 349 sessions. Add daily slot with Cauveri or Atulan.",
+        "Anisha Shah at Kwality on Fridays \u2014 avg 7.7 check-in. 1 Friday morning slot would lift the weakest day.",
+        "Kwality Thursday fill rate \u2014 33.5%, lowest despite high volume. Swap 1-2 Thu slots to stronger class/trainer combos.",
+        "Kenkere Saturday 4th morning \u2014 40.6% fill. Kajol or Shruti Kulkarni as candidates.",
+        "Supreme Friday underperformance \u2014 31.2% fill. Test Vivaran or Cauveri on Fridays instead."
+      ],
+      "room_utilisation": {
+        "studio_a": {
+          "used_min": 1995,
+          "avail_min": 5460,
+          "pct": 36.5
+        },
+        "studio_b": {
+          "used_min": 1026,
+          "avail_min": 5460,
+          "pct": 18.8
+        },
+        "powercycle": {
+          "used_min": 840,
+          "avail_min": 5460,
+          "pct": 15.4
+        }
+      },
+      "peak_cluster_fill_count": 25,
+      "format_mix_cov": 0.671,
+      "trainer_hours_histogram": {
+        "<5h": 10,
+        "5-10h": 6,
+        "10-13h": 0,
+        "13-15h": 0,
+        ">15h": 0
+      },
+      "trainer_count": 16
     }
   }
 }
