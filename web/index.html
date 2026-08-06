@@ -12,10 +12,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css" />
-
+<link rel="stylesheet" href="app.css?v=6" />
+<script>
+  (function() {
+    var theme = localStorage.getItem('athena-theme');
+    if (theme === 'theme-dark') {
+      document.documentElement.classList.add('theme-dark');
+    }
+  })();
+</script>
 </head>
-<body class="theme-light dark-mode">
+<body class="theme-light">
 <div id="initial-loader">
   <div class="ld-orb1"></div>
   <div class="ld-orb2"></div>
@@ -43,7 +50,10 @@
     </div>
   </div>
   <div class="hdr-actions">
-    <button class="theme-toggle" onclick="toggleTheme()" style="cursor:pointer; background:transparent; border:none; font-size:18px; padding: 4px;" title="Toggle Dark/Light Mode">🌓</button>
+    <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Dark/Light Mode" style="background:transparent;border:1px solid var(--border);border-radius:6px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-right:10px;color:var(--text);">
+      <span class="icon-light" style="display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
+      <span class="icon-dark" style="display:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+    </button>
     <div class="week-badge" id="week-badge">Week of —</div>
     <label class="schedule-week-control">
       <span>Schedule Week</span>
@@ -26568,8 +26578,8 @@ const SCHEDULE_DATA = [{
         "date": "2026-05-05",
         "day_of_week": "Tuesday",
         "time": "10:00",
-        "class_name": "Studio Cardio Barre Express",
-        "trainer_1": "Anisha Shah",
+        "class_name": "Studio PowerCycle",
+        "trainer_1": "Bret Saldanha",
         "trainer_2": "",
         "cover": "",
         "room": "Studio 1",
@@ -28446,7 +28456,9 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": null,
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
-        "slot_empty_sessions": null
+        "slot_empty_sessions": null,
+        "ai_optimized": true,
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio PowerCycle with Bret Saldanha has score 29.1 and fill 39% over 16 sessions for this exact day/time/location."
       },
       {
         "location": "Kwality House, Kemps Corner",
@@ -83355,7 +83367,7 @@ const SCHEDULE_DATA = [{
         "date": "2026-05-08",
         "day_of_week": "Friday",
         "time": "19:00",
-        "class_name": "Studio Mat 57",
+        "class_name": "Studio Cardio Barre Plus",
         "trainer_1": "Pranjali Jain",
         "trainer_2": "",
         "cover": "",
@@ -83399,7 +83411,9 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": null,
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
-        "slot_empty_sessions": null
+        "slot_empty_sessions": null,
+        "ai_optimized": true,
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Cardio Barre Plus with Pranjali Jain has score 32.16 and fill 24% over 4 sessions for this exact day/time/location."
       },
       {
         "location": "Kwality House, Kemps Corner",
@@ -248507,7 +248521,7 @@ const SCHEDULE_DATA = [{
         "date": "2026-05-08",
         "day_of_week": "Friday",
         "time": "11:00",
-        "class_name": "Studio Back Body Blaze",
+        "class_name": "Studio Barre 57",
         "trainer_1": "Shruti Kulkarni",
         "trainer_2": "",
         "cover": "",
@@ -248551,7 +248565,9 @@ const SCHEDULE_DATA = [{
         "slot_avg_checkin": null,
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
-        "slot_empty_sessions": null
+        "slot_empty_sessions": null,
+        "ai_optimized": true,
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Barre 57 with Shruti Kulkarni has score 37.01 and fill 29% over 34 sessions for this exact day/time/location."
       },
       {
         "location": "Kenkere House",
@@ -266171,6 +266187,24 @@ const SCORECARD    = [{
 }][0] || {};
 const WEEK_LABEL   = ["04 May – 10 May 2026"][0] || SCHEDULE_DATA.generated_for_week || "";
 const OPPORTUNITIES = [["Kenkere 10:00 AM \u2014 56.5% fill, only 144 sessions. Expand to 5 days/week for highest ROI.", "Supreme 09:30 AM \u2014 46.7% fill, 349 sessions. Add daily slot with Cauveri or Atulan.", "Anisha Shah at Kwality on Fridays \u2014 avg 7.7 check-in. 1 Friday morning slot would lift the weakest day.", "Kwality Thursday fill rate \u2014 33.5%, lowest despite high volume. Swap 1-2 Thu slots to stronger class/trainer combos.", "Kenkere Saturday 4th morning \u2014 40.6% fill. Kajol or Shruti Kulkarni as candidates.", "Supreme Friday underperformance \u2014 31.2% fill. Test Vivaran or Cauveri on Fridays instead."]][0] || [];
+
+function toggleTheme() {
+  const isDark = document.documentElement.classList.toggle('theme-dark');
+  localStorage.setItem('athena-theme', isDark ? 'theme-dark' : 'theme-light');
+  updateThemeIcon();
+}
+
+function updateThemeIcon() {
+  const isDark = document.documentElement.classList.contains('theme-dark');
+  const btn = document.getElementById('theme-toggle-btn');
+  if(btn) {
+    btn.querySelector('.icon-light').style.display = isDark ? 'none' : 'flex';
+    btn.querySelector('.icon-dark').style.display = isDark ? 'flex' : 'none';
+  }
+}
+
+// Initialize icon on load
+document.addEventListener('DOMContentLoaded', updateThemeIcon);
 </script>
 <script src="app.js"></script>
 
