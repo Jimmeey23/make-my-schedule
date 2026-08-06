@@ -341,8 +341,10 @@ class DataIngestor:
 
     def _read_sessions_file(self) -> pd.DataFrame:
         if not self._source_is_url() or not self._looks_like_google_sheet():
+            if Path(self.csv_path).exists():
+                return pd.read_csv(self.csv_path)
             raise ValueError(
-                "DataIngestor now reads Google Sheets only. Pass a docs.google.com spreadsheet URL."
+                "DataIngestor now reads Google Sheets or local CSV files. Provide a valid path or Google Sheet URL."
             )
         oauth_df = self._fetch_google_sheet_dataframe()
         if oauth_df is None:

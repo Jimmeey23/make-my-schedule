@@ -492,22 +492,26 @@ class ClassScorer:
         inactive = self._inactive_trainers()
 
         if not self._source_is_google_sheet():
-            raise ValueError(
-                "ClassScorer now reads historic performance from Google Sheets only. "
-                "Pass a docs.google.com spreadsheet URL so slot scoring uses the Sessions Sheet "
-                "and trainer scoring uses the Teacher Recurring tab."
+            slot_source = f"Local CSV: {self.csv_path}"
+            slot_source_df = _load_performance_frame(pd.read_csv(self.csv_path), slot_source)
+            trainer_csv = Path(self.csv_path).parent / "Class Performance by Trainer.csv"
+            if trainer_csv.exists():
+                trainer_label = f"Local CSV: {trainer_csv}"
+                trainer_source_df = _load_performance_frame(pd.read_csv(trainer_csv), trainer_label)
+            else:
+                trainer_label = f"Local CSV: {self.csv_path}"
+                trainer_source_df = slot_source_df.copy()
+        else:
+            slot_source = f"Google Sheet tab: {DEFAULT_SLOTS_SHEET_TITLE}"
+            trainer_label = f"Google Sheet tab: {DEFAULT_TRAINER_SHEET_TITLE}"
+            slot_source_df = _load_performance_frame(
+                self._load_google_sheet(DEFAULT_SLOTS_SHEET_TITLE, PREFERRED_SLOTS_SHEET_TITLES),
+                slot_source,
             )
-
-        slot_source = f"Google Sheet tab: {DEFAULT_SLOTS_SHEET_TITLE}"
-        trainer_label = f"Google Sheet tab: {DEFAULT_TRAINER_SHEET_TITLE}"
-        slot_source_df = _load_performance_frame(
-            self._load_google_sheet(DEFAULT_SLOTS_SHEET_TITLE, PREFERRED_SLOTS_SHEET_TITLES),
-            slot_source,
-        )
-        trainer_source_df = _load_performance_frame(
-            self._load_google_sheet(DEFAULT_TRAINER_SHEET_TITLE),
-            trainer_label,
-        )
+            trainer_source_df = _load_performance_frame(
+                self._load_google_sheet(DEFAULT_TRAINER_SHEET_TITLE),
+                trainer_label,
+            )
 
         slot_df = _prepare_scoring_metrics(_exclude_non_schedulable_classes(slot_source_df))
         trainer_df = _prepare_scoring_metrics(

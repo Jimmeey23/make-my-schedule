@@ -20,7 +20,7 @@ from urllib import request as urlrequest
 from flask import Flask, Response, request
 
 from agents.ingestor import DataIngestor
-from chat_assistant import build_chat_context
+from chat_assistant import build_chat_context, parse_nl_schedule_edit
 from finalise_schedule import finalise_schedule_document
 from rule_config import build_rules_catalog, load_rules_config, update_rules_config
 
@@ -1396,6 +1396,103 @@ def chat():
         return _json({"reply": _build_chat_reply(payload)})
     except ValueError as exc:
         return _json({"error": str(exc)}, 400)
+    except Exception as exc:
+        return _json({"error": str(exc)}, 500)
+
+
+@app.route("/api/nl-edit", methods=["POST"])
+def nl_edit():
+    try:
+        payload = request.get_json(force=True)
+        instruction = payload.get("instruction", "")
+        schedule_snapshot = payload.get("schedule_snapshot", {})
+        context = payload.get("context", {})
+        
+        from ai_provider import create_ai_client
+        client, settings = create_ai_client()
+        if not client:
+            return _json({"error": "AI not configured. Add an AI API key in Control Center."}, 400)
+            
+        model = (settings or {}).get("model") or DEFAULT_OPENAI_MODEL
+        
+        result = parse_nl_schedule_edit(
+            instruction,
+            schedule_snapshot,
+            context,
+            client,
+            model,
+            OUTPUTS_DIR / "scorecard.json",
+            _trainer_profiles_path(),
+        )
+        return _json(result)
+    except Exception as exc:
+        return _json({"error": str(exc)}, 500)
+
+
+@app.route("/api/nl-edit-apply", methods=["POST"])
+def nl_edit_apply():
+    try:
+        payload = request.get_json(force=True)
+        edits = payload.get("edits", [])
+        iteration = payload.get("iteration", "Main")
+        
+        applied = 0
+        errors = []
+        
+        for edit in edits:
+            action = edit.get("action")
+            try:
+                if action == "add":
+                    slot = {
+                        "location": edit.get("location"),
+                        "day_of_week": edit.get("day"),
+                        "time": edit.get("time"),
+                        "class_name": edit.get("class_name") or edit.get("new_class"),
+                        "trainer_1": edit.get("trainer_1") or edit.get("new_trainer"),
+                    }
+                    _add_class_to_schedule({"iteration": iteration, "slot": slot})
+                elif action == "remove":
+                    slot = {
+                        "location": edit.get("location"),
+                        "day_of_week": edit.get("day"),
+                        "time": edit.get("time"),
+                        "class_name": edit.get("class_name"),
+                        "trainer_1": edit.get("trainer_1"),
+                    }
+                    _remove_class_from_schedule({"iteration": iteration, "slot": slot})
+                elif action == "modify":
+                    if edit.get("new_day") or edit.get("new_time"):
+                        slot = {
+                            "location": edit.get("location"),
+                            "day_of_week": edit.get("day"),
+                            "time": edit.get("time"),
+                            "class_name": edit.get("class_name"),
+                            "trainer_1": edit.get("trainer_1"),
+                        }
+                        target = {
+                            "location": edit.get("location"),
+                            "day_of_week": edit.get("new_day") or edit.get("day"),
+                            "time": edit.get("new_time") or edit.get("time"),
+                        }
+                        _move_class_in_schedule({"iteration": iteration, "slot": slot, "target": target})
+                    elif edit.get("new_trainer"):
+                        slot = {
+                            "location": edit.get("location"),
+                            "day_of_week": edit.get("day"),
+                            "time": edit.get("time"),
+                            "class_name": edit.get("class_name"),
+                            "trainer_1": edit.get("trainer_1"),
+                        }
+                        _replace_trainer_in_schedule({
+                            "iteration": iteration, 
+                            "slot": slot, 
+                            "new_trainer": edit.get("new_trainer")
+                        })
+                applied += 1
+            except Exception as e:
+                errors.append({"edit": edit, "error": str(e)})
+                
+        return _json({"applied": applied, "errors": errors})
     except Exception as exc:
         return _json({"error": str(exc)}, 500)
 

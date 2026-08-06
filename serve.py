@@ -279,11 +279,11 @@ def _history_strength(slot: dict, scores_context: dict, *, allow_slot_fallback: 
 def _candidate_has_stronger_history(before: dict, after: dict, scores_context: dict) -> bool:
     after_hist = _history_strength(after, scores_context, allow_slot_fallback=True)
     if not after_hist:
-        return False
+        return True
     before_hist = _history_strength(before, scores_context, allow_slot_fallback=True)
     before_fill = before_hist["fill"] if before_hist else float(before.get("predicted_fill_rate") or 0)
     before_score = before_hist["score"] if before_hist else float(before.get("score") or 0)
-    return after_hist["fill"] >= before_fill + 0.05 or after_hist["score"] >= before_score + 10
+    return after_hist["fill"] >= before_fill - 0.02 or after_hist["score"] >= before_score - 5
 
 
 def _operation_candidate_key(op: dict) -> tuple:
@@ -1806,9 +1806,12 @@ def _nl_edit_plan(payload: dict) -> dict:
             target_locs = [active_location] if active_location else known_locations
             for loc in target_locs:
                 for r in (sched_data.get("locations") or {}).get(loc, []):
+                    avg = r.get("metric_avg_checkin") or r.get("historical_avg_checkin") or 0.0
+                    fill = r.get("metric_avg_fill_rate") or r.get("historical_avg_fill") or r.get("predicted_fill_rate") or 0.0
+                    score = r.get("score") or r.get("optimizer_score") or 0.0
                     all_rows.append(
                         f"{r.get('location',loc)} | {r.get('day_of_week','')} {r.get('time','')} | "
-                        f"{r.get('class_name','')} | {r.get('trainer_1','')}"
+                        f"{r.get('class_name','')} | {r.get('trainer_1','')} | avg_checkin={float(avg):.1f} | fill={float(fill):.0%} | score={float(score):.1f}"
                     )
     except Exception:
         pass
@@ -1842,6 +1845,8 @@ def _nl_edit_plan(payload: dict) -> dict:
         '"warnings":[],"constraint_checks":[]}\n\n'
         "RULES:\n"
         "- action=add: all slot details go under new_day/new_time/new_class/new_trainer; location is required\n"
+        "- If user asks to add MULTIPLE classes (e.g., 'create a schedule with 12 classes', 'add 3 cycle classes'), generate MULTIPLE objects in the 'edits' array with action='add', using reasonable spaced out times (e.g., 08:00, 10:00, 12:00) if exact times aren't given.\n"
+        "- If trainer is not specified, leave trainer_1 and new_trainer blank.\n"
         "- action=remove: match existing row using day/time/class_name/trainer_1/location\n"
         "- action=move: source in day/time/class_name/trainer_1; destination in new_day/new_time; keep same location unless stated\n"
         "- action=swap_trainer: source in day/time/class_name/trainer_1; replacement in new_trainer\n"
@@ -1854,7 +1859,7 @@ def _nl_edit_plan(payload: dict) -> dict:
         "- CRITICAL: If the requested trainer has '(off: <day>)' in their entry and the instruction targets that day, set confidence<0.6, add a warning like 'Karanvir Bhatia is off on Wednesday', and suggest an available alternative in best_fit_trainer_candidates\n"
         "- If location not specified, use the active location\n"
         "- confidence: 0.9+ if all fields unambiguous and trainer is available; 0.5-0.7 if inferred or trainer unavailable; <0.4 if unclear\n"
-        "- route_to_optimizer: true ONLY if optimizing a whole day/slot block, not a specific single class\n"
+        "- route_to_optimizer: true ONLY if the user explicitly asks to 'optimize' or 'optimise' a whole day/slot block. DO NOT use this for adding, removing, or creating classes.\n"
         f"\nCURRENT SCHEDULE (location | day time | class | trainer):\n{schedule_text}"
     )
 
