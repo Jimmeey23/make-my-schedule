@@ -33,6 +33,7 @@ OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 CONFIG_PATH = PROJECT_ROOT / "config" / "rules_config.json"
 SCHEDULE_CONFIG_PATH = PROJECT_ROOT / "config" / "schedule_config.json"
 TRAINER_PROFILES_PATH = PROJECT_ROOT / "rules" / "trainer_profiles.json"
+METRICS_PATH = PROJECT_ROOT / "state" / "02_metrics.json"
 DEFAULT_SCHEDULE_CONFIG_PATH = SCHEDULE_CONFIG_PATH
 DEFAULT_TRAINER_PROFILES_PATH = TRAINER_PROFILES_PATH
 MUMBAI_LOCATIONS = {"Kwality House, Kemps Corner", "Supreme HQ, Bandra", "Courtside"}
@@ -1493,6 +1494,75 @@ def _validate_manual_slot(data, iteration, slot, original_slot=None, additional_
         raise ValueError(f"{trainer} would exceed the 15h weekly cap")
 
 
+_DAY_TO_INT = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
+
+
+def _quality_gate_warning(slot, metrics):
+    """Return a warning string if slot's trainer+class+day+time has a proven weak history, else None.
+
+    Sourced from state/02_metrics.json's class_trainer_slot_metrics (NOT
+    rules/trainer_profiles.json's loc_data.avg_fill_rate, which does not
+    exist there today and would always read as 0).
+    """
+    trainer = (slot.get("trainer_1") or "").strip()
+    class_name = (slot.get("class_name") or "").strip()
+    location = slot.get("location") or ""
+    day_int = _DAY_TO_INT.get((slot.get("day_of_week") or "").strip().lower(), -1)
+    time_str = slot.get("time") or ""
+    if not trainer or not class_name:
+        return None
+
+    rows = (metrics or {}).get("class_trainer_slot_metrics") or []
+    candidates = []
+    for row in rows:
+        if row.get("trainer") != trainer:
+            continue
+        if row.get("class") != class_name:
+            continue
+        if row.get("location") and row.get("location") != location:
+            continue
+        if day_int >= 0 and row.get("day") is not None and row.get("day") != day_int:
+            continue
+        if time_str and row.get("time") and row.get("time") != time_str:
+            continue
+        # Require at least 3 sessions before a row counts as flaggable — a
+        # single historical session (however bad) is not proof of a weak
+        # performer per CLAUDE.md's "repeated-history" quality gate.
+        if (row.get("session_count") or 0) < 3:
+            continue
+        exact = bool(
+            location and row.get("location") == location
+            and day_int >= 0 and row.get("day") == day_int
+            and time_str and row.get("time") == time_str
+        )
+        candidates.append((exact, row))
+
+    if not candidates:
+        return None
+
+    # Prefer the most specific (exact location+day+time) match; only fall
+    # back to a looser structurally-matching row when no exact match exists.
+    candidates.sort(key=lambda pair: pair[0], reverse=True)
+    match = candidates[0][1]
+
+    fill = match.get("avg_fill_rate", 0.0) or 0.0
+    checkin = match.get("avg_checkin", 0.0) or 0.0
+    if checkin < 3.0 or fill < 0.22:
+        return (
+            f"⚠ {trainer}'s history with {class_name} at this slot: "
+            f"{checkin:.1f} avg check-in, {round(fill * 100)}% fill — below quality-gate thresholds. "
+            "Applied anyway since this is a manual edit."
+        )
+    return None
+
+
+def _load_metrics():
+    try:
+        return json.loads(METRICS_PATH.read_text())
+    except Exception:
+        return {}
+
+
 def _replace_trainer_in_schedule(payload):
     slot = payload.get("slot") or {}
     new_trainer = str(payload.get("new_trainer") or "").strip()
@@ -1541,7 +1611,8 @@ def _replace_trainer_in_schedule(payload):
         raise ValueError("Could not find the selected class in the active schedule")
 
     _write_schedule_data(data)
-    return updated
+    warning = _quality_gate_warning(new_slot, _load_metrics())
+    return updated, warning
 
 
 def _add_class_to_schedule(payload):
@@ -1561,15 +1632,7 @@ def _add_class_to_schedule(payload):
     if not slot.get("class_name"):
         slot["class_name"] = "Studio Barre 57"
     if not slot.get("trainer_1") or str(slot.get("trainer_1")).upper() == "BEST_FIT":
-        cands = _find_trainer_candidates(
-            day=slot["day_of_week"], location=slot["location"],
-            class_name=slot["class_name"], profiles=[], time_str=slot["time"]
-        )
-        if cands:
-            slot["trainer_1"] = cands[0]["name"]
-        else:
-            known_tr = _load_known_trainers()
-            slot["trainer_1"] = known_tr[0] if known_tr else "Karanvir Bhatia"
+        raise ValueError("A specific trainer must be chosen before this class can be added")
     if not slot.get("room"):
         slot["room"] = "Room 1"
 
@@ -1589,7 +1652,8 @@ def _add_class_to_schedule(payload):
         data.setdefault("iterations", {}).setdefault(iteration, {}).setdefault(loc, []).append(slot)
 
     supabase_saved = _write_schedule_data(data)
-    return {"added": 1, "supabase_saved": supabase_saved}
+    warning = _quality_gate_warning(slot, _load_metrics())
+    return {"added": 1, "supabase_saved": supabase_saved, "warning": warning}
 
 
 
@@ -2029,6 +2093,20 @@ def _nl_edit_plan(payload: dict) -> dict:
                 profiles=[], exclude=requested_trainer, time_str=time_target,
             )
             edit["best_fit_trainer_candidates"] = candidates
+            # Only require confirmation when the trainer truly wasn't specified
+            # by the user AND there's something to confirm from — an empty
+            # candidate list means there's no picker to show, so leaving this
+            # True would permanently disable Apply.
+            edit["needs_confirmation"] = bool(candidates) if not requested_trainer else False
+            if not requested_trainer and not candidates:
+                # No dedicated "no candidates" field exists in web/app.js's
+                # nlEditRender — it derives that message structurally from the
+                # BEST_FIT sentinel + empty candidate list, which serve.py does
+                # not use. Reuse the "reason" field, which nlEditRender already
+                # renders verbatim for every edit, so the user still sees why
+                # no picker is shown instead of a silent gap.
+                note = "No historic candidates found for this slot — please name a trainer explicitly."
+                edit["reason"] = f"{edit['reason']} {note}" if edit.get("reason") else note
 
     return result
 
@@ -2152,6 +2230,10 @@ def _change_class_in_schedule(payload):
         raise FileNotFoundError("web/schedule_data.json was not found")
     data = json.loads(path.read_text())
     updated = 0
+    new_slot = dict(slot)
+    new_slot["class_name"] = new_class
+    if new_trainer:
+        new_slot["trainer_1"] = new_trainer
 
     def update_rows(rows):
         nonlocal updated
@@ -2176,7 +2258,8 @@ def _change_class_in_schedule(payload):
         raise ValueError("Could not find the selected class in the active schedule")
 
     _write_schedule_data(data)
-    return {"updated": updated}
+    warning = _quality_gate_warning(new_slot, _load_metrics())
+    return {"updated": updated, "warning": warning}
 
 
 def _nl_edit_apply(payload: dict) -> dict:
@@ -2216,10 +2299,16 @@ def _nl_edit_apply(payload: dict) -> dict:
 
     applied = 0
     errors = []
+    warnings = []
 
     for raw_edit in edits:
         action = str(raw_edit.get("action") or "").strip()
         edit = norm(raw_edit)
+        # Server-side enforcement of the confirmation requirement — the client
+        # (web/app.js) already blocks these, but the API must not trust that.
+        if edit.get("needs_confirmation"):
+            errors.append({"action": action, "slot": edit, "error": "Edit still requires user confirmation of a candidate pick"})
+            continue
         try:
             if action in ("add", "bulk_add", "create"):
                 slot = {
@@ -2229,7 +2318,9 @@ def _nl_edit_apply(payload: dict) -> dict:
                     "class_name": edit.get("new_class") or edit.get("class_name") or "",
                     "trainer_1": edit.get("new_trainer") or edit.get("trainer_1") or "",
                 }
-                _add_class_to_schedule({"slot": slot, "iteration": iteration})
+                add_result = _add_class_to_schedule({"slot": slot, "iteration": iteration})
+                if add_result.get("warning"):
+                    warnings.append(add_result["warning"])
                 applied += 1
             elif action in ("remove", "delete", "cancel", "drop"):
                 slot = {
@@ -2264,11 +2355,13 @@ def _nl_edit_apply(payload: dict) -> dict:
                     "class_name": edit.get("class_name") or "",
                     "trainer_1": edit.get("trainer_1") or "",
                 }
-                _replace_trainer_in_schedule({
+                _, warning = _replace_trainer_in_schedule({
                     "slot": slot,
                     "new_trainer": edit.get("new_trainer") or "",
                     "iteration": iteration,
                 })
+                if warning:
+                    warnings.append(warning)
                 applied += 1
             elif action in ("change_class", "swap_class", "replace_class"):
                 slot = {
@@ -2278,12 +2371,14 @@ def _nl_edit_apply(payload: dict) -> dict:
                     "class_name": edit.get("class_name") or "",
                     "trainer_1": edit.get("trainer_1") or "",
                 }
-                _change_class_in_schedule({
+                change_result = _change_class_in_schedule({
                     "slot": slot,
                     "new_class": edit.get("new_class") or edit.get("class_name") or "",
                     "new_trainer": edit.get("new_trainer") or "",
                     "iteration": iteration,
                 })
+                if change_result.get("warning"):
+                    warnings.append(change_result["warning"])
                 applied += 1
             elif action in ("global_replace_trainer", "global_swap_trainer"):
                 old_tr = edit.get("trainer_1") or edit.get("trainer") or ""
@@ -2313,7 +2408,7 @@ def _nl_edit_apply(payload: dict) -> dict:
         except Exception as exc:
             errors.append({"action": action, "slot": edit, "error": str(exc)})
 
-    return {"applied": applied, "errors": errors}
+    return {"applied": applied, "errors": errors, "warnings": warnings}
 
 
 def _regenerate_index_from_template(schedule_data=None):
@@ -2905,9 +3000,12 @@ class RulesHandler(BaseHTTPRequestHandler):
         if path == "/api/replace-trainer":
             try:
                 payload = json.loads(body_raw)
-                updated = _replace_trainer_in_schedule(payload)
+                updated, warning = _replace_trainer_in_schedule(payload)
                 print(f"  [API] Trainer replaced in {updated} schedule row(s)")
-                self._send_json(200, {"ok": True, "updated": updated})
+                response = {"ok": True, "updated": updated}
+                if warning:
+                    response["warning"] = warning
+                self._send_json(200, response)
             except json.JSONDecodeError as e:
                 self._send_json(400, {"error": f"Invalid JSON: {e}"})
             except Exception as e:

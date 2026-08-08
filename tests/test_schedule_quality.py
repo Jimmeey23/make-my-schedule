@@ -6436,3 +6436,101 @@ def test_add_class_to_schedule_surfaces_quality_gate_warning_end_to_end(tmp_path
     assert warning is not None
     assert "Reshma Sharma" in warning
     assert "1.8" in warning
+
+
+# ── serve.py's independent duplicate implementation (Task 6) ────────────────
+# serve.py is the entrypoint `npm run dev` actually launches and maintains its
+# own standalone copy of this add/swap flow — it must carry the same
+# quality-gate warning and confirmation-required-picks behavior as app.py's
+# copy above, verified independently since neither module imports the other.
+
+def test_serve_quality_gate_warning_flags_low_checkin_history():
+    slot = {
+        "location": "Kwality House, Kemps Corner",
+        "day_of_week": "Monday",
+        "time": "18:00",
+        "class_name": "Studio Cardio Barre",
+        "trainer_1": "Reshma Sharma",
+    }
+    metrics = {
+        "class_trainer_slot_metrics": [
+            {
+                "location": "Kwality House, Kemps Corner",
+                "day": 0,
+                "time": "18:00",
+                "class": "Studio Cardio Barre",
+                "trainer": "Reshma Sharma",
+                "avg_fill_rate": 0.18,
+                "avg_checkin": 2.1,
+                "session_count": 8,
+            }
+        ]
+    }
+    warning = serve_module._quality_gate_warning(slot, metrics)
+    assert warning is not None
+    assert "Reshma Sharma" in warning
+    assert "2.1" in warning
+
+
+def test_serve_quality_gate_warning_silent_for_strong_history():
+    slot = {
+        "location": "Kwality House, Kemps Corner",
+        "day_of_week": "Monday",
+        "time": "18:00",
+        "class_name": "Studio Cardio Barre",
+        "trainer_1": "Reshma Sharma",
+    }
+    metrics = {
+        "class_trainer_slot_metrics": [
+            {
+                "location": "Kwality House, Kemps Corner",
+                "day": 0,
+                "time": "18:00",
+                "class": "Studio Cardio Barre",
+                "trainer": "Reshma Sharma",
+                "avg_fill_rate": 0.55,
+                "avg_checkin": 8.4,
+                "session_count": 12,
+            }
+        ]
+    }
+    assert serve_module._quality_gate_warning(slot, metrics) is None
+
+
+def test_serve_quality_gate_warning_silent_when_no_history():
+    slot = {
+        "location": "Kwality House, Kemps Corner",
+        "day_of_week": "Monday",
+        "time": "18:00",
+        "class_name": "Studio Cardio Barre",
+        "trainer_1": "Brand New Trainer",
+    }
+    assert serve_module._quality_gate_warning(slot, {"class_trainer_slot_metrics": []}) is None
+
+
+def test_serve_add_class_to_schedule_raises_for_blank_trainer():
+    with pytest.raises(ValueError):
+        serve_module._add_class_to_schedule({
+            "iteration": "Main",
+            "slot": {
+                "location": "Kwality House, Kemps Corner",
+                "day_of_week": "Monday",
+                "time": "18:00",
+                "class_name": "Studio Cardio Barre",
+                "trainer_1": "",
+            },
+        })
+
+
+def test_serve_add_class_to_schedule_raises_for_best_fit_sentinel():
+    with pytest.raises(ValueError):
+        serve_module._add_class_to_schedule({
+            "iteration": "Main",
+            "slot": {
+                "location": "Kwality House, Kemps Corner",
+                "day_of_week": "Monday",
+                "time": "18:00",
+                "class_name": "Studio Cardio Barre",
+                "trainer_1": "BEST_FIT",
+            },
+        })
