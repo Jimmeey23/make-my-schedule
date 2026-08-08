@@ -12,7 +12,7 @@ DEFAULT_BACKUP_MODEL = ""
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_OPENAI_MODEL = OPENAI_ONLY_MODEL
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
-DEFAULT_TIMEOUT_SECONDS = 30
+DEFAULT_TIMEOUT_SECONDS = 45
 PLACEHOLDER_VALUES = {
     "your_openrouter_api_key_here",
     "your_openai_api_key_here",

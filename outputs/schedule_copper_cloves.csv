@@ -6,8 +6,8 @@ Time,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Clas
 08:15,,,,,,,,,,,,,,,,,,,,,Copper + Cloves Mat 57,Pushyank Nahar,Studio 1,14,18%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 09:00,,,,,,,,,,,Copper + Cloves Mat 57,Pushyank Nahar,Studio 1,14,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Copper + Cloves Mat 57,Pushyank Nahar,Studio 1,14,46%,0,0%,0.0,,,,,,,,,,,,
 09:30,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Copper + Cloves Barre 57,Kajol Kanchan,Studio 1,14,22%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+17:00,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Copper + Cloves Mat 57,Siddhartha Kusuma,Studio 1,14,16%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
 17:15,,,,,,,,,,,Copper + Cloves Barre 57,Chaitanya Nahar,Studio 1,14,23%,0,0%,0.0,,,,,,,,,,,,,Copper + Cloves Mat 57,Shruti Kulkarni,Studio 1,14,27%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-18:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Copper + Cloves Barre 57,Siddhartha Kusuma,Studio 1,14,17%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
 19:45,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Copper + Cloves Barre 57,Kajol Kanchan,Studio 1,14,15%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
 
@@ -19,12 +19,12 @@ Chaitanya Nahar,2,1.9,20%,Copper + Cloves Barre 57
 Kajol Kanchan,2,1.9,18%,Copper + Cloves Barre 57
 Pushyank Nahar,3,2.8,28%,Copper + Cloves Mat 57
 Shruti Kulkarni,2,1.9,20%,Copper + Cloves Mat 57
-Siddhartha Kusuma,1,0.9,17%,Copper + Cloves Barre 57
+Siddhartha Kusuma,1,0.9,16%,Copper + Cloves Mat 57
 
 CLASS FORMAT ALLOCATION
 Class Format,Total Classes,Avg Fill%,Days Scheduled
-Copper + Cloves Barre 57,5,18%,3
-Copper + Cloves Mat 57,5,25%,5
+Copper + Cloves Barre 57,4,19%,3
+Copper + Cloves Mat 57,6,23%,6
 
 TIMESLOT ALLOCATION
 Time,Mon,Tue,Wed,Thu,Fri,Sat,Sun,Total
@@ -33,6 +33,6 @@ Time,Mon,Tue,Wed,Thu,Fri,Sat,Sun,Total
 08:15,-,-,Copper + Cloves Mat 57,-,-,-,-,1
 09:00,-,Copper + Cloves Mat 57,-,-,-,Copper + Cloves Mat 57,-,2
 09:30,-,-,-,-,Copper + Cloves Barre 57,-,-,1
+17:00,-,-,-,-,Copper + Cloves Mat 57,-,-,1
 17:15,-,Copper + Cloves Barre 57,-,Copper + Cloves Mat 57,-,-,-,2
-18:15,-,-,-,-,Copper + Cloves Barre 57,-,-,1
 19:45,-,-,-,Copper + Cloves Barre 57,-,-,-,1

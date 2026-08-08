@@ -4258,6 +4258,20 @@ function finaliseSchedule(){
     });
 }
 
+function reportAiRunStatus(d){
+  if(!d)return;
+  sessionStorage.setItem("last_ai_run_status", JSON.stringify(d));
+  const usedGreedy=d.planner_mode==="greedy_fallback"||d.ai_planned===false;
+  const repaired=Array.isArray(d.repaired_locations)?d.repaired_locations:[];
+  if(usedGreedy){
+    showToast("Generated with greedy fallback, not AI — check AI API key/model in Control Center","warn",6500);
+  }else if(repaired.length){
+    showToast("AI-generated, but greedy-repaired for: "+repaired.join(", "),"warn",6500);
+  }else if(d.planner_mode==="ai"){
+    showToast("Generated with AI ("+((d.ai_models||[])[0]||"model")+")","",3500);
+  }
+}
+
 function pollPipelineStatus(){
   if(_pipelinePoller)clearInterval(_pipelinePoller);
   const WARN_AFTER_MS=5*60*1000;
@@ -4290,11 +4304,17 @@ function pollPipelineStatus(){
           if(bar)bar.className="visible";
           if(msg)msg.textContent=d.message||"Schedule ready — reload to see new results";
           setGenerateButtonsLoading(false);
-          showToast("Schedule updated — reloading…","");
-          setTimeout(()=>{
-            sessionStorage.setItem("new_schedule_generated", "true");
-            window.location.href = window.location.pathname;
-          }, 800);
+          schedulerFetch("/api/ai-run-status?ts="+Date.now())
+            .then(r=>r.json())
+            .then(reportAiRunStatus)
+            .catch(()=>{})
+            .then(()=>{
+              showToast("Schedule updated — reloading…","");
+              setTimeout(()=>{
+                sessionStorage.setItem("new_schedule_generated", "true");
+                window.location.href = window.location.pathname;
+              }, 800);
+            });
         } else if(status==="failed"){
           clearInterval(_pipelinePoller);_pipelinePoller=null;
           if(bar){bar.className="visible error";}
@@ -7710,8 +7730,8 @@ function chatSend(text){
     const reply=d.reply||d.error||"No response.";
     _chatHistory.push({role:"assistant",content:reply});
     chatAppendMsg("bot",reply);
-    if(d.applied && typeof loadScheduleData==="function"){
-      loadScheduleData(true);
+    if(d.applied){
+      if(typeof nlEditReloadSchedule==="function") nlEditReloadSchedule();
       if(typeof showToast==="function") showToast("Schedule updated from AI Assistant", "success");
     }
   }).catch(e=>{

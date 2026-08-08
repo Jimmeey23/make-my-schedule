@@ -1015,6 +1015,47 @@ def pipeline_status():
     })
 
 
+def _latest_ai_run_status() -> dict:
+    """Report whether the most recent generation used AI or the greedy fallback."""
+    result = {
+        "planner_mode": None,
+        "ai_planned": None,
+        "ai_models": [],
+        "repaired_locations": [],
+        "created_at": None,
+    }
+    runs_path = STATE_DIR / "ai_runs.jsonl"
+    if runs_path.exists():
+        try:
+            lines = [ln for ln in runs_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+            if lines:
+                last = json.loads(lines[-1])
+                result["planner_mode"] = last.get("planner_mode")
+                result["ai_models"] = last.get("models") or []
+                result["repaired_locations"] = last.get("repaired_locations") or []
+                result["created_at"] = last.get("created_at")
+        except Exception:
+            pass
+    draft_path = STATE_DIR / "05_draft_schedule.json"
+    if draft_path.exists():
+        try:
+            draft = json.loads(draft_path.read_text(encoding="utf-8"))
+            result["ai_planned"] = draft.get("ai_planned")
+            if draft.get("ai_repaired_locations"):
+                result["repaired_locations"] = draft.get("ai_repaired_locations")
+            ai_run = draft.get("ai_run") or {}
+            if ai_run.get("planner_mode") and not result["planner_mode"]:
+                result["planner_mode"] = ai_run.get("planner_mode")
+        except Exception:
+            pass
+    return result
+
+
+@app.route("/api/ai-run-status")
+def ai_run_status():
+    return _json(_latest_ai_run_status())
+
+
 @app.route("/api/trainer-profiles")
 def trainer_profiles():
     p = PROJECT_ROOT / "rules" / "trainer_profiles.json"

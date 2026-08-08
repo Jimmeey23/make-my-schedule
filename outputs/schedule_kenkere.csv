@@ -4,45 +4,46 @@ Time,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Clas
 07:00,Studio Mat 57,Pushyank Nahar,Studio 1,15,38%,0,0%,0.0,,,,,,,,,,,,,Studio Barre 57,Karan Bhatia,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 07:15,,,,,,,,,,,Studio Cardio Barre,Siddhartha Kusuma,Studio 2,13,53%,0,0%,0.0,,,Studio FIT,Kajol Kanchan,Studio 1,15,69%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Shruti Kulkarni,Studio 1,15,46%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
 08:30,Studio Barre 57,Raunak Khemuka,Studio 2,13,13%,0,0%,0.0,,,,,,,,,,,,,Studio Barre 57,Kajol Kanchan,Studio 1,15,46%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-09:00,Studio FIT,Pushyank Nahar,Studio 1,15,75%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Shruti Kulkarni,Studio 1,15,42%,0,0%,0.0,,,Studio Mat 57,Chaitanya Nahar,Studio 2,13,61%,0,0%,0.0,,,,,,,,,,,,
-10:00,Studio Cardio Barre,Raunak Khemuka,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+09:00,Studio FIT,Pushyank Nahar,Studio 1,15,75%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Shruti Kulkarni,Studio 1,15,42%,0,0%,0.0,,,Studio Barre 57,Siddhartha Kusuma,Studio 1,15,40%,0,0%,0.0,,,,,,,,,,,,
+10:00,Studio Barre 57,Raunak Khemuka,Studio 2,13,85%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 10:15,Studio Mat 57,Pushyank Nahar,Studio 1,15,10%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Siddhartha Kusuma,Studio 1,15,84%,0,0%,0.0,,,,,,,,,,,,
 11:00,,,,,,,,,,,,,,,,,,,,,Studio Mat 57,Kajol Kanchan,Studio 2,13,46%,0,0%,0.0,,,,,,,,,,,,,Studio Back Body Blaze,Shruti Kulkarni,Studio 1,15,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
 11:30,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Siddhartha Kusuma,Studio 1,15,50%,0,0%,0.0,,,,,,,,,,,,
-12:00,Studio FIT,Pushyank Nahar,Studio 1,15,20%,0,0%,0.0,,,Studio FIT,Siddhartha Kusuma,Studio 1,15,20%,0,0%,0.0,,,Studio FIT,Kajol Kanchan,Studio 1,15,20%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Shruti Kulkarni,Studio 1,15,20%,0,0%,0.0,,,Studio FIT,Chaitanya Nahar,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,
+12:00,Studio FIT,Pushyank Nahar,Studio 1,15,20%,0,0%,0.0,,,Studio FIT,Siddhartha Kusuma,Studio 1,15,20%,0,0%,0.0,,,Studio FIT,Kajol Kanchan,Studio 1,15,20%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Shruti Kulkarni,Studio 1,15,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
 15:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Pushyank Nahar,Studio 1,15,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-16:00,Studio Mat 57,Kajol Kanchan,Studio 1,15,20%,0,0%,0.0,,,Studio Mat 57,Kajol Kanchan,Studio 1,15,20%,0,0%,0.0,,,Studio Mat 57,Siddhartha Kusuma,Studio 1,15,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-17:00,Studio FIT,Chaitanya Nahar,Studio 1,15,46%,0,0%,0.0,,,Studio FIT,Shruti Kulkarni,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,,Studio Mat 57,Pushyank Nahar,Studio 1,15,41%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+16:00,,,,,,,,,,,Studio Mat 57,Kajol Kanchan,Studio 1,15,20%,0,0%,0.0,,,Studio Mat 57,Siddhartha Kusuma,Studio 1,15,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+17:00,Studio Cardio Barre,Chaitanya Nahar,Studio 2,13,40%,0,0%,0.0,,,Studio FIT,Shruti Kulkarni,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,,Studio Mat 57,Pushyank Nahar,Studio 1,15,41%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 17:15,,,,,,,,,,,Studio Barre 57,Kajol Kanchan,Studio 1,15,47%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 17:30,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Siddhartha Kusuma,Studio 1,15,36%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-18:00,Studio Back Body Blaze,Chaitanya Nahar,Studio 2,13,35%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Vivaran Dhasmana,Studio 1,15,46%,0,0%,0.0,,,,,,,,,,,,,Studio Barre 57,Karan Bhatia,Studio 1,15,20%,0,0%,0.0,,
-18:15,Studio Barre 57,Kajol Kanchan,Studio 1,15,39%,0,0%,0.0,,,Studio Mat 57,Shruti Kulkarni,Studio 2,13,49%,0,0%,0.0,,,,,,,,,,,,,Studio Barre 57,Pushyank Nahar,Studio 1,15,62%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-19:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Recovery,Pushyank Nahar,Studio 1,15,60%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-19:30,Studio Barre 57,Kajol Kanchan,Studio 1,15,50%,0,0%,0.0,,,Studio FIT,Shruti Kulkarni,Studio 1,15,74%,0,0%,0.0,,,Studio Mat 57,Siddhartha Kusuma,Studio 1,15,53%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+18:00,Studio Back Body Blaze,Chaitanya Nahar,Studio 1,15,35%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Vivaran Dhasmana,Studio 1,15,46%,0,0%,0.0,,,,,,,,,,,,,Studio Barre 57,Karan Bhatia,Studio 1,15,20%,0,0%,0.0,,
+18:15,,,,,,,,,,,Studio Mat 57,Shruti Kulkarni,Studio 2,13,49%,0,0%,0.0,,,,,,,,,,,,,Studio Barre 57,Pushyank Nahar,Studio 1,15,62%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+19:15,Studio Barre 57,Chaitanya Nahar,Studio 1,15,39%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio Recovery,Pushyank Nahar,Studio 1,15,60%,0,0%,0.0,,,Studio Mat 57,Vivaran Dhasmana,Studio 1,15,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+19:30,,,,,,,,,,,Studio FIT,Shruti Kulkarni,Studio 1,15,74%,0,0%,0.0,,,Studio Mat 57,Siddhartha Kusuma,Studio 1,15,53%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 20:00,,,,,,,,,,,Studio Barre 57,Kajol Kanchan,Studio 2,13,20%,0,0%,0.0,,,Studio Cardio Barre,Simran Dutt,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+20:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Vivaran Dhasmana,Studio 1,15,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
 
 
 === WEEKLY BREAKDOWN ===
 
 TRAINER ALLOCATION
 Trainer,Total Classes,Total Hours,Avg Fill%,Primary Classes
-Chaitanya Nahar,5,4.8,40%,Studio FIT
-Kajol Kanchan,12,11.4,42%,Studio Barre 57
+Chaitanya Nahar,3,2.8,38%,Studio Cardio Barre
+Kajol Kanchan,8,7.6,43%,Studio Barre 57
 Karan Bhatia,2,1.9,20%,Studio Barre 57
 Pushyank Nahar,8,7.6,41%,Studio Mat 57
-Raunak Khemuka,2,1.9,17%,Studio Barre 57
+Raunak Khemuka,2,1.9,49%,Studio Barre 57
 Shruti Kulkarni,8,7.6,36%,Studio FIT
-Siddhartha Kusuma,8,7.6,45%,Studio Barre 57
+Siddhartha Kusuma,8,7.6,44%,Studio Barre 57
 Simran Dutt,1,0.9,20%,Studio Cardio Barre
-Vivaran Dhasmana,1,0.9,46%,Studio Barre 57
+Vivaran Dhasmana,3,2.8,29%,Studio Barre 57
 
 CLASS FORMAT ALLOCATION
 Class Format,Total Classes,Avg Fill%,Days Scheduled
-Studio Back Body Blaze,3,32%,3
-Studio Barre 57,16,39%,7
-Studio Cardio Barre,5,32%,3
-Studio FIT,12,43%,5
-Studio Mat 57,10,36%,5
+Studio Back Body Blaze,2,28%,2
+Studio Barre 57,17,40%,7
+Studio Cardio Barre,4,33%,3
+Studio FIT,10,45%,5
+Studio Mat 57,9,33%,5
 Studio Recovery,1,60%,1
 
 TIMESLOT ALLOCATION
@@ -50,19 +51,20 @@ Time,Mon,Tue,Wed,Thu,Fri,Sat,Sun,Total
 07:00,Studio Mat 57,-,Studio Barre 57,-,-,-,-,2
 07:15,-,Studio Cardio Barre,Studio FIT,-,Studio FIT,-,-,3
 08:30,Studio Barre 57,-,Studio Barre 57,-,-,-,-,2
-09:00,Studio FIT,-,-,-,Studio Barre 57,Studio Mat 57,-,3
-10:00,Studio Cardio Barre,-,-,-,-,-,-,1
+09:00,Studio FIT,-,-,-,Studio Barre 57,Studio Barre 57,-,3
+10:00,Studio Barre 57,-,-,-,-,-,-,1
 10:15,Studio Mat 57,-,-,-,-,Studio FIT,-,2
 11:00,-,-,Studio Mat 57,-,Studio Back Body Blaze,-,-,2
 11:30,-,-,-,-,-,Studio Barre 57,-,1
-12:00,Studio FIT,Studio FIT,Studio FIT,-,Studio FIT,Studio FIT,-,5
+12:00,Studio FIT,Studio FIT,Studio FIT,-,Studio FIT,-,-,4
 15:15,-,-,-,Studio Barre 57,-,-,-,1
-16:00,Studio Mat 57,Studio Mat 57,Studio Mat 57,-,-,-,-,3
-17:00,Studio FIT,Studio FIT,-,Studio Mat 57,-,-,-,3
+16:00,-,Studio Mat 57,Studio Mat 57,-,-,-,-,2
+17:00,Studio Cardio Barre,Studio FIT,-,Studio Mat 57,-,-,-,3
 17:15,-,Studio Barre 57,-,-,-,-,-,1
 17:30,-,-,Studio Barre 57,-,-,-,-,1
 18:00,Studio Back Body Blaze,-,-,-,Studio Barre 57,-,Studio Barre 57,3
-18:15,Studio Barre 57,Studio Mat 57,-,Studio Barre 57,-,-,-,3
-19:15,-,-,-,Studio Recovery,-,-,-,1
-19:30,Studio Barre 57,Studio FIT,Studio Mat 57,-,-,-,-,3
+18:15,-,Studio Mat 57,-,Studio Barre 57,-,-,-,2
+19:15,Studio Barre 57,-,-,Studio Recovery,Studio Mat 57,-,-,3
+19:30,-,Studio FIT,Studio Mat 57,-,-,-,-,2
 20:00,-,Studio Barre 57,Studio Cardio Barre,-,-,-,-,2
+20:15,-,-,-,-,Studio Barre 57,-,-,1

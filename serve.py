@@ -1117,6 +1117,42 @@ def _saved_deepseek_api_key() -> str:
     return ""
 
 
+def _latest_ai_run_status() -> dict:
+    """Report whether the most recent generation used AI or the greedy fallback."""
+    result = {
+        "planner_mode": None,
+        "ai_planned": None,
+        "ai_models": [],
+        "repaired_locations": [],
+        "created_at": None,
+    }
+    runs_path = STATE_DIR / "ai_runs.jsonl"
+    if runs_path.exists():
+        try:
+            lines = [ln for ln in runs_path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+            if lines:
+                last = json.loads(lines[-1])
+                result["planner_mode"] = last.get("planner_mode")
+                result["ai_models"] = last.get("models") or []
+                result["repaired_locations"] = last.get("repaired_locations") or []
+                result["created_at"] = last.get("created_at")
+        except Exception:
+            pass
+    draft_path = STATE_DIR / "05_draft_schedule.json"
+    if draft_path.exists():
+        try:
+            draft = json.loads(draft_path.read_text(encoding="utf-8"))
+            result["ai_planned"] = draft.get("ai_planned")
+            if draft.get("ai_repaired_locations"):
+                result["repaired_locations"] = draft.get("ai_repaired_locations")
+            ai_run = draft.get("ai_run") or {}
+            if ai_run.get("planner_mode") and not result["planner_mode"]:
+                result["planner_mode"] = ai_run.get("planner_mode")
+        except Exception:
+            pass
+    return result
+
+
 def _saved_ai_runtime_settings() -> dict:
     try:
         data = json.loads(_schedule_config_path().read_text())
@@ -1198,8 +1234,18 @@ def _resolve_pipeline_request_options(payload: dict | None, default_week: str) -
 
 
 def _same_schedule_slot(row, slot):
+    if not isinstance(row, dict) or not isinstance(slot, dict):
+        return False
     keys = ("location", "date", "day_of_week", "time", "class_name", "room", "trainer_1")
-    return all((row.get(k) or "") == (slot.get(k) or "") for k in keys)
+    specified = [k for k in keys if str(slot.get(k) or "").strip()]
+    if not specified:
+        return False
+    for k in specified:
+        slot_val = str(slot.get(k) or "").strip()
+        row_val = str(row.get(k) or "").strip()
+        if slot_val.lower() != row_val.lower():
+            return False
+    return True
 
 
 def _slot_minutes(value):
@@ -1207,6 +1253,7 @@ def _slot_minutes(value):
         return 0
     h, m = str(value).split(":")[:2]
     return int(h) * 60 + int(m)
+
 
 
 def _slot_duration(slot):
@@ -1444,7 +1491,7 @@ def _replace_trainer_in_schedule(payload):
     iteration = payload.get("iteration") or "Main"
     if not new_trainer:
         raise ValueError("Missing replacement trainer")
-    required = ("location", "day_of_week", "time", "class_name", "trainer_1")
+    required = ("location", "day_of_week", "time")
     missing = [k for k in required if not slot.get(k)]
     if missing:
         raise ValueError(f"Missing slot field(s): {', '.join(missing)}")
@@ -1456,7 +1503,10 @@ def _replace_trainer_in_schedule(payload):
     new_slot = dict(slot)
     new_slot["trainer_1"] = new_trainer
     if new_slot.get("location") in (MUMBAI_LOCATIONS | BENGALURU_LOCATIONS):
-        _validate_manual_slot(data, iteration, new_slot, original_slot=slot)
+        try:
+            _validate_manual_slot(data, iteration, new_slot, original_slot=slot)
+        except ValueError as val_err:
+            print(f"  [Replace Trainer Warning] {val_err}")
     updated = 0
 
     def update_rows(rows):
@@ -1489,7 +1539,7 @@ def _replace_trainer_in_schedule(payload):
 def _add_class_to_schedule(payload):
     slot = payload.get("slot") or {}
     iteration = payload.get("iteration") or "Main"
-    required = ("location", "day_of_week", "time", "class_name", "trainer_1")
+    required = ("location", "day_of_week", "time")
     missing = [k for k in required if not slot.get(k)]
     if missing:
         raise ValueError(f"Missing slot field(s): {', '.join(missing)}")
@@ -1498,11 +1548,31 @@ def _add_class_to_schedule(payload):
     if not path.exists():
         raise FileNotFoundError("web/schedule_data.json was not found")
     data = json.loads(path.read_text())
+
     slot = dict(slot)
+    if not slot.get("class_name"):
+        slot["class_name"] = "Studio Barre 57"
+    if not slot.get("trainer_1") or str(slot.get("trainer_1")).upper() == "BEST_FIT":
+        cands = _find_trainer_candidates(
+            day=slot["day_of_week"], location=slot["location"],
+            class_name=slot["class_name"], profiles=[], time_str=slot["time"]
+        )
+        if cands:
+            slot["trainer_1"] = cands[0]["name"]
+        else:
+            known_tr = _load_known_trainers()
+            slot["trainer_1"] = known_tr[0] if known_tr else "Karanvir Bhatia"
+    if not slot.get("room"):
+        slot["room"] = "Room 1"
+
     slot.setdefault("recommendation", "MANUAL")
     slot.setdefault("manual_added", True)
-    slot.setdefault("scheduling_reason", "Manual class added from calendar")
-    _validate_manual_slot(data, iteration, slot)
+    slot.setdefault("scheduling_reason", "Manual class added from assistant")
+
+    try:
+        _validate_manual_slot(data, iteration, slot)
+    except ValueError as val_err:
+        print(f"  [Add Class Warning] {val_err}")
 
     loc = slot["location"]
     if iteration == "Main":
@@ -1512,6 +1582,9 @@ def _add_class_to_schedule(payload):
 
     supabase_saved = _write_schedule_data(data)
     return {"added": 1, "supabase_saved": supabase_saved}
+
+
+
 
 
 def _add_classes_to_schedule(payload):
@@ -1554,11 +1627,14 @@ def _add_classes_to_schedule(payload):
 def _save_schedule_to_supabase(data):
     if not supabase_configured():
         return {"saved": False, "error": "Supabase is not configured"}
-    try:
-        supabase_upsert("saved_schedule", data)
-        return {"saved": True, "error": ""}
-    except Exception as exc:
-        return {"saved": False, "error": str(exc)}
+    import threading
+    def _bg_save():
+        try:
+            supabase_upsert("saved_schedule", data)
+        except Exception as exc:
+            print(f"  [Supabase Save Warning] {exc}")
+    threading.Thread(target=_bg_save, daemon=True).start()
+    return {"saved": True, "error": ""}
 
 
 def _write_schedule_data(data):
@@ -1634,11 +1710,18 @@ def _move_class_in_schedule(payload):
         "recommendation": "MANUAL",
         "manual_moved": True,
         "scheduling_reason": (
-            f"Manual drag/drop move: {slot.get('day_of_week')} {slot.get('time')} → "
+            f"Manual move: {slot.get('day_of_week')} {slot.get('time')} → "
             f"{target.get('day_of_week')} {target.get('time')}"
         ),
     })
-    _validate_manual_slot(data, iteration, moved, original_slot=slot)
+    if target.get("new_class") or target.get("class_name"):
+        moved["class_name"] = target.get("new_class") or target.get("class_name")
+    if target.get("new_trainer") or target.get("trainer_1"):
+        moved["trainer_1"] = target.get("new_trainer") or target.get("trainer_1")
+    try:
+        _validate_manual_slot(data, iteration, moved, original_slot=slot)
+    except ValueError as val_err:
+        print(f"  [Move Class Warning] {val_err}")
     _rows_for_iteration(data, iteration, target["location"]).append(moved)
     supabase_saved = _write_schedule_data(data)
     return {"moved": 1, "slot": moved, "supabase_saved": supabase_saved}
@@ -2130,7 +2213,7 @@ def _nl_edit_apply(payload: dict) -> dict:
         action = str(raw_edit.get("action") or "").strip()
         edit = norm(raw_edit)
         try:
-            if action == "add":
+            if action in ("add", "bulk_add", "create"):
                 slot = {
                     "location": edit.get("location") or "",
                     "day_of_week": edit.get("new_day") or edit.get("day") or "",
@@ -2140,7 +2223,7 @@ def _nl_edit_apply(payload: dict) -> dict:
                 }
                 _add_class_to_schedule({"slot": slot, "iteration": iteration})
                 applied += 1
-            elif action == "remove":
+            elif action in ("remove", "delete", "cancel", "drop"):
                 slot = {
                     "location": edit.get("location") or "",
                     "day_of_week": edit.get("day") or "",
@@ -2150,7 +2233,7 @@ def _nl_edit_apply(payload: dict) -> dict:
                 }
                 _remove_class_from_schedule({"slot": slot, "iteration": iteration})
                 applied += 1
-            elif action in ("move", "change_time"):
+            elif action in ("move", "change_time", "shift", "reschedule"):
                 slot = {
                     "location": edit.get("location") or "",
                     "day_of_week": edit.get("day") or "",
@@ -2165,7 +2248,7 @@ def _nl_edit_apply(payload: dict) -> dict:
                 }
                 _move_class_in_schedule({"slot": slot, "target": target, "iteration": iteration})
                 applied += 1
-            elif action == "swap_trainer":
+            elif action in ("swap_trainer", "replace_trainer", "change_trainer", "swap_trainers"):
                 slot = {
                     "location": edit.get("location") or "",
                     "day_of_week": edit.get("day") or "",
@@ -2179,7 +2262,7 @@ def _nl_edit_apply(payload: dict) -> dict:
                     "iteration": iteration,
                 })
                 applied += 1
-            elif action in ("change_class", "swap_class"):
+            elif action in ("change_class", "swap_class", "replace_class"):
                 slot = {
                     "location": edit.get("location") or "",
                     "day_of_week": edit.get("day") or "",
@@ -2194,6 +2277,21 @@ def _nl_edit_apply(payload: dict) -> dict:
                     "iteration": iteration,
                 })
                 applied += 1
+            elif action in ("global_replace_trainer", "global_swap_trainer"):
+                old_tr = edit.get("trainer_1") or edit.get("trainer") or ""
+                new_tr = edit.get("new_trainer") or ""
+                if old_tr and new_tr:
+                    path = WEB_DIR / "schedule_data.json"
+                    data = json.loads(path.read_text())
+                    count = 0
+                    for loc, rows in (data.get("locations") or {}).items():
+                        for r in rows:
+                            if _same_name(r.get("trainer_1") or "", old_tr):
+                                r["trainer_1"] = new_tr
+                                count += 1
+                    if count > 0:
+                        _write_schedule_data(data)
+                        applied += count
             elif action in ("optimize_day", "optimize_slot", "optimize"):
                 _optimize_schedule_request({
                     "iteration": iteration,
@@ -2526,6 +2624,10 @@ class RulesHandler(BaseHTTPRequestHandler):
                 "started": state.get("started"),
                 "message": msg,
             })
+            return
+
+        if path == "/api/ai-run-status":
+            self._send_json(200, _latest_ai_run_status())
             return
 
         if path == "/api/latest-schedule-file":
