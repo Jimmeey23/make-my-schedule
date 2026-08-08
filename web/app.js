@@ -1401,7 +1401,7 @@ function renderRoomView(area,filtered){
       <div class="view-surface-title">Room Utilization Timeline</div>
       <div style="font-size:11px;color:#64748B;font-weight:800">${rvEscapeHtml(activeLocation||"Current location")} only · precision space management view</div>
     </div>
-    <div class="room-timeline-outer" style="background:#fff;border-radius:18px;border:1px solid #DCE3EB;overflow:hidden;box-shadow:0 8px 32px rgba(15,23,42,.06)">
+    <div class="room-timeline-outer">
       <div class="room-timeline-container" style="display:flex;position:relative;height:700px;overflow-y:auto">
         <!-- Time Bar -->
         <div class="time-axis" style="width:64px;background:#F8FAFC;border-right:1px solid #DCE3EB;position:sticky;left:0;z-index:20">
@@ -1430,8 +1430,8 @@ function renderRoomView(area,filtered){
                     const top = startM * pixelsPerMinute;
                     const height = dur * pixelsPerMinute;
                     return `
-                      <div class="room-class-slot" 
-                           style="position:absolute;left:8px;right:8px;top:${top}px;height:${height}px;background:${classColor(s.class_name)};border-radius:10px;padding:8px;overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,0.12);cursor:pointer;border-left:4px solid rgba(0,0,0,0.3);transition:transform 0.2s;z-index:10"
+                      <div class="room-class-slot"
+                           style="position:absolute;left:8px;right:8px;top:${top}px;height:${height}px;background:${classColor(s.class_name)};overflow:hidden;cursor:pointer;border-left:4px solid rgba(0,0,0,0.3);z-index:10"
                            onmouseover="this.style.transform='scale(1.02)';this.style.zIndex='25'"
                            onmouseout="this.style.transform='scale(1)';this.style.zIndex='10'"
                            onclick='openModal(JSON.parse(this.dataset.slot))'
