@@ -8,3 +8,5 @@ __pycache__/
 
 # Generated scheduler run variants. Keep the canonical state files trackable.
 state/05_draft_schedule_*.json
+
+.worktrees/
