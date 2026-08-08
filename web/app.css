@@ -11710,6 +11710,81 @@ details.fp-section[open] .fp-section-hdr::after {
   box-shadow: 0 0 8px var(--primary-mid) !important;
 }
 
+/* Chat drawer panel — tabs, context strip, message bubbles, suggestions,
+   input row, and empty state. The drawer shell (.chat-drawer) and the
+   composer input (.chat-input) already have coverage above; these are
+   the remaining descendant classes with their own literal light colors. */
+.theme-dark .chat-mode-tabs {
+  background: var(--surface) !important;
+  border-bottom-color: var(--border-strong) !important;
+}
+
+.theme-dark .chat-mode-tab {
+  background: var(--surface2) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text-muted) !important;
+}
+
+.theme-dark .chat-mode-tab:hover {
+  background: var(--surface) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+.theme-dark .chat-mode-tab.active {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--bg) !important;
+}
+
+.theme-dark .chat-context-strip {
+  background: var(--surface) !important;
+  border-bottom-color: var(--border-strong) !important;
+  color: var(--text-muted) !important;
+}
+
+.theme-dark .chat-msg.bot .chat-bubble {
+  background: var(--surface2) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text) !important;
+}
+
+.theme-dark .chat-typing .chat-bubble {
+  background: var(--surface2) !important;
+  color: var(--text-muted) !important;
+}
+
+.theme-dark .chat-suggestions {
+  background: var(--surface) !important;
+}
+
+.theme-dark .chat-sugg {
+  background: var(--surface2) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text-2) !important;
+}
+
+.theme-dark .chat-sugg:hover {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--bg) !important;
+}
+
+.theme-dark .chat-input-row {
+  background: var(--surface) !important;
+  border-top-color: var(--border-strong) !important;
+}
+
+.theme-dark .chat-empty {
+  background: var(--surface2) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text-muted) !important;
+}
+
+.theme-dark .chat-empty strong {
+  color: var(--text) !important;
+}
+
 /* Trainer Icons and General Elements with neon accents */
 .theme-dark .trainer-avi {
   border: 1px solid var(--primary) !important;
