@@ -2021,8 +2021,8 @@ def test_settings_console_has_single_shell_and_generation_status():
 
     assert "Settings Console" in template
     assert "Applied to every generation" in template
-    assert "control-center-inspector" in template
-    assert "sett-generation-contract" in template
+    assert "control-center-rail" in template
+    assert "control-center-inspector" not in template
     assert "settings-console-layout" in template
     assert "sett-command" not in template
     assert "sett-rail" not in template
@@ -2109,7 +2109,7 @@ def test_class_cards_use_modern_sleek_card_styles():
     assert "cc-card-kicker" in template
     assert "cc-metric-pill" in template
     assert "cc-tool-icon" in template
-    assert "Advanced Planner Settings" in template
+    assert "Scoring &amp; Planner" in template
 
 
 def test_rule_catalog_links_to_guided_custom_rule_builder():

@@ -759,21 +759,7 @@
     }
   ],
   "manual_excluded": [],
-  "custom_rules": [
-    {
-      "id": "custom-rule-1778086592713",
-      "location": "",
-      "rule_type": "trainer_availability",
-      "class_name": "",
-      "trainer": "Karan Bhatia",
-      "day": "",
-      "time": "",
-      "operator": "exactly",
-      "value": 4,
-      "priority": "hard",
-      "enabled": true
-    }
-  ],
+  "custom_rules": [],
   "leave_periods": [],
   "off_days": [],
   "inactive_trainers": [
@@ -791,6 +777,7 @@
     "Ria Kapoor",
     "Saniya Jaiswal",
     "Shruti Suresh",
+    "Simran Dutt",
     "Sovena Shetty",
     "Upasna Paranjpe",
     "Varun Chadha",
@@ -1284,7 +1271,7 @@
   "settings_options": {
     "enforce_exact_daily_targets": true,
     "auto_repair_underfilled_days": true,
-    "allow_soft_mix_overrides": false,
+    "allow_soft_mix_overrides": true,
     "block_hard_conflict_saves": true,
     "show_superseded_rules": true,
     "save_snapshot_on_publish": true,
@@ -1292,7 +1279,7 @@
     "default_bulk_scope": "selection",
     "target_cap_buffer": 1,
     "target_selection_strategy": "seeded_range",
-    "weekly_hours_cap": 15,
+    "weekly_hours_cap": 17,
     "tier1_min_weekly_hours": 13,
     "tier1_ideal_weekly_hours": 15,
     "max_daily_trainer_hours": 4,
@@ -1326,7 +1313,7 @@
   "source_of_truth": {
     "owner": "settings-command-center",
     "conflict_policy": "settings_override_soft_rules",
-    "updated_at": "2026-05-12T07:38:19.862Z"
+    "updated_at": "2026-08-08T15:27:11.141Z"
   },
   "scoring_weights": {
     "fill_rate": 25,

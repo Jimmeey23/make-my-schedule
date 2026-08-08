@@ -4369,11 +4369,6 @@ function renderControlCenterNav(){
   });
   return html;
 }
-function renderControlCenterShell(){
-  const box=document.getElementById("modal-box"); if(!box)return;
-  box.className="modal-box control-center-modal";
-  box.innerHTML=`<div class="modal-hdr"><div class="cc-title-stack"><div class="cc-title-mark">⚙</div><div><div class="cc-title-line"><div class="modal-class-name">Settings Console</div><span class="cc-live-chip">Persistent</span></div><div class="modal-meta">Applied to every generation: targets, trainers, assignment days, off days, class mix, rules, pins, and AI configuration.</div></div></div><button class="modal-close" onclick="closeModal()">✕</button></div><div class="control-center-shell"><aside class="control-center-rail"><div class="cc-rail-header"><div class="cc-rail-title">Control Room</div><div class="cc-rail-sub">Edit the generation contract from one organized command surface.</div></div><div class="cc-rail-nav-wrap"><div class="control-center-nav">${renderControlCenterNav()}</div></div></aside><main class="control-center-main"><section class="control-center-intro"><div class="control-center-nav-title" id="control-center-heading">Settings Console</div><div class="control-center-nav-desc" id="control-center-description"></div><div class="cc-status-strip"><div class="cc-status-tile"><span>Rules source</span><b>Canonical JSON</b></div><div class="cc-status-tile"><span>Save mode</span><b>Persistent</b></div><div class="cc-status-tile"><span>Generation</span><b>Standard + AI</b></div><div class="cc-status-tile"><span>Validation</span><b>Pre-assignment</b></div></div></section><section class="control-center-panel" id="control-center-settings-panel" hidden></section><section class="control-center-panel" id="control-center-rules-panel" hidden></section></main><aside class="control-center-inspector"><div class="cc-inspector-card accent sett-generation-contract"><div class="cc-inspector-title">Generation Contract</div><div class="cc-inspector-copy">Saved settings are the canonical source for every Standard, AI, and repair generation. Trainer assignment days, week off dates, inactive status, class mix caps, and hard custom rules are validated before assignment.</div></div><div class="cc-inspector-card"><div class="cc-inspector-title">Actions</div><div class="cc-inspector-actions"><button class="sett-ghost-btn primary" onclick="settSaveCanonicalConfig()">Save & Apply Changes</button><button class="sett-ghost-btn" onclick="settValidateAndRender()">Validate Configuration</button><button class="sett-ghost-btn" onclick="settExportConfig()">Export JSON</button></div></div><div class="cc-inspector-card"><div class="cc-inspector-title">Selection Inspector</div><div class="sett-inspector-box" id="sett-inspector-selection">Select target or class-mix cells to apply bulk changes.</div></div><div class="cc-inspector-card"><div class="cc-inspector-title">Active Health</div><div id="sett-conflict-list" class="sett-conflict-list"><div class="sett-conflict-item">Loading validation...</div></div></div></aside></div>`;
-}
 function controlCenterEnsurePanel(panelName){
   const panelId=panelName==="rules"?"control-center-rules-panel":"control-center-settings-panel";
   const host=document.getElementById(panelId);
@@ -4397,13 +4392,6 @@ function renderControlCenterShell(){
           <div class="modal-meta">Applied to every generation: targets, trainers, assignment days, off days, class mix, rules, pins, and AI configuration.</div>
         </div>
       </div>
-      <div class="cc-header-actions" aria-label="Control center shortcuts">
-        <button class="cc-header-pill" type="button" onclick="controlCenterSetSection('overview')">Overview</button>
-        <button class="cc-header-pill" type="button" onclick="controlCenterSetSection('scheduling')">Schedule</button>
-        <button class="cc-header-pill" type="button" onclick="controlCenterSetSection('trainers')">Trainers</button>
-        <button class="cc-header-pill" type="button" onclick="controlCenterSetSection('rules')">Rules</button>
-        <button class="cc-header-pill" type="button" onclick="controlCenterSetSection('ai')">AI &amp; Generation</button>
-      </div>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
 
@@ -4411,10 +4399,16 @@ function renderControlCenterShell(){
       <aside class="control-center-rail">
         <div class="cc-rail-header">
           <div class="cc-rail-title">Control Room</div>
-          <div class="cc-rail-sub">Edit the generation contract from one organized command surface.</div>
+          <div class="cc-rail-sub">Every section below edits the same generation contract.</div>
         </div>
         <div class="cc-rail-nav-wrap">
           <div class="control-center-nav">${renderControlCenterNav()}</div>
+        </div>
+        <div class="cc-status-strip">
+          <div class="cc-status-tile"><span>Rules source</span><b>Canonical JSON</b></div>
+          <div class="cc-status-tile"><span>Save mode</span><b>Persistent</b></div>
+          <div class="cc-status-tile"><span>Generation</span><b>Standard + AI</b></div>
+          <div class="cc-status-tile"><span>Validation</span><b>Pre-assignment</b></div>
         </div>
       </aside>
 
@@ -4424,42 +4418,11 @@ function renderControlCenterShell(){
             <div class="control-center-nav-title" id="control-center-heading">Settings Console</div>
             <div class="control-center-nav-desc" id="control-center-description"></div>
           </div>
-          <div class="control-center-intro-actions">
-            <button class="cc-intro-action" type="button" onclick="controlCenterSetSection('overview')">Overview</button>
-            <button class="cc-intro-action" type="button" onclick="controlCenterSetSection('scheduling')">Schedule Setup</button>
-            <button class="cc-intro-action" type="button" onclick="controlCenterSetSection('rules')">Rules</button>
-            <button class="cc-intro-action" type="button" onclick="controlCenterSetSection('trainers')">Trainer Setup</button>
-            <button class="cc-intro-action" type="button" onclick="controlCenterSetSection('ai')">AI &amp; Generation</button>
-          </div>
-          <div class="cc-status-strip">
-            <div class="cc-status-tile"><span>Rules source</span><b>Canonical JSON</b></div>
-            <div class="cc-status-tile"><span>Save mode</span><b>Persistent</b></div>
-            <div class="cc-status-tile"><span>Generation</span><b>Standard + AI</b></div>
-            <div class="cc-status-tile"><span>Validation</span><b>Pre-assignment</b></div>
-          </div>
         </section>
 
         <section class="control-center-panel" id="control-center-settings-panel" hidden></section>
         <section class="control-center-panel" id="control-center-rules-panel" hidden></section>
       </main>
-
-      <aside class="control-center-inspector">
-        <div class="cc-inspector-card accent sett-generation-contract">
-          <div class="cc-inspector-title">Generation Contract</div>
-          <div class="cc-inspector-copy">Saved settings are the canonical source for every Standard, AI, and repair generation. Trainer assignment days, week off dates, inactive status, class mix caps, and hard custom rules are validated before assignment.</div>
-        </div>
-        <div class="cc-inspector-card">
-          <div class="cc-inspector-title">Quick Jump</div>
-          <div class="cc-inspector-copy">Use the rail for section navigation, or jump straight into the most common edit areas below.</div>
-          <div class="cc-inspector-actions">
-            <button class="cc-inspector-btn" type="button" onclick="controlCenterSetSection('overview')">Open Overview</button>
-            <button class="cc-inspector-btn" type="button" onclick="controlCenterSetSection('scheduling')">Open Schedule Setup</button>
-            <button class="cc-inspector-btn" type="button" onclick="controlCenterSetSection('trainers')">Open Trainer Setup</button>
-            <button class="cc-inspector-btn" type="button" onclick="controlCenterSetSection('rules')">Open Rules</button>
-            <button class="cc-inspector-btn primary" type="button" onclick="controlCenterSetSection('ai')">Open AI &amp; Generation</button>
-          </div>
-        </div>
-      </aside>
     </div>`;
 }
 
@@ -5198,6 +5161,104 @@ function openHistoricModal(index){
   document.getElementById("modal-overlay").classList.add("open");
 }
 
+function tbcFillPillClass(fill){
+  const f=fill||0;
+  if(f>=0.5)return"tbc-pill tbc-pill-great";
+  if(f>=0.28)return"tbc-pill tbc-pill-good";
+  if(f>=0.22)return"tbc-pill tbc-pill-mid";
+  return"tbc-pill tbc-pill-weak";
+}
+function tbcVsStudioAvg(r){
+  const studioAvg=r.studio_avg_fill;
+  if(studioAvg==null||!isFinite(studioAvg))return"—";
+  const delta=(r.avg_fill_rate||0)-studioAvg;
+  const sign=delta>=0?"+":"";
+  const cls=delta>=0?"tbc-delta-pos":"tbc-delta-neg";
+  return `<span class="${cls}">${sign}${(delta*100).toFixed(1)}pp</span>`;
+}
+function tbcRecommendationBadge(r){
+  const rec=String(r.recommendation||"").toUpperCase();
+  const map={
+    DROP:["modal-badge-drop","Drop"],
+    CONSIDER:["modal-badge-consider","Consider"],
+    INCLUDE:["modal-badge-include","Include"],
+  };
+  const [cls,label]=map[rec]||["modal-badge-manual",rec?rec[0]+rec.slice(1).toLowerCase():"—"];
+  return `<span class="modal-badge ${cls}">${label}</span>`;
+}
+function tbcSummaryChips(rows,label){
+  if(!rows.length)return"";
+  const avgFill=rows.reduce((s,r)=>s+(r.avg_fill_rate||0),0)/rows.length;
+  const avgScore=rows.reduce((s,r)=>s+(r.score||0),0)/rows.length;
+  const avgRevenue=rows.reduce((s,r)=>s+(r.avg_revenue||0),0)/rows.length;
+  const totalSessions=rows.reduce((s,r)=>s+(r.trainer_total_sessions||r.session_count||0),0);
+  return `<div class="tbc-summary">
+    <div class="tbc-chip"><div class="tbc-chip-l">${label} shown</div><div class="tbc-chip-v">${rows.length}</div></div>
+    <div class="tbc-chip"><div class="tbc-chip-l">Avg fill</div><div class="tbc-chip-v">${pct(avgFill,1)}</div></div>
+    <div class="tbc-chip"><div class="tbc-chip-l">Avg score</div><div class="tbc-chip-v">${avgScore.toFixed(1)}</div></div>
+    <div class="tbc-chip"><div class="tbc-chip-l">Avg revenue</div><div class="tbc-chip-v">₹${Math.round(avgRevenue).toLocaleString("en-IN")}</div></div>
+    <div class="tbc-chip"><div class="tbc-chip-l">Total sessions</div><div class="tbc-chip-v">${totalSessions}</div></div>
+  </div>`;
+}
+
+async function openTopBottomClassesModal(){
+  await ensureHistoricSlotsLoaded();
+  const activeLocs=new Set(getActiveLocations());
+  const ranking=(_historicSlotsCache?.class_slot_ranking||[]).filter(r=>activeLocs.has(r.location));
+  const sessionsOf=r=>r.trainer_total_sessions||r.session_count||0;
+  const top=ranking
+    .filter(r=>(r.avg_fill_rate||0)>=0.28&&sessionsOf(r)>=5)
+    .sort((a,b)=>(b.score||0)-(a.score||0)||(b.avg_fill_rate||0)-(a.avg_fill_rate||0))
+    .slice(0,25);
+  const bottom=ranking
+    .filter(r=>(r.avg_fill_rate||0)<0.22&&sessionsOf(r)>=5)
+    .sort((a,b)=>(a.avg_fill_rate||0)-(b.avg_fill_rate||0))
+    .slice(0,25);
+  _histVisibleRows=[...top,...bottom];
+
+  const row=(r,i,rank)=>`<tr onclick="openHistoricModal(${i})" class="tbc-row">
+    <td class="num tbc-rank">${rank}</td>
+    <td>${displayClass(r.class)}</td><td>${r.trainer||"—"}</td><td>${r.location||"—"}</td>
+    <td>${r.day_name||""} ${r.time||""}</td>
+    <td><span class="${tbcFillPillClass(r.avg_fill_rate)}">${pct(r.avg_fill_rate,1)}</span></td>
+    <td class="num">${tbcVsStudioAvg(r)}</td>
+    <td class="num">${round1(r.avg_checkin)}</td>
+    <td class="num">₹${Number(r.avg_revenue||0).toLocaleString("en-IN",{maximumFractionDigits:0})}</td>
+    <td class="num">${(r.score||0).toFixed(1)}</td>
+    <td class="num">${sessionsOf(r)}</td>
+    <td>${tbcRecommendationBadge(r)}</td>
+  </tr>`;
+  const table=(rows,offset,emptyMsg,label)=>`${tbcSummaryChips(rows,label)}<table class="hist-modal-table tbc-table"><thead><tr>
+    <th>#</th><th>Class</th><th>Trainer</th><th>Location</th><th>Day/Time</th><th>Fill</th><th>vs Studio Avg</th><th>Avg Check-in</th><th>Avg Revenue</th><th>Score</th><th>Sessions</th><th>Status</th>
+  </tr></thead><tbody>${rows.map((r,i)=>row(r,offset+i,i+1)).join("")||`<tr><td colspan="12">${emptyMsg}</td></tr>`}</tbody></table>`;
+
+  const box=document.getElementById("modal-box");
+  box.className="modal-box tbc-modal";
+  box.innerHTML=`
+    <div class="modal-hdr">
+      <div><div class="modal-class-name">Top &amp; Bottom Classes</div>
+        <div class="modal-meta">${[...activeLocs].join(", ")||"All locations"} · fill≥28% + ≥5 sessions for top, fill&lt;22% + ≥5 sessions for bottom</div></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="hist-modal-tabs">
+      <button class="hist-modal-tab active" onclick="tbcModalTab('top')">🏆 Top Performers (${top.length})</button>
+      <button class="hist-modal-tab" onclick="tbcModalTab('bottom')">⚠️ Bottom Performers (${bottom.length})</button>
+    </div>
+    <div class="modal-body">
+      <div class="hist-tab-panel active" id="tbc-panel-top">${table(top,0,"No top performers found for this filter.","Top classes")}</div>
+      <div class="hist-tab-panel" id="tbc-panel-bottom">${table(bottom,top.length,"No weak performers found for this filter.","Bottom classes")}</div>
+    </div>`;
+  document.getElementById("modal-overlay").classList.add("open");
+}
+
+function tbcModalTab(id){
+  document.querySelectorAll(".hist-modal-tab").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".hist-tab-panel").forEach(p=>p.classList.remove("active"));
+  const buttons=[...document.querySelectorAll(".hist-modal-tab")];
+  buttons[id==="top"?0:1]?.classList.add("active");
+  document.getElementById("tbc-panel-"+id)?.classList.add("active");
+}
+
 function histModalTab(id){
   document.querySelectorAll(".hist-modal-tab").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll(".hist-tab-panel").forEach(p=>p.classList.remove("active"));
@@ -5626,11 +5687,25 @@ function renderSettingsView(area){
             </div>
           </div>
           <div id="sett-overview-wrap"></div>
+          <div class="sett-config-panel" style="margin-top:14px">
+            <div class="sett-section-head">
+              <div>
+                <div class="sett-card-title">Validation Health</div>
+                <div class="sett-card-copy">Blocking conflicts and constraint warnings across every saved section.</div>
+              </div>
+            </div>
+            <div id="sett-conflict-list" class="sett-conflict-list"><div class="sett-conflict-item">Loading validation...</div></div>
+          </div>
         </div>
 
         <div class="sett-section" id="ssec-trainers">
-          <div class="sett-section-label">Trainer Directory</div>
-          <div class="sett-section-desc">Manage trainer profiles and activation status.</div>
+          <div class="sett-section-head">
+            <div>
+              <div class="sett-section-kicker">People</div>
+              <div class="sett-section-label">Trainer Directory</div>
+              <div class="sett-section-desc">Manage trainer profiles, studio access, and activation status.</div>
+            </div>
+          </div>
           <div class="sett-subtabs">
             <button class="sett-subtab active" data-section="trainers" data-subtab="directory" onclick="settSetSub('trainers','directory')">Directory</button>
             <button class="sett-subtab" data-section="trainers" data-subtab="bulk" onclick="settSetSub('trainers','bulk')">Bulk Ops</button>
@@ -5679,7 +5754,13 @@ function renderSettingsView(area){
         </div>
 
         <div class="sett-section" id="ssec-qualifications">
-          <div class="sett-section-label">Certifications</div>
+          <div class="sett-section-head">
+            <div>
+              <div class="sett-section-kicker">Eligibility</div>
+              <div class="sett-section-label">Certification Matrix</div>
+              <div class="sett-section-desc">Control which trainers are certified to teach each current class format.</div>
+            </div>
+          </div>
           <div class="sett-subtabs">
             <button class="sett-subtab active" data-section="qualifications" data-subtab="matrix" onclick="settSetSub('qualifications','matrix')">Matrix</button>
             <button class="sett-subtab" data-section="qualifications" data-subtab="bulk" onclick="settSetSub('qualifications','bulk')">Bulk</button>
@@ -5696,8 +5777,13 @@ function renderSettingsView(area){
         </div>
 
         <div class="sett-section" id="ssec-availability">
-          <div class="sett-section-label">Availability</div>
-          <div class="sett-section-desc">Set which days each trainer is available per studio and their shift time window.</div>
+          <div class="sett-section-head">
+            <div>
+              <div class="sett-section-kicker">People</div>
+              <div class="sett-section-label">Days &amp; Time Windows</div>
+              <div class="sett-section-desc">Set which days each trainer is available per studio, their shift time window, and leave.</div>
+            </div>
+          </div>
           <div class="sett-subtabs">
             <button class="sett-subtab active" data-section="availability" data-subtab="weekly" onclick="settSetSub('availability','weekly')">Weekly Availability</button>
             <button class="sett-subtab" data-section="availability" data-subtab="leave" onclick="settSetSub('availability','leave')">Leave & Off Days</button>
@@ -5736,7 +5822,10 @@ function renderSettingsView(area){
             <div id="manualpins-builder" style="margin-top:24px"></div>
             <div id="manualpins-list" class="rule-list" style="margin-top:16px"></div>
           </div>
-          <div class="sett-subpanel" data-section="rules" data-subpanel="universal"><div id="universal-rules-list"></div></div>
+          <div class="sett-subpanel" data-section="rules" data-subpanel="universal">
+            <input type="text" id="univ-rule-search" placeholder="Search safeguards…" class="sett-input" style="margin-bottom:14px;width:100%" oninput="settFilterUnivRules(this.value)">
+            <div id="universal-rules-list"></div>
+          </div>
         </div>
 
         <div class="sett-section" id="ssec-conflicts">
@@ -5744,15 +5833,25 @@ function renderSettingsView(area){
           <div id="sett-conflict-full-list" class="sett-conflict-full-list"></div>
         </div>
 
-        <div class="sett-section" id="ssec-ai">
-          <div class="sett-section-label">AI Intelligence</div>
-          <div id="ai-settings-wrap"></div>
-        </div>
-
         <div class="sett-section" id="ssec-advanced">
-          <div class="sett-section-label">Advanced Policy · Advanced Planner Settings</div>
-          <div id="advanced-options-wrap"></div>
-          <div class="sett-save-bar"><button class="sett-save-btn" onclick="settSaveAdvancedOptions()">Save Policy</button></div>
+          <div class="sett-section-head">
+            <div>
+              <div class="sett-section-kicker">Intelligence</div>
+              <div class="sett-section-label">AI &amp; Generation</div>
+              <div class="sett-section-desc">Model policy, validation gates, and scoring weights used by every generation.</div>
+            </div>
+          </div>
+          <div class="sett-subtabs">
+            <button class="sett-subtab active" data-section="advanced" data-subtab="policy" onclick="settSetSub('advanced','policy')">Policy &amp; Options</button>
+            <button class="sett-subtab" data-section="advanced" data-subtab="scoring" onclick="settSetSub('advanced','scoring')">Scoring &amp; Planner</button>
+          </div>
+          <div class="sett-subpanel active" data-section="advanced" data-subpanel="policy">
+            <div id="advanced-options-wrap"></div>
+            <div class="sett-save-bar"><button class="sett-save-btn" onclick="settSaveAdvancedOptions()">Save Policy</button></div>
+          </div>
+          <div class="sett-subpanel" data-section="advanced" data-subpanel="scoring">
+            <div id="ai-settings-wrap"></div>
+          </div>
         </div>
       </main>
 
@@ -5765,6 +5864,7 @@ function renderSettingsView(area){
 function settSetTab(tab){
   let mainTab=tab;
   if(["targets","classmix","priority","custom","customrules","universal"].includes(tab)) mainTab="rules";
+  if(tab==="ai") mainTab="advanced";
   if(tab==="leave") mainTab="availability";
   _settSection=mainTab;
   document.querySelectorAll(".sett-tab,.sett-nav-btn").forEach(b=>b.classList.remove("active"));
@@ -5788,8 +5888,11 @@ function settSetTab(tab){
   if(mainTab==="conflicts")settValidateAndRender();
   settResetMatrixSelection(false);
   if(mainTab==="overview")settRenderOverview();
-  if(mainTab==="advanced")settRenderAdvancedOptions();
-  if(mainTab==="ai"){settRenderAISettings();}
+  if(mainTab==="advanced"){
+    settRenderAdvancedOptions();
+    settRenderAISettings();
+    settSetSub("advanced",tab==="ai"?"scoring":"policy");
+  }
   if(mainTab==="availability"&&tab==="leave")settSetSub("availability","leave");
   settValidateAndRender();
 }
@@ -6022,7 +6125,12 @@ function settRenderAISettings(){
   const sw=cfg.scoring_weights||{fill_rate:35,revenue:25,avg_checkin:20,session_frequency:10,trend:10};
   const tb=cfg.time_band_weights||{morning:1.0,midday:1.15,evening:1.1};
   const ap=cfg.am_pm_settings||{morning_cap_pct:50,enforce_split:false,peak_slots:["11:00","11:30","19:00","19:15"]};
-  const sliderRow=(id,label,val,min,max,step,desc)=>`
+  const sliderRow=(id,label,val,min,max,step,desc)=>{
+    const isTimeBand=id.startsWith("tb_");
+    const updateCall=isTimeBand
+      ?`settUpdateTimeBandWeight('${id.slice(3)}',this.value)`
+      :`settUpdateScoringWeight('${id}',this.value)`;
+    return `
     <div style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <span style="font-size:12px;font-weight:800;color:#0F172A">${label}</span>
@@ -6030,9 +6138,10 @@ function settRenderAISettings(){
       </div>
       <input type="range" id="sw-${id}" min="${min}" max="${max}" step="${step}" value="${val}"
         style="width:100%;accent-color:#1E40AF"
-        oninput="document.getElementById('sw-${id}-val').textContent=this.value+'${step<1?"×":"%"}';settUpdateScoringWeight('${id}',this.value)">
+        oninput="document.getElementById('sw-${id}-val').textContent=this.value+'${step<1?"×":"%"}';${updateCall}">
       <div style="font-size:10px;color:#64748B;margin-top:3px">${desc}</div>
     </div>`;
+  };
   wrap.innerHTML=`
     <div class="sett-config-panel" style="margin-bottom:12px">
       <div class="sett-section-kicker">Scoring Weights</div>
@@ -6120,6 +6229,12 @@ function settUpdateScoringWeight(key,val){
     badge.style.color=ok?"#065F46":"#B45309";
     badge.textContent=`Sum: ${sum}% ${ok?"✓":"⚠ should be 100"}`;
   }
+}
+
+function settUpdateTimeBandWeight(band,val){
+  if(!_settSchedConfig)_settSchedConfig=settNormalizeConfig({});
+  if(!_settSchedConfig.time_band_weights)_settSchedConfig.time_band_weights={morning:1.0,midday:1.15,evening:1.1};
+  _settSchedConfig.time_band_weights[band]=Number(val);
 }
 
 function settSetAMPMOption(key,val){
@@ -6230,19 +6345,22 @@ function settRenderTrainerManager(){
             const activeDays=new Set(enabled?settAvailabilityDaysFor(t,ld):[]);
             const tw=ld.time_window||{};
             const weekOffs=settHistoricWeekOffDays(t);
-            return`<div class="trainer-mgr-loc" data-loc="${rvEscapeAttr(loc)}">
-              <div class="trainer-mgr-loc-head">
-                <label style="display:flex;gap:5px;align-items:center;text-transform:none;letter-spacing:0;font-size:11px;color:#334155"><input type="checkbox" class="trainer-mgr-loc-enabled" ${enabled?"checked":""}> ${rvEscapeHtml(loc.split(",")[0])}</label>
+            return`<div class="trainer-mgr-loc${enabled?" expanded":""}" data-loc="${rvEscapeAttr(loc)}">
+              <div class="trainer-mgr-loc-head" onclick="settToggleTrainerLoc(this)">
+                <label style="display:flex;gap:5px;align-items:center;text-transform:none;letter-spacing:0;font-size:11px;color:#334155" onclick="event.stopPropagation()"><input type="checkbox" class="trainer-mgr-loc-enabled" ${enabled?"checked":""} onchange="settToggleTrainerLoc(this.closest('.trainer-mgr-loc-head'),this.checked)"> ${rvEscapeHtml(loc.split(",")[0])}</label>
                 <span class="sett-badge" style="min-width:64px">${ld.session_count||0} cls</span>
+                <span class="trainer-mgr-loc-chevron">▾</span>
               </div>
-              <div class="avail-days">
-                ${DAYS_ALL.map(day=>`<span class="avail-day-chip${activeDays.has(day)?" on":""}" data-day="${day}" onclick="settToggleDay(this)">${day.slice(0,3)}</span>`).join("")}
-              </div>
-              ${weekOffs.length?`<div style="font-size:10px;color:#64748B;margin:0 0 7px">Historic off: <b>${weekOffs.map(d=>d.slice(0,3)).join(", ")}</b></div>`:""}
-              <div class="trainer-mgr-loc-grid">
-                <input class="sett-input trainer-mgr-start" type="time" value="${tw.start||"06:00"}" style="min-width:0">
-                <input class="sett-input trainer-mgr-end" type="time" value="${tw.end||"22:00"}" style="min-width:0">
-                <input class="sett-input trainer-mgr-maxd" type="number" min="1" max="8" value="${ld.max_classes_per_day||4}" title="Max classes/day" style="min-width:0">
+              <div class="trainer-mgr-loc-body">
+                <div class="avail-days">
+                  ${DAYS_ALL.map(day=>`<span class="avail-day-chip${activeDays.has(day)?" on":""}" data-day="${day}" onclick="settToggleDay(this)">${day.slice(0,3)}</span>`).join("")}
+                </div>
+                ${weekOffs.length?`<div style="font-size:10px;color:#64748B;margin:0 0 7px">Historic off: <b>${weekOffs.map(d=>d.slice(0,3)).join(", ")}</b></div>`:""}
+                <div class="trainer-mgr-loc-grid">
+                  <input class="sett-input trainer-mgr-start" type="time" value="${tw.start||"06:00"}" style="min-width:0">
+                  <input class="sett-input trainer-mgr-end" type="time" value="${tw.end||"22:00"}" style="min-width:0">
+                  <input class="sett-input trainer-mgr-maxd" type="number" min="1" max="8" value="${ld.max_classes_per_day||4}" title="Max classes/day" style="min-width:0">
+                </div>
               </div>
             </div>`;
           }).join("")}
@@ -6550,21 +6668,17 @@ function settRenderAvailability(){
     const hdr=document.createElement("div");
     hdr.className="avail-card-head";
     hdr.innerHTML=`
-      <div style="width:36px;height:36px;border-radius:50%;background:${tierColor}22;border:2px solid ${tierColor};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:${tierColor};flex-shrink:0;overflow:hidden">
-        ${img?`<img src="${img}" style="width:100%;height:100%;object-fit:cover">`:`<span>${trainerInitials(t.name||"")}</span>`}
+      <div class="avail-card-avatar" style="background:${tierColor}22;border-color:${tierColor};color:${tierColor}">
+        ${img?`<img src="${img}" alt="">`:`<span>${trainerInitials(t.name||"")}</span>`}
       </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:800;color:#0F172A">${rvEscapeHtml(t.name||"")}</div>
-        <div style="font-size:10px;color:#64748B;margin-top:2px">${locEntries.map(([l])=>LOC_SHORT[l]||l).join(" · ")} &nbsp;·&nbsp; ${active?'<span style="color:#15803D;font-weight:700">Active</span>':'<span style="color:#B91C1C;font-weight:700">Inactive</span>'}${settHistoricWeekOffDays(t).length?` &nbsp;·&nbsp; Historic off: <b>${settHistoricWeekOffDays(t).map(d=>d.slice(0,3)).join(", ")}</b>`:""}</div>
+      <div class="avail-card-identity">
+        <div class="avail-card-name">${rvEscapeHtml(t.name||"")}</div>
+        <div class="avail-card-sub">${locEntries.map(([l])=>LOC_SHORT[l]||l).join(" · ")} &nbsp;·&nbsp; <span class="avail-status ${active?"on":"off"}">${active?"Active":"Inactive"}</span>${settHistoricWeekOffDays(t).length?` &nbsp;·&nbsp; Historic off: <b>${settHistoricWeekOffDays(t).map(d=>d.slice(0,3)).join(", ")}</b>`:""}</div>
       </div>
       <span class="sett-badge blue">Tier ${t.tier||3}</span>
-      <span class="avail-card-chevron" style="font-size:14px;color:#94A3B8;transition:transform .2s">▾</span>`;
+      <span class="avail-card-chevron">▾</span>`;
     hdr.onclick=()=>{
-      const body=card.querySelector(".avail-card-body");
-      const chev=hdr.querySelector(".avail-card-chevron");
-      const open=body.style.display!=="none";
-      body.style.display=open?"none":"grid";
-      if(chev)chev.style.transform=open?"":"rotate(-180deg)";
+      card.classList.toggle("expanded");
     };
     card.appendChild(hdr);
 
@@ -6581,47 +6695,38 @@ function settRenderAvailability(){
       const locBlock=document.createElement("div");
       locBlock.className="avail-location-card";
       locBlock.innerHTML=`
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-          <span style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#64748B;background:#F1F5F9;border-radius:6px;padding:3px 8px">${rvEscapeHtml(LOC_SHORT[loc]||loc)}</span>
-          <span style="font-size:10px;color:#94A3B8">${rvEscapeHtml(loc)}</span>
+        <div class="avail-loc-title">
+          <span class="avail-loc-short">${rvEscapeHtml(LOC_SHORT[loc]||loc)}</span>
+          <span class="avail-loc-full">${rvEscapeHtml(loc)}</span>
         </div>
         <div class="avail-loc-grid">
-          <div>
-            <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:#94A3B8;letter-spacing:.06em;margin-bottom:6px">Available Days</div>
+          <div class="avail-field">
+            <div class="avail-field-label">Available Days</div>
             <div class="avail-days-row">
               ${DAYS_ALL.map(d=>{
                 const on=activeDays.has(d);
-                const weekend=["Saturday","Sunday"].includes(d);
                 return `<button class="avail-day-chip${on?" on":""}"
                   data-trainer="${rvEscapeAttr(t.name)}" data-loc="${rvEscapeAttr(loc)}" data-day="${d}"
                   onclick="settToggleDay(this)"
-                  style="border-color:${on?(weekend?"#6366F1":"#3B82F6"):"#E2E8F0"};background:${on?(weekend?"#6366F1":"#3B82F6"):"#F8FAFC"};color:${on?"#fff":"#94A3B8"};cursor:pointer;transition:all .15s"
                   title="${d}">${d.slice(0,2)}</button>`;
               }).join("")}
             </div>
           </div>
-          <div>
-            <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:#94A3B8;letter-spacing:.06em;margin-bottom:6px">Time Window</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <input type="time" class="avail-time-inp" data-trainer="${rvEscapeAttr(t.name)}" data-loc="${rvEscapeAttr(loc)}" data-field="start"
-                value="${tw.start||"07:00"}"
-                style="height:32px;border:1px solid #CBD5E1;border-radius:7px;background:#fff;color:#0F172A;font-size:11px;padding:0 6px;font-family:inherit;width:90px">
-              <span style="color:#94A3B8;font-size:12px">→</span>
-              <input type="time" class="avail-time-inp" data-trainer="${rvEscapeAttr(t.name)}" data-loc="${rvEscapeAttr(loc)}" data-field="end"
-                value="${tw.end||"21:00"}"
-                style="height:32px;border:1px solid #CBD5E1;border-radius:7px;background:#fff;color:#0F172A;font-size:11px;padding:0 6px;font-family:inherit;width:90px">
+          <div class="avail-field">
+            <div class="avail-field-label">Time Window</div>
+            <div class="avail-time-row">
+              <input type="time" class="avail-time-inp" data-trainer="${rvEscapeAttr(t.name)}" data-loc="${rvEscapeAttr(loc)}" data-field="start" value="${tw.start||"07:00"}">
+              <span class="avail-time-sep">→</span>
+              <input type="time" class="avail-time-inp" data-trainer="${rvEscapeAttr(t.name)}" data-loc="${rvEscapeAttr(loc)}" data-field="end" value="${tw.end||"21:00"}">
             </div>
           </div>
-          <div>
-            <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:#94A3B8;letter-spacing:.06em;margin-bottom:6px">Max / Day</div>
-            <input type="number" class="avail-max-inp" data-trainer="${rvEscapeAttr(t.name)}" data-loc="${rvEscapeAttr(loc)}"
-              min="1" max="6" value="${maxPerDay}"
-              style="height:32px;width:60px;border:1px solid #CBD5E1;border-radius:7px;background:#fff;color:#0F172A;font-size:13px;font-weight:800;padding:0 8px;font-family:inherit;text-align:center">
+          <div class="avail-field">
+            <div class="avail-field-label">Max / Day</div>
+            <input type="number" class="avail-max-inp" data-trainer="${rvEscapeAttr(t.name)}" data-loc="${rvEscapeAttr(loc)}" min="1" max="6" value="${maxPerDay}">
           </div>
-          <div>
-            <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:#94A3B8;letter-spacing:.06em;margin-bottom:6px">AM/PM Pref</div>
-            <select class="avail-ampm-sel" data-trainer="${rvEscapeAttr(t.name)}" data-loc="${rvEscapeAttr(loc)}"
-              style="height:32px;border:1px solid #CBD5E1;border-radius:7px;background:#fff;color:#0F172A;font-size:11px;padding:0 8px;font-family:inherit;font-weight:700">
+          <div class="avail-field">
+            <div class="avail-field-label">AM/PM Pref</div>
+            <select class="avail-ampm-sel" data-trainer="${rvEscapeAttr(t.name)}" data-loc="${rvEscapeAttr(loc)}">
               <option value="any" ${amPmPref==="any"?"selected":""}>Any</option>
               <option value="am" ${amPmPref==="am"?"selected":""}>AM Only</option>
               <option value="pm" ${amPmPref==="pm"?"selected":""}>PM Only</option>
@@ -6629,7 +6734,7 @@ function settRenderAvailability(){
               <option value="pm_pref" ${amPmPref==="pm_pref"?"selected":""}>Prefer PM</option>
             </select>
           </div>
-          ${ld.notes?`<div style="width:100%;margin-top:4px;padding:7px 10px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;font-size:10px;color:#92400E;line-height:1.45">${rvEscapeHtml(ld.notes)}</div>`:""}
+          ${ld.notes?`<div class="avail-loc-note">${rvEscapeHtml(ld.notes)}</div>`:""}
         </div>`;
       body.appendChild(locBlock);
     });
@@ -6654,23 +6759,23 @@ function settFilterAvailByTier(tier){
 }
 
 function settExpandAllAvail(){
-  document.querySelectorAll(".avail-card-body").forEach(b=>{b.style.display="grid";});
-  document.querySelectorAll(".avail-card-chevron").forEach(c=>{c.style.transform="rotate(-180deg)";});
+  document.querySelectorAll(".avail-trainer-card").forEach(c=>c.classList.add("expanded"));
 }
 
 function settCollapseAllAvail(){
-  document.querySelectorAll(".avail-card-body").forEach(b=>{b.style.display="none";});
-  document.querySelectorAll(".avail-card-chevron").forEach(c=>{c.style.transform="";});
+  document.querySelectorAll(".avail-trainer-card").forEach(c=>c.classList.remove("expanded"));
+}
+
+function settToggleTrainerLoc(headEl,forceOpen){
+  const card=headEl.closest(".trainer-mgr-loc");
+  if(!card)return;
+  if(forceOpen===true){card.classList.add("expanded");return;}
+  if(forceOpen===false){card.classList.remove("expanded");return;}
+  card.classList.toggle("expanded");
 }
 
 function settToggleDay(el){
   el.classList.toggle("on");
-  const on=el.classList.contains("on");
-  if(el.classList.contains("avail-day-chip")){
-    el.style.background=on?"#3B82F6":"#F8FAFC";
-    el.style.borderColor=on?"#3B82F6":"#E2E8F0";
-    el.style.color=on?"#fff":"#94A3B8";
-  }
 }
 
 function settSaveAvailability(){
@@ -6742,8 +6847,10 @@ function settBulkToolbarHtml(matrix,title){
         <option value="weekend" ${defaultScope==="weekend"?"selected":""}>Weekend</option>
       </select>
     </div>
+    <button class="sett-ghost-btn" onclick="settSelectAllMatrixCells('${matrix}')">Select All</button>
     <button class="sett-ghost-btn" onclick="settApplyBulk('${matrix}')">Preview & Apply</button>
     <button class="sett-ghost-btn" onclick="settResetMatrixSelection()">Clear Selection</button>
+    <div class="sett-inspector-box sett-selection-status" data-matrix="${matrix}">Select cells above, or use Select All, then apply a bulk operator.</div>
   </div>`;
 }
 
@@ -6832,6 +6939,10 @@ function settResetMatrixSelection(update=true){
   document.querySelectorAll(".sett-matrix-cell.selected").forEach(el=>el.classList.remove("selected"));
   if(update)settUpdateSelectionInspector();
 }
+function settSelectAllMatrixCells(matrix){
+  document.querySelectorAll(`.sett-matrix-cell[data-matrix="${matrix}"]`).forEach(el=>settSelectMatrixElement(el,true));
+  settUpdateSelectionInspector();
+}
 function settCellsForScope(matrix,scope){
   if(scope==="selection"){
     const selected=[...document.querySelectorAll(`.sett-matrix-cell[data-matrix="${matrix}"].selected`)];
@@ -6842,13 +6953,14 @@ function settCellsForScope(matrix,scope){
   return [...document.querySelectorAll(`.sett-matrix-cell[data-matrix="${matrix}"]`)];
 }
 function settUpdateSelectionInspector(){
-  const box=document.getElementById("sett-inspector-selection");
-  if(!box)return;
-  const selected=[...document.querySelectorAll(".sett-matrix-cell.selected")];
-  if(!selected.length){box.innerHTML="Select target or class-mix cells to apply row, column, or selection bulk operators.";return;}
-  const locs=new Set(selected.map(el=>el.dataset.loc));
-  const keys=new Set(selected.map(el=>el.dataset.key));
-  box.innerHTML=`<strong>${selected.length} selected cell${selected.length===1?"":"s"}</strong><br>${[...locs].map(l=>LOC_SHORT[l]||l).join(", ")}<br><span style="color:#64748B">${[...keys].slice(0,8).join(", ")}${keys.size>8?"…":""}</span>`;
+  document.querySelectorAll(".sett-selection-status").forEach(box=>{
+    const matrix=box.dataset.matrix;
+    const selected=[...document.querySelectorAll(`.sett-matrix-cell[data-matrix="${matrix}"].selected`)];
+    if(!selected.length){box.innerHTML="Select cells above, or use Select All, then apply a bulk operator.";return;}
+    const locs=new Set(selected.map(el=>el.dataset.loc));
+    const keys=new Set(selected.map(el=>el.dataset.key));
+    box.innerHTML=`<strong>${selected.length} selected cell${selected.length===1?"":"s"}</strong><br>${[...locs].map(l=>LOC_SHORT[l]||l).join(", ")}<br><span style="color:#64748B">${[...keys].slice(0,8).join(", ")}${keys.size>8?"…":""}</span>`;
+  });
 }
 function settApplyBulk(matrix){
   const op=document.getElementById(`${matrix}-bulk-op`)?.value||"set-target";
@@ -7264,49 +7376,72 @@ function settRenderUniversalRulesPanel(){
   if(!host)return;
   // Use cached catalog if already loaded by rules view
   if(_rulesCatalog&&_rulesCatalog.groups){
-    const allRules=(_rulesCatalog.groups||[]).flatMap(g=>g.rules||[]);
-    _settRenderUnivCards(host,allRules);
+    _settRenderUnivCards(host,_rulesCatalog.groups||[]);
     return;
   }
   schedulerFetch("/api/rules-config")
     .then(r=>r.ok?r.json():{})
     .then(data=>{
-      let rules=[];
+      let groups=[];
       if(Array.isArray(data?.groups)&&data.groups.length){
-        rules=data.groups.flatMap(g=>g.rules||[]);
+        groups=data.groups;
         if(!_rulesCatalog)_rulesCatalog=data;
       } else if(Array.isArray(data?.hard_constraints)){
-        rules=data.hard_constraints;
+        groups=[{id:"hard",label:"Hard Constraints",rules:data.hard_constraints}];
       } else {
         if(!_rulesCatalog)_rulesCatalog=JSON.parse(JSON.stringify(BUILTIN_RULES_CATALOG));
-        rules=BUILTIN_RULES_CATALOG.groups.flatMap(g=>g.rules||[]);
+        groups=BUILTIN_RULES_CATALOG.groups;
       }
-      _settRenderUnivCards(host,rules);
+      _settRenderUnivCards(host,groups);
     })
     .catch(()=>{
-      const rules=BUILTIN_RULES_CATALOG.groups.flatMap(g=>g.rules||[]);
-      _settRenderUnivCards(host,rules);
+      _settRenderUnivCards(host,BUILTIN_RULES_CATALOG.groups);
     });
 }
-function _settRenderUnivCards(host,rules){
-  if(!rules.length){
-    host.innerHTML='<div style="color:#6366F1;font-size:12px;padding:8px">No universal rules found.</div>';
+function _settUnivRuleCardHtml(r){
+  const b=UNIV_TYPE_BADGE[r.type]||{label:(r.type||"RULE").toUpperCase().slice(0,6),bg:"#F1F5F9",fg:"#334155"};
+  const searchText=`${r.id||""} ${r.label||""} ${r.description||""} ${r.impact_area||""}`.toLowerCase();
+  return `<div class="univ-rule-card${r.enabled?"":" off"}" data-univ-search="${rvEscapeAttr(searchText)}">
+    <div class="univ-rule-head">
+      <div class="univ-rule-tags">
+        <span class="univ-rule-badge" style="background:${b.bg};color:${b.fg}">${b.label}</span>
+        <span class="univ-rule-id">${rvEscapeHtml(r.id||"")}</span>
+        ${r.impact_area?`<span class="sett-badge">${rvEscapeHtml(r.impact_area)}</span>`:""}
+      </div>
+      <label class="sett-switch univ-rule-switch"><input type="checkbox" ${r.enabled?"checked":""} onchange="settToggleUniversalRule('${r.id}',this.checked)"><span class="sett-slider round"></span></label>
+    </div>
+    <div class="univ-rule-title">${rvEscapeHtml(r.label||r.description||"")}</div>
+    ${r.description&&r.label?`<div class="univ-rule-desc">${rvEscapeHtml(r.description)}</div>`:""}
+  </div>`;
+}
+
+function _settRenderUnivCards(host,groups){
+  const allRules=groups.flatMap(g=>g.rules||[]);
+  if(!allRules.length){
+    host.innerHTML='<div class="univ-empty">No universal rules found.</div>';
     return;
   }
-  host.innerHTML=rules.map(r=>{
-    const b=UNIV_TYPE_BADGE[r.type]||{label:(r.type||"RULE").toUpperCase().slice(0,6),bg:"#F1F5F9",fg:"#334155"};
-    return `<div style="background:#fff;border:1px solid #E0E7FF;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;opacity:${r.enabled?1:0.6}">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:7px">
-        <div style="display:flex;align-items:center;gap:7px">
-          <span style="font-size:10px;font-weight:900;padding:2px 6px;border-radius:5px;background:${b.bg};color:${b.fg};letter-spacing:.06em">${b.label}</span>
-          <span style="font-size:10px;font-weight:800;color:#6366F1;font-family:'Plus Jakarta Sans',sans-serif">${rvEscapeHtml(r.id||"")}</span>
-        </div>
-        <label class="sett-switch" style="width:30px;height:16px"><input type="checkbox" ${r.enabled?"checked":""} onchange="settToggleUniversalRule('${r.id}',this.checked)"><span class="sett-slider round" style="before{width:12px;height:12px;left:2px;bottom:2px}"></span></label>
+  host.innerHTML=groups.filter(g=>(g.rules||[]).length).map(g=>`
+    <div class="univ-rule-group">
+      <div class="univ-rule-group-head">
+        <div class="univ-rule-group-label">${rvEscapeHtml(g.label||g.id||"Rules")}</div>
+        <span class="sett-badge">${(g.rules||[]).length}</span>
       </div>
-      <div style="font-size:11px;color:#0F172A;font-weight:600;line-height:1.4">${rvEscapeHtml(r.label||r.description||"")}</div>
-      ${r.description&&r.label?`<div style="font-size:10px;color:#64748B;line-height:1.4">${rvEscapeHtml(r.description)}</div>`:""}
-    </div>`;
-  }).join("");
+      ${g.description?`<div class="univ-rule-group-desc">${rvEscapeHtml(g.description)}</div>`:""}
+      <div class="univ-rule-grid">${(g.rules||[]).map(_settUnivRuleCardHtml).join("")}</div>
+    </div>`).join("");
+}
+
+function settFilterUnivRules(q){
+  const needle=(q||"").trim().toLowerCase();
+  document.querySelectorAll(".univ-rule-card").forEach(card=>{
+    const hit=!needle||(card.dataset.univSearch||"").includes(needle);
+    card.style.display=hit?"":"none";
+  });
+  document.querySelectorAll(".univ-rule-group").forEach(group=>{
+    const anyVisible=[...group.querySelectorAll(".univ-rule-card")].some(c=>c.style.display!=="none");
+    group.style.display=anyVisible?"":"none";
+  });
 }
 
 function settToggleUniversalRule(ruleId,enabled){
@@ -7368,29 +7503,44 @@ function settRenderCustomRuleBuilder(){
   wrap.innerHTML=`<div class="rule-builder-card" style="padding:0;overflow:hidden">
     <div class="rule-builder-layout">
       <aside class="rule-builder-aside">
-        <div style="font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#64748B;margin-bottom:8px">Guided Rule Builder</div>
-        <div style="font-size:18px;font-weight:900;color:#111820;font-family:'Plus Jakarta Sans',sans-serif;line-height:1.15">Build complex scheduling logic without writing code.</div>
-        <div id="cr-helper" style="font-size:12px;color:#64748B;line-height:1.5;margin-top:10px"></div>
-        <div id="cr-preview" style="font-size:12px;font-weight:900;color:#111820;border:1px solid #DCE3EB;background:#F8FAFC;border-radius:12px;padding:11px 12px;margin-top:14px">Rule preview</div>
+        <div class="cr-aside-kicker">Guided Rule Builder</div>
+        <div class="cr-aside-title">Build complex scheduling logic without writing code.</div>
+        <div id="cr-helper" class="cr-aside-helper"></div>
+        <div id="cr-preview" class="cr-aside-preview">Rule preview</div>
       </aside>
       <main class="rule-builder-main">
-        <div class="form-grid-even">
-      <div data-cr-field="type"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">Rule goal</label><select class="sett-select" id="cr-type" style="width:100%" onchange="settUpdateCustomRuleBuilder()">
-        ${Object.entries(CUSTOM_RULE_TEMPLATES).map(([id,t])=>`<option value="${id}">${rvEscapeHtml(t.label)}</option>`).join("")}
-      </select></div>
-      <div data-cr-field="location"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">Studio</label><select class="sett-select" id="cr-location" style="width:100%" onchange="settUpdateCustomRuleBuilder()"><option value="">All Studios</option>${LOCS_ALL.map(l=>`<option value="${rvEscapeAttr(l)}">${rvEscapeHtml(l)}</option>`).join("")}</select></div>
-      <div data-cr-field="class"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">Class</label><select class="sett-select" id="cr-class" style="width:100%" onchange="settUpdateCustomRuleBuilder()"><option value="">Choose Class</option>${classes.map(c=>`<option value="${rvEscapeAttr(c)}">${rvEscapeHtml(displayClass(c))}</option>`).join("")}</select></div>
-      <div data-cr-field="trainer"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">Instructor</label><select class="sett-select" id="cr-trainer" style="width:100%" onchange="settUpdateCustomRuleBuilder()"><option value="">Choose Instructor</option>${trainers.map(t=>`<option value="${rvEscapeAttr(t)}">${rvEscapeHtml(t)}</option>`).join("")}</select></div>
-      <div data-cr-field="day"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">Day</label><select class="sett-select" id="cr-day" style="width:100%" onchange="settUpdateCustomRuleBuilder()"><option value="">Any Day</option>${DAYS_ALL.map(d=>`<option value="${d}">${d}</option>`).join("")}</select></div>
-      <div data-cr-field="time"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">Start Time</label><input class="sett-input" id="cr-time" type="time" style="width:100%;min-width:0" onchange="settUpdateCustomRuleBuilder()"></div>
-      <div data-cr-field="time_end"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">End Time</label><input class="sett-input" id="cr-time-end" type="time" style="width:100%;min-width:0" onchange="settUpdateCustomRuleBuilder()"></div>
-      <div data-cr-field="room"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">Room</label><select class="sett-select" id="cr-room" style="width:100%" onchange="settUpdateCustomRuleBuilder()">${settRoomOptions().map(([v,l])=>`<option value="${rvEscapeAttr(v)}">${rvEscapeHtml(l)}</option>`).join("")}</select></div>
-      <div data-cr-field="operator"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">Operator</label><select class="sett-select" id="cr-operator" style="width:100%" onchange="settUpdateCustomRuleBuilder()"></select></div>
-      <div data-cr-field="value"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">Number</label><input class="sett-input" id="cr-value" type="number" min="0" max="40" value="1" style="width:100%;min-width:0" oninput="settUpdateCustomRuleBuilder()"></div>
-      <div data-cr-field="condition"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">When</label><select class="sett-select" id="cr-condition" style="width:100%" onchange="settUpdateCustomRuleBuilder()"><option value="">Always</option><option value="prime_time">Prime time only</option><option value="low_fill">If fill risk is low</option><option value="high_demand">If demand is high</option><option value="same_day">Within same day</option></select></div>
-      <div data-cr-field="priority"><label style="font-size:10px;font-weight:800;color:var(--text-muted)">Strength</label><select class="sett-select" id="cr-priority" style="width:100%" onchange="settUpdateCustomRuleBuilder()"><option value="hard">Hard block</option><option value="soft">Soft guidance</option></select></div>
-      <button class="sett-save-btn" style="min-height:39px" onclick="settAddCustomRule()">${editing?"Update Rule":"Add Rule"}</button>
-      ${editing?`<button class="sett-ghost-btn" type="button" onclick="settCancelCustomRuleEdit()">Cancel</button>`:""}
+        <div class="cr-field-group">
+          <div class="cr-group-label">What &amp; Where</div>
+          <div class="form-grid-even">
+            <div data-cr-field="type"><label class="cr-field-lbl">Rule goal</label><select class="sett-select" id="cr-type" onchange="settUpdateCustomRuleBuilder()">
+              ${Object.entries(CUSTOM_RULE_TEMPLATES).map(([id,t])=>`<option value="${id}">${rvEscapeHtml(t.label)}</option>`).join("")}
+            </select></div>
+            <div data-cr-field="location"><label class="cr-field-lbl">Studio</label><select class="sett-select" id="cr-location" onchange="settUpdateCustomRuleBuilder()"><option value="">All Studios</option>${LOCS_ALL.map(l=>`<option value="${rvEscapeAttr(l)}">${rvEscapeHtml(l)}</option>`).join("")}</select></div>
+            <div data-cr-field="class"><label class="cr-field-lbl">Class</label><select class="sett-select" id="cr-class" onchange="settUpdateCustomRuleBuilder()"><option value="">Choose Class</option>${classes.map(c=>`<option value="${rvEscapeAttr(c)}">${rvEscapeHtml(displayClass(c))}</option>`).join("")}</select></div>
+            <div data-cr-field="trainer"><label class="cr-field-lbl">Instructor</label><select class="sett-select" id="cr-trainer" onchange="settUpdateCustomRuleBuilder()"><option value="">Choose Instructor</option>${trainers.map(t=>`<option value="${rvEscapeAttr(t)}">${rvEscapeHtml(t)}</option>`).join("")}</select></div>
+            <div data-cr-field="room"><label class="cr-field-lbl">Room</label><select class="sett-select" id="cr-room" onchange="settUpdateCustomRuleBuilder()">${settRoomOptions().map(([v,l])=>`<option value="${rvEscapeAttr(v)}">${rvEscapeHtml(l)}</option>`).join("")}</select></div>
+          </div>
+        </div>
+        <div class="cr-field-group">
+          <div class="cr-group-label">When</div>
+          <div class="form-grid-even">
+            <div data-cr-field="day"><label class="cr-field-lbl">Day</label><select class="sett-select" id="cr-day" onchange="settUpdateCustomRuleBuilder()"><option value="">Any Day</option>${DAYS_ALL.map(d=>`<option value="${d}">${d}</option>`).join("")}</select></div>
+            <div data-cr-field="time"><label class="cr-field-lbl">Start Time</label><input class="sett-input" id="cr-time" type="time" onchange="settUpdateCustomRuleBuilder()"></div>
+            <div data-cr-field="time_end"><label class="cr-field-lbl">End Time</label><input class="sett-input" id="cr-time-end" type="time" onchange="settUpdateCustomRuleBuilder()"></div>
+          </div>
+        </div>
+        <div class="cr-field-group">
+          <div class="cr-group-label">Rule Logic</div>
+          <div class="form-grid-even">
+            <div data-cr-field="operator"><label class="cr-field-lbl">Operator</label><select class="sett-select" id="cr-operator" onchange="settUpdateCustomRuleBuilder()"></select></div>
+            <div data-cr-field="value"><label class="cr-field-lbl">Number</label><input class="sett-input" id="cr-value" type="number" min="0" max="40" value="1" oninput="settUpdateCustomRuleBuilder()"></div>
+            <div data-cr-field="condition"><label class="cr-field-lbl">When</label><select class="sett-select" id="cr-condition" onchange="settUpdateCustomRuleBuilder()"><option value="">Always</option><option value="prime_time">Prime time only</option><option value="low_fill">If fill risk is low</option><option value="high_demand">If demand is high</option><option value="same_day">Within same day</option></select></div>
+            <div data-cr-field="priority"><label class="cr-field-lbl">Strength</label><select class="sett-select" id="cr-priority" onchange="settUpdateCustomRuleBuilder()"><option value="hard">Hard block</option><option value="soft">Soft guidance</option></select></div>
+          </div>
+        </div>
+        <div class="cr-actions">
+          <button class="sett-save-btn" onclick="settAddCustomRule()">${editing?"Update Rule":"Add Rule"}</button>
+          ${editing?`<button class="sett-ghost-btn" type="button" onclick="settCancelCustomRuleEdit()">Cancel</button>`:""}
         </div>
       </main>
     </div>
@@ -7530,16 +7680,31 @@ function settRenderManualPinList(){
     wrap.innerHTML=`<div class="pin-card"><div><div class="pin-title">No manual pinned classes created.</div><div class="pin-meta"><span class="sett-badge">Empty</span></div></div></div>`;
     return;
   }
-  wrap.innerHTML=`<div class="rule-list-grid">${pins.map((p,i)=>`<div class="pin-card">
+  wrap.innerHTML=`<div class="rule-list-grid">${pins.map((p,i)=>{
+    const pinned=p.enabled!==false;
+    return `<div class="pin-card${pinned?"":" off"}">
+    <label class="sett-switch pin-toggle" title="${pinned?"Pinned — click to unpin":"Unpinned — click to pin"}">
+      <input type="checkbox" ${pinned?"checked":""} onchange="settToggleManualPin(${i},this.checked)">
+      <span class="sett-slider round"></span>
+    </label>
     <div style="flex:1;min-width:0">
       <div class="pin-title">${rvEscapeHtml(p.day||p.day_of_week||"")} ${rvEscapeHtml(p.time||"")} · ${rvEscapeHtml(displayClass(p.class||p.class_name||""))}</div>
-      <div class="pin-meta"><span class="sett-badge blue">${rvEscapeHtml(p.location||"Studio")}</span><span class="sett-badge green">${rvEscapeHtml(p.trainer||p.trainer_1||"Trainer")}</span>${p.room?`<span class="sett-badge">${rvEscapeHtml(p.room)}</span>`:""}</div>
+      <div class="pin-meta"><span class="sett-badge blue">${rvEscapeHtml(p.location||"Studio")}</span><span class="sett-badge green">${rvEscapeHtml(p.trainer||p.trainer_1||"Trainer")}</span>${p.room?`<span class="sett-badge">${rvEscapeHtml(p.room)}</span>`:""}${!pinned?`<span class="sett-badge">Unpinned</span>`:""}</div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       <button class="sett-mini-btn" onclick="settEditManualPin(${i})">Edit</button>
       <button class="sett-mini-btn danger" onclick="settRemoveManualPin(${i})">Remove</button>
     </div>
-  </div>`).join("")}</div>`;
+  </div>`;
+  }).join("")}</div>`;
+}
+
+function settToggleManualPin(idx,pinned){
+  const pins=(_settSchedConfig?.manual_protected)||[];
+  if(!pins[idx])return;
+  pins[idx].enabled=pinned;
+  settRenderManualPinList();
+  settSaveCanonicalConfig("pins",pinned?"Class pinned":"Class unpinned");
 }
 
 function settRenderManualPinBuilder(){
@@ -7548,17 +7713,22 @@ function settRenderManualPinBuilder(){
   const classes=settAllClassOptions();
   const trainers=settTrainerOptions();
   const editing=_editingManualPinIdx!==null;
-  wrap.innerHTML=`<div class="pin-builder-card"><div class="form-grid-even">
-    <div><label style="font-size:10px;font-weight:700;color:var(--text-muted)">Studio</label><select class="sett-select" id="pin-location" style="width:100%">${LOCS_ALL.map(l=>`<option value="${rvEscapeAttr(l)}">${rvEscapeHtml(l)}</option>`).join("")}</select></div>
-    <div><label style="font-size:10px;font-weight:700;color:var(--text-muted)">Day</label><select class="sett-select" id="pin-day" style="width:100%">${DAYS_ALL.map(d=>`<option value="${d}">${d}</option>`).join("")}</select></div>
-    <div><label style="font-size:10px;font-weight:700;color:var(--text-muted)">Time</label><input class="sett-input" id="pin-time" type="time" value="09:00" style="width:100%;min-width:0"></div>
-    <div><label style="font-size:10px;font-weight:700;color:var(--text-muted)">Class</label><select class="sett-select" id="pin-class" style="width:100%">${classes.map(c=>`<option value="${rvEscapeAttr(c)}">${rvEscapeHtml(displayClass(c))}</option>`).join("")}</select></div>
-    <div><label style="font-size:10px;font-weight:700;color:var(--text-muted)">Instructor</label><select class="sett-select" id="pin-trainer" style="width:100%">${trainers.map(t=>`<option value="${rvEscapeAttr(t)}">${rvEscapeHtml(t)}</option>`).join("")}</select></div>
-    <div><label style="font-size:10px;font-weight:700;color:var(--text-muted)">Room</label><select class="sett-select" id="pin-room" style="width:100%">${settRoomOptions().map(([v,l])=>`<option value="${rvEscapeAttr(v)}">${rvEscapeHtml(l)}</option>`).join("")}</select></div>
-    <div><label style="font-size:10px;font-weight:700;color:var(--text-muted)">Note</label><input class="sett-input" id="pin-note" placeholder="Optional" style="width:100%;min-width:0"></div>
-    <button class="sett-save-btn" onclick="settAddManualPin()">${editing?"Update Pin":"Pin Class"}</button>
-    ${editing?`<button class="sett-ghost-btn" type="button" onclick="settCancelManualPinEdit()">Cancel</button>`:""}
-  </div></div>`;
+  wrap.innerHTML=`<div class="pin-builder-card">
+    <div class="cr-group-label">Pin a Class</div>
+    <div class="form-grid-even">
+    <div><label class="cr-field-lbl">Studio</label><select class="sett-select" id="pin-location">${LOCS_ALL.map(l=>`<option value="${rvEscapeAttr(l)}">${rvEscapeHtml(l)}</option>`).join("")}</select></div>
+    <div><label class="cr-field-lbl">Day</label><select class="sett-select" id="pin-day">${DAYS_ALL.map(d=>`<option value="${d}">${d}</option>`).join("")}</select></div>
+    <div><label class="cr-field-lbl">Time</label><input class="sett-input" id="pin-time" type="time" value="09:00"></div>
+    <div><label class="cr-field-lbl">Class</label><select class="sett-select" id="pin-class">${classes.map(c=>`<option value="${rvEscapeAttr(c)}">${rvEscapeHtml(displayClass(c))}</option>`).join("")}</select></div>
+    <div><label class="cr-field-lbl">Instructor</label><select class="sett-select" id="pin-trainer">${trainers.map(t=>`<option value="${rvEscapeAttr(t)}">${rvEscapeHtml(t)}</option>`).join("")}</select></div>
+    <div><label class="cr-field-lbl">Room</label><select class="sett-select" id="pin-room">${settRoomOptions().map(([v,l])=>`<option value="${rvEscapeAttr(v)}">${rvEscapeHtml(l)}</option>`).join("")}</select></div>
+    <div><label class="cr-field-lbl">Note</label><input class="sett-input" id="pin-note" placeholder="Optional"></div>
+    </div>
+    <div class="cr-actions">
+      <button class="sett-save-btn" onclick="settAddManualPin()">${editing?"Update Pin":"Pin Class"}</button>
+      ${editing?`<button class="sett-ghost-btn" type="button" onclick="settCancelManualPinEdit()">Cancel</button>`:""}
+    </div>
+  </div>`;
   if(editing)settLoadManualPinToForm(_settSchedConfig?.manual_protected?.[_editingManualPinIdx]);
 }
 

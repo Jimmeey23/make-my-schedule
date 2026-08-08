@@ -22,7 +22,8 @@
         "week_off_days": [
           "Sunday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -52,7 +53,8 @@
         "week_off_days": [
           "Sunday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -105,7 +107,8 @@
         "week_off_days": [
           "Friday",
           "Tuesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -128,7 +131,8 @@
         "week_off_days": [
           "Friday",
           "Tuesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -146,7 +150,8 @@
         "week_off_days": [
           "Friday",
           "Tuesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -212,7 +217,8 @@
         "week_off_days": [
           "Sunday",
           "Tuesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -252,7 +258,8 @@
         "week_off_days": [
           "Sunday",
           "Tuesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -305,7 +312,8 @@
         "week_off_days": [
           "Thursday",
           "Wednesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -328,7 +336,8 @@
         "week_off_days": [
           "Thursday",
           "Wednesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -346,7 +355,8 @@
         "week_off_days": [
           "Thursday",
           "Wednesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -394,7 +404,8 @@
         "week_off_days": [
           "Tuesday",
           "Wednesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -417,7 +428,8 @@
         "week_off_days": [
           "Tuesday",
           "Wednesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -435,7 +447,8 @@
         "week_off_days": [
           "Tuesday",
           "Wednesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -488,7 +501,8 @@
         "week_off_days": [
           "Thursday",
           "Wednesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Copper & Cloves": {
         "available_days": [
@@ -506,7 +520,8 @@
         "week_off_days": [
           "Thursday",
           "Wednesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -568,7 +583,8 @@
         "week_off_days": [
           "Sunday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Copper & Cloves": {
         "available_days": [
@@ -586,7 +602,8 @@
         "week_off_days": [
           "Sunday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -634,7 +651,8 @@
         "week_off_days": [
           "Tuesday",
           "Monday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -665,7 +683,8 @@
         "week_off_days": [
           "Tuesday",
           "Monday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -683,7 +702,8 @@
         "week_off_days": [
           "Tuesday",
           "Monday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -731,7 +751,8 @@
         "week_off_days": [
           "Wednesday",
           "Monday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -754,7 +775,8 @@
         "week_off_days": [
           "Wednesday",
           "Monday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -772,7 +794,8 @@
         "week_off_days": [
           "Wednesday",
           "Monday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -822,7 +845,8 @@
         "week_off_days": [
           "Sunday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -843,7 +867,8 @@
         "week_off_days": [
           "Sunday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -861,7 +886,8 @@
         "week_off_days": [
           "Sunday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -923,7 +949,8 @@
         "week_off_days": [
           "Sunday",
           "Thursday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -941,7 +968,8 @@
         "week_off_days": [
           "Sunday",
           "Thursday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -1019,7 +1047,8 @@
         "week_off_days": [
           "Sunday",
           "Friday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Copper & Cloves": {
         "available_days": [
@@ -1037,7 +1066,8 @@
         "week_off_days": [
           "Sunday",
           "Friday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -1085,7 +1115,8 @@
         "week_off_days": [
           "Wednesday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -1108,7 +1139,8 @@
         "week_off_days": [
           "Wednesday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -1126,7 +1158,8 @@
         "week_off_days": [
           "Wednesday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -1179,7 +1212,8 @@
         "week_off_days": [
           "Friday",
           "Thursday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -1201,7 +1235,8 @@
         "week_off_days": [
           "Friday",
           "Thursday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -1219,7 +1254,8 @@
         "week_off_days": [
           "Friday",
           "Thursday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -1272,7 +1308,8 @@
         "week_off_days": [
           "Sunday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -1294,7 +1331,8 @@
         "week_off_days": [
           "Sunday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -1312,7 +1350,8 @@
         "week_off_days": [
           "Sunday",
           "Saturday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -1373,7 +1412,8 @@
         "week_off_days": [
           "Friday",
           "Tuesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -1391,7 +1431,8 @@
         "week_off_days": [
           "Friday",
           "Tuesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -1409,7 +1450,8 @@
         "week_off_days": [
           "Friday",
           "Tuesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -1484,7 +1526,8 @@
         "week_off_days": [
           "Sunday",
           "Wednesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Copper & Cloves": {
         "available_days": [
@@ -1502,7 +1545,8 @@
         "week_off_days": [
           "Sunday",
           "Wednesday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -1555,7 +1599,8 @@
         "week_off_days": [
           "Monday",
           "Thursday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Copper & Cloves": {
         "available_days": [
@@ -1573,7 +1618,8 @@
         "week_off_days": [
           "Monday",
           "Thursday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "qualifications": {
@@ -1642,7 +1688,8 @@
         "week_off_days": [
           "Thursday",
           "Sunday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -1660,7 +1707,8 @@
         "week_off_days": [
           "Thursday",
           "Sunday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Courtside": {
         "available_days": [
@@ -1678,121 +1726,13 @@
         "week_off_days": [
           "Thursday",
           "Sunday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "historic_week_off_days": [
       "Thursday",
       "Sunday"
-    ]
-  },
-  {
-    "name": "Simran Dutt",
-    "tier": 3,
-    "locations": {
-      "Kwality House, Kemps Corner": {
-        "available_days": [
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday"
-        ],
-        "time_window": {
-          "start": "06:00",
-          "end": "22:00"
-        },
-        "max_classes_per_day": 2,
-        "week_off_days": [
-          "Thursday",
-          "Tuesday"
-        ]
-      },
-      "Supreme HQ, Bandra": {
-        "available_days": [
-          "Monday",
-          "Wednesday",
-          "Friday",
-          "Saturday",
-          "Sunday"
-        ],
-        "time_window": {
-          "start": "06:00",
-          "end": "22:00"
-        },
-        "avg_classes_per_day": 2.4,
-        "max_classes_per_day": 3,
-        "avg_checkin": 5.7,
-        "session_count": 280,
-        "owned_blocks": [
-          {
-            "day": "Tuesday",
-            "times": [
-              "07:30",
-              "09:00",
-              "10:00",
-              "11:00"
-            ]
-          },
-          {
-            "day": "Wednesday",
-            "times": [
-              "07:30",
-              "09:00",
-              "10:00",
-              "11:00"
-            ]
-          }
-        ],
-        "notes": "Owns Tue/Wed morning blocks at Supreme.",
-        "week_off_days": [
-          "Thursday",
-          "Tuesday"
-        ]
-      },
-      "Courtside": {
-        "available_days": [
-          "Monday",
-          "Wednesday",
-          "Friday",
-          "Saturday",
-          "Sunday"
-        ],
-        "time_window": {
-          "start": "06:00",
-          "end": "22:00"
-        },
-        "max_classes_per_day": 4,
-        "week_off_days": [
-          "Thursday",
-          "Tuesday"
-        ]
-      }
-    },
-    "qualifications": {
-      "all_barre": true,
-      "mat_57": true,
-      "powercycle": true,
-      "strength_lab": false,
-      "foundations": false,
-      "pre_post_natal": false,
-      "amped_up": false,
-      "hiit": false,
-      "recovery": false,
-      "cardio_barre": true,
-      "fit": false,
-      "back_body_blaze": false,
-      "express_barre": false,
-      "express_cycle": false,
-      "studio_recovery": false,
-      "barre_flow": false,
-      "special": false
-    },
-    "active": true,
-    "historic_week_off_days": [
-      "Thursday",
-      "Tuesday"
     ]
   },
   {
@@ -1836,7 +1776,8 @@
         "week_off_days": [
           "Sunday",
           "Friday"
-        ]
+        ],
+        "am_pm_preference": "any"
       },
       "Supreme HQ, Bandra": {
         "available_days": [
@@ -1854,7 +1795,8 @@
         "week_off_days": [
           "Sunday",
           "Friday"
-        ]
+        ],
+        "am_pm_preference": "any"
       }
     },
     "historic_week_off_days": [

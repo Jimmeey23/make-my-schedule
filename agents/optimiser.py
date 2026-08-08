@@ -4965,7 +4965,7 @@ class ScheduleOptimiser:
     def _get_pinned_slots(self, location, day_name) -> List[dict]:
         p = []
         for pin in self.schedule_config.get("manual_protected", []) or []:
-            if not isinstance(pin, dict):
+            if not isinstance(pin, dict) or pin.get("enabled") is False:
                 continue
             pin_location = pin.get("location")
             pin_day = pin.get("day") or pin.get("day_of_week")
