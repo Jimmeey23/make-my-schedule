@@ -11712,6 +11712,14 @@ details.fp-section[open] .fp-section-hdr::after {
   border-color: var(--border-strong) !important;
 }
 
+.theme-dark .nle-cand-name {
+  color: var(--text) !important;
+}
+
+.theme-dark .nle-cand-meta {
+  color: var(--text-muted) !important;
+}
+
 .theme-dark .nle-bestfit-select {
   background: var(--surface2) !important;
   border-color: var(--border-strong) !important;
