@@ -3777,6 +3777,7 @@ async function pasteCopiedClass(target){
     if(!resp.ok||data.error)throw new Error(data.error||"Could not paste class");
     updateClientScheduleAdd(slot);
     renderView();
+    if(data.warning)showToast(data.warning,"warn",5000);
   }catch(err){alert(err.message||"Could not paste class")}
 }
 
@@ -3865,6 +3866,7 @@ async function applyTrainerReplacement(payload,btn){
     updateClientScheduleTrainer(payload);
     closeModal();
     renderView();
+    if(data.warning)showToast(data.warning,"warn",5000);
   }catch(err){
     if(btn){btn.disabled=false;btn.textContent=originalText;}
     alert(err.message||"Could not replace trainer");
@@ -8169,6 +8171,14 @@ function nlEditRender(result, instruction) {
         </div>`;
       }
 
+      // No historic candidates were found for a requested BEST_FIT — there is
+      // no picker to show, so surface a clear message instead of a silent gap
+      // or a permanently-stuck confirmation state.
+      const unresolvedBestFit = nlEditIsUnresolved(edit);
+      if (unresolvedBestFit) {
+        bestFitHtml += `<div class="nle-warning"><span>⚠</span><span>No historic candidates found for this slot — please name a trainer/class explicitly in your instruction.</span></div>`;
+      }
+
       html += `<div class="nle-edit-card ${edit.action}${hasBestFit?" has-bestfit":""}${pendingConfirmation?" pending-confirmation":""}">
         <div class="nle-edit-badge">${icon}</div>
         <div class="nle-edit-info">
@@ -8203,8 +8213,22 @@ function nlEditRender(result, instruction) {
 
 // An edit is "pending" until the user has explicitly picked a candidate —
 // the BEST_FIT sentinel or needs_confirmation flag must never reach apply.
+// Only count it as pending when a picker actually exists (candidates present);
+// otherwise there is nothing for the user to pick and it would deadlock Apply.
 function nlEditIsPending(edit) {
-  return edit.needs_confirmation === true || edit.new_trainer === "BEST_FIT" || edit.new_class === "BEST_FIT";
+  if (edit.needs_confirmation === true) return true;
+  if (edit.new_trainer === "BEST_FIT" && (edit.best_fit_trainer_candidates || []).length > 0) return true;
+  if (edit.new_class === "BEST_FIT" && (edit.best_fit_class_candidates || []).length > 0) return true;
+  return false;
+}
+
+// An edit whose AI plan asked for BEST_FIT but no historic candidates were
+// found — there's no picker to show, and it must never be silently applied
+// with the literal "BEST_FIT" sentinel (the server also guards against this).
+function nlEditIsUnresolved(edit) {
+  const trStuck = edit.new_trainer === "BEST_FIT" && (edit.best_fit_trainer_candidates || []).length === 0;
+  const clsStuck = edit.new_class === "BEST_FIT" && (edit.best_fit_class_candidates || []).length === 0;
+  return trStuck || clsStuck;
 }
 
 function nlEditUpdateApplyState() {
@@ -8334,6 +8358,7 @@ function nlEditConfirm() {
     nlEditClose();
     const applied = result.applied || 0;
     const errs = result.errors || [];
+    const warns = result.warnings || [];
     const summary = _nleResult ? (_nleResult.summary || "edits applied") : "edits applied";
     if (applied > 0) {
       chatAppendMsg("bot", `✅ Applied ${applied} change${applied!==1?"s":""}: ${summary}${errs.length ? ` (${errs.length} skipped)` : ""}`);
@@ -8341,6 +8366,7 @@ function nlEditConfirm() {
       const errMsg = errs.map(e => e.error).join("; ");
       chatAppendMsg("bot", `⚠️ Could not apply edits — ${errMsg || "slots not found in schedule. Try being more specific about location, day, time, class, and trainer."}`);
     }
+    warns.forEach(w => chatAppendMsg("bot", w));
     // Reload schedule data from server so UI reflects the saved changes
     nlEditReloadSchedule();
   })

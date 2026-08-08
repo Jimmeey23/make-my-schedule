@@ -1073,7 +1073,10 @@ def parse_nl_schedule_edit(
                 )
                 edit["best_fit_trainer_candidates"] = candidates
                 edit["best_fit_type"] = "trainer"
-                edit["needs_confirmation"] = True
+                # Only require confirmation when there's actually something to
+                # confirm — an empty candidate list means there's no picker to
+                # show, so leaving this True would permanently disable Apply.
+                edit["needs_confirmation"] = bool(candidates)
 
             if edit.get("new_class") == "BEST_FIT":
                 candidates = _find_best_fit_class(
@@ -1082,6 +1085,6 @@ def parse_nl_schedule_edit(
                 )
                 edit["best_fit_class_candidates"] = candidates
                 edit["best_fit_type"] = "class"
-                edit["needs_confirmation"] = True
+                edit["needs_confirmation"] = bool(candidates)
 
     return result

@@ -11696,6 +11696,34 @@ details.fp-section[open] .fp-section-hdr::after {
   color: var(--text) !important;
 }
 
+/* NL-edit confirmation modal (.nle-box) descendants that still hardcode
+   light-mode colors — header title/sub, best-fit candidate cards/select,
+   and the constraint-check rows. */
+.theme-dark .nle-hdr-title {
+  color: var(--text) !important;
+}
+
+.theme-dark .nle-hdr-sub {
+  color: var(--text-muted) !important;
+}
+
+.theme-dark .nle-cand-card {
+  background: var(--surface) !important;
+  border-color: var(--border-strong) !important;
+}
+
+.theme-dark .nle-bestfit-select {
+  background: var(--surface2) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text) !important;
+}
+
+.theme-dark .nle-check {
+  background: var(--surface2) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text) !important;
+}
+
 .theme-dark .fp-section-body,
 .theme-dark .fp-inner,
 .theme-dark .chat-msgs {

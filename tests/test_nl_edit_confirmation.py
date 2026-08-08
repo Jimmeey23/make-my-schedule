@@ -114,7 +114,7 @@ def test_best_fit_class_edit_requires_confirmation(tmp_path):
         "class_trainer_slot_metrics": [
             {
                 "location": "Kwality House, Kemps Corner",
-                "day": 1,
+                "day": 0,
                 "time": "08:00",
                 "trainer": "Anisha Shah",
                 "class": "Barre",

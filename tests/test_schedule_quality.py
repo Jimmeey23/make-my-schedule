@@ -6361,3 +6361,78 @@ def test_quality_gate_warning_silent_when_no_history():
         "trainer_1": "Brand New Trainer",
     }
     assert _quality_gate_warning(slot, {"class_trainer_slot_metrics": []}) is None
+
+
+def test_quality_gate_warning_requires_repeated_history_not_single_session():
+    from app import _quality_gate_warning
+    slot = {
+        "location": "Kwality House, Kemps Corner",
+        "day_of_week": "Monday",
+        "time": "18:00",
+        "class_name": "Studio Cardio Barre",
+        "trainer_1": "Reshma Sharma",
+    }
+    metrics = {
+        "class_trainer_slot_metrics": [
+            {
+                "location": "Kwality House, Kemps Corner",
+                "day": 0,
+                "time": "18:00",
+                "class": "Studio Cardio Barre",
+                "trainer": "Reshma Sharma",
+                "avg_fill_rate": 0.10,
+                "avg_checkin": 1.0,
+                "session_count": 1,
+            }
+        ]
+    }
+    # CLAUDE.md defines the quality gate over "repeated-history" — a single
+    # bad session must not brand this a proven weak performer.
+    assert _quality_gate_warning(slot, metrics) is None
+
+
+def test_add_class_to_schedule_surfaces_quality_gate_warning_end_to_end(tmp_path, monkeypatch):
+    """Regression test for the Critical-1 bug: the quality gate warning must
+    actually reach the caller when going through the real add-class endpoint
+    path (_add_class_to_schedule -> _quality_gate_warning), using the real
+    metrics file location (state/02_metrics.json), not just the isolated
+    _quality_gate_warning unit tests above."""
+    web_dir = tmp_path / "web"
+    web_dir.mkdir()
+    (web_dir / "schedule_data.json").write_text(json.dumps({"locations": {}}))
+
+    metrics_path = tmp_path / "state" / "02_metrics.json"
+    metrics_path.parent.mkdir(parents=True)
+    metrics_path.write_text(json.dumps({
+        "class_trainer_slot_metrics": [
+            {
+                "location": "Kwality House, Kemps Corner",
+                "day": 0,
+                "time": "18:00",
+                "class": "Studio Cardio Barre",
+                "trainer": "Reshma Sharma",
+                "avg_fill_rate": 0.15,
+                "avg_checkin": 1.8,
+                "session_count": 9,
+            }
+        ]
+    }))
+
+    monkeypatch.setattr(flask_app_module, "WEB_DIR", web_dir)
+    monkeypatch.setattr(flask_app_module, "METRICS_PATH", metrics_path)
+    monkeypatch.setattr(flask_app_module, "_validate_manual_slot", lambda data, iteration, slot, original_slot=None, additional_rows=None: None)
+    monkeypatch.setattr(flask_app_module, "_save_schedule_to_supabase", lambda data: {"saved": False})
+    monkeypatch.setattr(flask_app_module, "_regenerate_index_from_template", lambda data=None: None)
+
+    slot = {
+        "location": "Kwality House, Kemps Corner",
+        "day_of_week": "Monday",
+        "time": "18:00",
+        "class_name": "Studio Cardio Barre",
+        "trainer_1": "Reshma Sharma",
+    }
+    result, warning = flask_app_module._add_class_to_schedule({"iteration": "Main", "slot": slot})
+    assert result["added"] == 1
+    assert warning is not None
+    assert "Reshma Sharma" in warning
+    assert "1.8" in warning

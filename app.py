@@ -27,6 +27,10 @@ from rule_config import build_rules_catalog, load_rules_config, update_rules_con
 PROJECT_ROOT = Path(__file__).parent
 WEB_DIR = PROJECT_ROOT / "web"
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
+# Real trainer/class/slot historical metrics (session_count, avg_checkin, avg_fill_rate)
+# live in state/02_metrics.json, NOT outputs/scorecard.json (which only has
+# generated_for_week/locations keys). Quality-gate + best-fit lookups must use this.
+METRICS_PATH = PROJECT_ROOT / "state" / "02_metrics.json"
 SCHEDULE_CONFIG_PATH = PROJECT_ROOT / "config" / "schedule_config.json"
 TRAINER_PROFILES_PATH = PROJECT_ROOT / "rules" / "trainer_profiles.json"
 DEFAULT_SCHEDULE_CONFIG_PATH = SCHEDULE_CONFIG_PATH
@@ -654,7 +658,7 @@ def _quality_gate_warning(slot, metrics):
         return None
 
     rows = (metrics or {}).get("class_trainer_slot_metrics") or []
-    match = None
+    candidates = []
     for row in rows:
         if row.get("trainer") != trainer:
             continue
@@ -666,11 +670,25 @@ def _quality_gate_warning(slot, metrics):
             continue
         if time_str and row.get("time") and row.get("time") != time_str:
             continue
-        match = row
-        break
+        # CLAUDE.md's quality gate is defined over "repeated-history" — a single
+        # historical session (however bad) is not proof of a weak performer, so
+        # require at least 3 sessions before a row counts as flaggable.
+        if (row.get("session_count") or 0) < 3:
+            continue
+        exact = bool(
+            location and row.get("location") == location
+            and day_int >= 0 and row.get("day") == day_int
+            and time_str and row.get("time") == time_str
+        )
+        candidates.append((exact, row))
 
-    if not match:
+    if not candidates:
         return None
+
+    # Prefer the most specific (exact location+day+time) match; only fall back
+    # to a looser structurally-matching row when no exact match exists.
+    candidates.sort(key=lambda pair: pair[0], reverse=True)
+    match = candidates[0][1]
 
     fill = match.get("avg_fill_rate", 0.0) or 0.0
     checkin = match.get("avg_checkin", 0.0) or 0.0
@@ -730,7 +748,60 @@ def _replace_trainer_in_schedule(payload):
     _write_schedule_data(data)
 
     from chat_assistant import _load_json as _cl_load_json
-    metrics = _cl_load_json(OUTPUTS_DIR / "scorecard.json", {})
+    metrics = _cl_load_json(METRICS_PATH, {})
+    warning = _quality_gate_warning(new_slot, metrics)
+    return updated, warning
+
+
+def _replace_class_in_schedule(payload):
+    """Change only class_name on a matched slot, mirroring _replace_trainer_in_schedule."""
+    slot = payload.get("slot") or {}
+    new_class = str(payload.get("new_class") or "").strip()
+    iteration = payload.get("iteration") or "Main"
+    if not new_class:
+        raise ValueError("Missing replacement class")
+    required = ("location", "day_of_week", "time", "class_name", "trainer_1")
+    missing = [k for k in required if not slot.get(k)]
+    if missing:
+        raise ValueError(f"Missing slot field(s): {', '.join(missing)}")
+
+    path = WEB_DIR / "schedule_data.json"
+    if not path.exists():
+        raise FileNotFoundError("web/schedule_data.json was not found")
+    data = json.loads(path.read_text())
+    new_slot = dict(slot)
+    new_slot["class_name"] = new_class
+    if new_slot.get("location") in (MUMBAI_LOCATIONS | BENGALURU_LOCATIONS):
+        _validate_manual_slot(data, iteration, new_slot, original_slot=slot)
+    updated = 0
+
+    def update_rows(rows):
+        nonlocal updated
+        if not isinstance(rows, list):
+            return
+        for row in rows:
+            if _same_schedule_slot(row, slot):
+                old_class = row.get("class_name") or ""
+                row["replaced_from_class"] = old_class
+                row["class_name"] = new_class
+                row["recommendation"] = "MANUAL"
+                row["scheduling_reason"] = (
+                    f"Manual class replacement: {old_class or '—'} → {new_class}"
+                )
+                updated += 1
+
+    if iteration == "Main":
+        update_rows((data.get("locations") or {}).get(slot.get("location")))
+    else:
+        update_rows(((data.get("iterations") or {}).get(iteration) or {}).get(slot.get("location")))
+
+    if updated == 0:
+        raise ValueError("Could not find the selected class in the active schedule")
+
+    _write_schedule_data(data)
+
+    from chat_assistant import _load_json as _cl_load_json
+    metrics = _cl_load_json(METRICS_PATH, {})
     warning = _quality_gate_warning(new_slot, metrics)
     return updated, warning
 
@@ -762,7 +833,7 @@ def _add_class_to_schedule(payload):
     supabase_saved = _write_schedule_data(data)
 
     from chat_assistant import _load_json as _cl_load_json
-    metrics = _cl_load_json(OUTPUTS_DIR / "scorecard.json", {})
+    metrics = _cl_load_json(METRICS_PATH, {})
     warning = _quality_gate_warning(slot, metrics)
     return {"added": 1, "supabase_saved": supabase_saved}, warning
 
@@ -1521,7 +1592,7 @@ def nl_edit():
             context,
             client,
             model,
-            OUTPUTS_DIR / "scorecard.json",
+            METRICS_PATH,
             _trainer_profiles_path(),
         )
         return _json(result)
@@ -1542,6 +1613,15 @@ def nl_edit_apply():
 
         for edit in edits:
             action = edit.get("action")
+            # Server-side enforcement of the confirmation requirement — the client
+            # (web/app.js) already blocks these, but the API must not trust that.
+            if (
+                edit.get("needs_confirmation")
+                or edit.get("new_trainer") == "BEST_FIT"
+                or edit.get("new_class") == "BEST_FIT"
+            ):
+                errors.append({"edit": edit, "error": "Edit still requires user confirmation of a candidate pick"})
+                continue
             try:
                 if action == "add":
                     slot = {
@@ -1590,6 +1670,21 @@ def nl_edit_apply():
                             "iteration": iteration,
                             "slot": slot,
                             "new_trainer": edit.get("new_trainer")
+                        })
+                        if warning:
+                            warnings.append(warning)
+                    elif edit.get("new_class"):
+                        slot = {
+                            "location": edit.get("location"),
+                            "day_of_week": edit.get("day"),
+                            "time": edit.get("time"),
+                            "class_name": edit.get("class_name"),
+                            "trainer_1": edit.get("trainer_1"),
+                        }
+                        _, warning = _replace_class_in_schedule({
+                            "iteration": iteration,
+                            "slot": slot,
+                            "new_class": edit.get("new_class")
                         })
                         if warning:
                             warnings.append(warning)
