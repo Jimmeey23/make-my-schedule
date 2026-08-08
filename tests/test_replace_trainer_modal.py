@@ -88,7 +88,7 @@ def test_replace_trainer_endpoint_updates_schedule_data(tmp_path, monkeypatch):
     saved = {}
     monkeypatch.setattr(app, "_save_schedule_to_supabase", lambda data: saved.setdefault("data", data) or {"saved": True})
 
-    updated = app._replace_trainer_in_schedule(
+    updated, _warning = app._replace_trainer_in_schedule(
         {
             "iteration": "Main",
             "slot": {
@@ -136,7 +136,7 @@ def test_add_class_endpoint_appends_manual_slot(tmp_path, monkeypatch):
     monkeypatch.setattr(app, "_save_schedule_to_supabase", lambda data: False)
     monkeypatch.setattr(app, "_validate_manual_slot", lambda *args, **kwargs: None)
 
-    result = app._add_class_to_schedule(
+    result, _warning = app._add_class_to_schedule(
         {
             "iteration": "Main",
             "slot": {

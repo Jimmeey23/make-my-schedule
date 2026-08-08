@@ -6294,3 +6294,70 @@ def test_reporter_web_interface_uses_cached_schedule_json_when_file_read_fails(t
 
     html = (web_dir / "index.html").read_text(encoding="utf-8")
     assert 'const SCHEDULE_DATA = {"locations": {}};' in html
+
+
+def test_quality_gate_warning_flags_low_checkin_history():
+    from app import _quality_gate_warning
+    slot = {
+        "location": "Kwality House, Kemps Corner",
+        "day_of_week": "Monday",
+        "time": "18:00",
+        "class_name": "Studio Cardio Barre",
+        "trainer_1": "Reshma Sharma",
+    }
+    metrics = {
+        "class_trainer_slot_metrics": [
+            {
+                "location": "Kwality House, Kemps Corner",
+                "day": 0,
+                "time": "18:00",
+                "class": "Studio Cardio Barre",
+                "trainer": "Reshma Sharma",
+                "avg_fill_rate": 0.18,
+                "avg_checkin": 2.1,
+                "session_count": 8,
+            }
+        ]
+    }
+    warning = _quality_gate_warning(slot, metrics)
+    assert warning is not None
+    assert "Reshma Sharma" in warning
+    assert "2.1" in warning
+
+
+def test_quality_gate_warning_silent_for_strong_history():
+    from app import _quality_gate_warning
+    slot = {
+        "location": "Kwality House, Kemps Corner",
+        "day_of_week": "Monday",
+        "time": "18:00",
+        "class_name": "Studio Cardio Barre",
+        "trainer_1": "Reshma Sharma",
+    }
+    metrics = {
+        "class_trainer_slot_metrics": [
+            {
+                "location": "Kwality House, Kemps Corner",
+                "day": 0,
+                "time": "18:00",
+                "class": "Studio Cardio Barre",
+                "trainer": "Reshma Sharma",
+                "avg_fill_rate": 0.55,
+                "avg_checkin": 8.4,
+                "session_count": 12,
+            }
+        ]
+    }
+    assert _quality_gate_warning(slot, metrics) is None
+
+
+def test_quality_gate_warning_silent_when_no_history():
+    from app import _quality_gate_warning
+    slot = {
+        "location": "Kwality House, Kemps Corner",
+        "day_of_week": "Monday",
+        "time": "18:00",
+        "class_name": "Studio Cardio Barre",
+        "trainer_1": "Brand New Trainer",
+    }
+    assert _quality_gate_warning(slot, {"class_trainer_slot_metrics": []}) is None

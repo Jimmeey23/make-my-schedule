@@ -640,6 +640,49 @@ def _validate_manual_slot(data, iteration, slot, original_slot=None, additional_
         raise ValueError(f"{trainer} would exceed the 15h weekly cap")
 
 
+_DAY_TO_INT = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
+
+
+def _quality_gate_warning(slot, metrics):
+    """Return a warning string if slot's trainer+class+day+time has a proven weak history, else None."""
+    trainer = (slot.get("trainer_1") or "").strip()
+    class_name = (slot.get("class_name") or "").strip()
+    location = slot.get("location") or ""
+    day_int = _DAY_TO_INT.get((slot.get("day_of_week") or "").strip().lower(), -1)
+    time_str = slot.get("time") or ""
+    if not trainer or not class_name:
+        return None
+
+    rows = (metrics or {}).get("class_trainer_slot_metrics") or []
+    match = None
+    for row in rows:
+        if row.get("trainer") != trainer:
+            continue
+        if row.get("class") != class_name:
+            continue
+        if row.get("location") and row.get("location") != location:
+            continue
+        if day_int >= 0 and row.get("day") is not None and row.get("day") != day_int:
+            continue
+        if time_str and row.get("time") and row.get("time") != time_str:
+            continue
+        match = row
+        break
+
+    if not match:
+        return None
+
+    fill = match.get("avg_fill_rate", 0.0) or 0.0
+    checkin = match.get("avg_checkin", 0.0) or 0.0
+    if checkin < 3.0 or fill < 0.22:
+        return (
+            f"⚠ {trainer}'s history with {class_name} at this slot: "
+            f"{checkin:.1f} avg check-in, {round(fill * 100)}% fill — below quality-gate thresholds. "
+            "Applied anyway since this is a manual edit."
+        )
+    return None
+
+
 def _replace_trainer_in_schedule(payload):
     slot = payload.get("slot") or {}
     new_trainer = str(payload.get("new_trainer") or "").strip()
@@ -685,7 +728,11 @@ def _replace_trainer_in_schedule(payload):
         raise ValueError("Could not find the selected class in the active schedule")
 
     _write_schedule_data(data)
-    return updated
+
+    from chat_assistant import _load_json as _cl_load_json
+    metrics = _cl_load_json(OUTPUTS_DIR / "scorecard.json", {})
+    warning = _quality_gate_warning(new_slot, metrics)
+    return updated, warning
 
 
 def _add_class_to_schedule(payload):
@@ -713,7 +760,11 @@ def _add_class_to_schedule(payload):
         data.setdefault("iterations", {}).setdefault(iteration, {}).setdefault(loc, []).append(slot)
 
     supabase_saved = _write_schedule_data(data)
-    return {"added": 1, "supabase_saved": supabase_saved}
+
+    from chat_assistant import _load_json as _cl_load_json
+    metrics = _cl_load_json(OUTPUTS_DIR / "scorecard.json", {})
+    warning = _quality_gate_warning(slot, metrics)
+    return {"added": 1, "supabase_saved": supabase_saved}, warning
 
 
 def _add_classes_to_schedule(payload):
@@ -1487,7 +1538,8 @@ def nl_edit_apply():
         
         applied = 0
         errors = []
-        
+        warnings = []
+
         for edit in edits:
             action = edit.get("action")
             try:
@@ -1499,7 +1551,9 @@ def nl_edit_apply():
                         "class_name": edit.get("class_name") or edit.get("new_class"),
                         "trainer_1": edit.get("trainer_1") or edit.get("new_trainer"),
                     }
-                    _add_class_to_schedule({"iteration": iteration, "slot": slot})
+                    _, warning = _add_class_to_schedule({"iteration": iteration, "slot": slot})
+                    if warning:
+                        warnings.append(warning)
                 elif action == "remove":
                     slot = {
                         "location": edit.get("location"),
@@ -1532,16 +1586,18 @@ def nl_edit_apply():
                             "class_name": edit.get("class_name"),
                             "trainer_1": edit.get("trainer_1"),
                         }
-                        _replace_trainer_in_schedule({
-                            "iteration": iteration, 
-                            "slot": slot, 
+                        _, warning = _replace_trainer_in_schedule({
+                            "iteration": iteration,
+                            "slot": slot,
                             "new_trainer": edit.get("new_trainer")
                         })
+                        if warning:
+                            warnings.append(warning)
                 applied += 1
             except Exception as e:
                 errors.append({"edit": edit, "error": str(e)})
                 
-        return _json({"applied": applied, "errors": errors})
+        return _json({"applied": applied, "errors": errors, "warnings": warnings})
     except Exception as exc:
         return _json({"error": str(exc)}, 500)
 
@@ -1570,8 +1626,11 @@ def save_schedule_config():
 def replace_trainer():
     try:
         payload = request.get_json(force=True)
-        updated = _replace_trainer_in_schedule(payload)
-        return _json({"ok": True, "updated": updated})
+        updated, warning = _replace_trainer_in_schedule(payload)
+        response = {"ok": True, "updated": updated}
+        if warning:
+            response["warning"] = warning
+        return _json(response)
     except Exception as e:
         return _json({"error": str(e)}, 400)
 
@@ -1580,8 +1639,11 @@ def replace_trainer():
 def add_class():
     try:
         payload = request.get_json(force=True)
-        result = _add_class_to_schedule(payload)
-        return _json({"ok": True, **result})
+        result, warning = _add_class_to_schedule(payload)
+        response = {"ok": True, **result}
+        if warning:
+            response["warning"] = warning
+        return _json(response)
     except Exception as e:
         return _json({"error": str(e)}, 400)
 
