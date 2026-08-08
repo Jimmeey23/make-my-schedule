@@ -432,12 +432,14 @@ def _build_location_prompt(location: str, week_start: str,
         'Schema: {"location":"...","week_start":"...","schedule":[{"day":"Monday","time":"08:30","class":"Studio Barre 57","trainer":"Trainer Name","cover":"Cover Trainer"},...]}',
         "",
         "CRITICAL: ALL 7 days. Stay within saved daily ranges and the weekly studio range; do not generate a fixed exact total unless min=max. Use exact class/trainer names from above. Parallel classes are allowed only when room capacity allows; duplicate time starts are allowed for different rooms/classes, but not duplicate class format spam. Every slot needs a cover trainer. Apply only universal defaults plus rules saved in Settings.",
+        "PRIORITY 1 — ATTENDANCE & FILL RATE: Always prioritize historical attendance and fill rate % above all else when selecting classes and trainers for any slot. High-draw pairings (>50% fill) must be preserved.",
+        "PRIORITY 2 — CLASS & LEVEL MIX: Maintain horizontal format rotation (no identical class format across locations at the exact same clock time), vertical family mix (>=25% Barre 57 family share), and balanced difficulty level progression (Foundations -> Studio -> Express -> High-Intensity/FIT).",
+        "PRIORITY 3 — BOUNDED EXPERIMENTATION: Keep unproven or experimental class-trainer pairings strictly below 10% of total weekly slots. Never replace a proven top-performing pair with an unproven combination unless it is a designated repair slot.",
+        "PRIORITY 4 — OPTIMAL TRAINER UTILIZATION: Minimize the number of distinct trainers required to cover a shift at a location. Consolidate consecutive back-to-back classes for active shift trainers up to daily caps before introducing additional trainers.",
         "MUMBAI PARALLEL PEAKS: For Kwality House and Supreme HQ, actively use parallel-room starts in 08:00/08:15/08:30/08:45, 11:00/11:15/11:30/11:45, and 18:00/18:15/18:30/18:45 clusters where rooms and trainers allow. Do not collapse these clusters into only 09:00, 11:30, 18:00, or 19:00.",
-        "HORIZONTAL MIX: At the same clock time across the week, rotate formats/classes. Keep each exact class to 2 or fewer uses per clock time, each broad format to 3 or fewer uses per clock time, and do not make 07:30/08:30/09:00 all Barre 57, all PowerCycle, or any single repeated format.",
         "TIER UTILIZATION: Maximize qualified Tier 1 (T1) trainers first and keep them in a 13-15h weekly operating band where feasible. Every trainer must have at least 1 off day, preferably 2 off days, and no trainer may be assigned on all 7 days.",
         "TRAINER LOAD: One trainer may work only one shift per day, one location per shift, and no more than 4 assigned hours in a day. Tier 1 trainers should land near 13-15h where feasible and never exceed 15h/week.",
         "LOW-PERFORMER BLOCK: Do not schedule proven weak class/trainer/slot histories. Any option with repeated history below 3 average check-ins or below 22% fill is a rejection, not a fallback.",
-        "LOCATION BALANCE: For trainers available at multiple locations (like Rohan, Karanvir, Richard), do not park them at only one location. Spread their sessions across their available locations to ensure a consistent brand presence.",
     ]
 
     return "\n".join(lines)

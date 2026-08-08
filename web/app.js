@@ -426,6 +426,7 @@ function getSlots(loc,iter){
     return SCHEDULE_DATA.iterations[iter][loc]||[];
   return(SCHEDULE_DATA.locations&&SCHEDULE_DATA.locations[loc])||[];
 }
+let _reasonFilter = "";
 function filterSlots(slots){
   return slots.filter(s=>{
     if(_activeLocations.size&&s.location&&!_activeLocations.has(s.location))return false;
@@ -436,6 +437,7 @@ function filterSlots(slots){
     if(_classFilter&&!s.class_name.toLowerCase().includes(_classFilter.toLowerCase()))return false;
     if(_trainerFilter&&(s.trainer_1||"").toLowerCase()!==_trainerFilter.toLowerCase())return false;
     if(_roomFilter&&(s.room||"").toLowerCase()!==_roomFilter.toLowerCase())return false;
+    if(_reasonFilter&&getCanonicalSelectionReason(s)!==_reasonFilter)return false;
     if(_minScore>0&&(s.score||0)<_minScore)return false;
     if(_violOnly&&(!s.constraint_violations||s.constraint_violations.length===0))return false;
     if(_expOnly&&!s.is_experimental)return false;
@@ -619,6 +621,7 @@ function applyFilters(){
   _classFilter=document.getElementById("fp-class").value;
   _trainerFilter=document.getElementById("fp-trainer").value;
   _roomFilter=document.getElementById("fp-room").value;
+  _reasonFilter=document.getElementById("fp-selection-reason")?.value||"";
   _minScore=parseInt(document.getElementById("fp-score-min").value)||0;
   _violOnly=document.getElementById("fp-violations").checked;
   _expOnly=document.getElementById("fp-experimental").checked;
@@ -663,7 +666,7 @@ function applyFiltersAdvanced(){
 }
 function clearFilters(){
   _activeDays=new Set(DAY_ORDER);_activeBands=new Set(["morning","midday","evening"]);
-  _activeRecs=new Set(["PINNED","PROTECT","PROTECT_EXACT","PROTECT_SLOT","INCLUDE","EXPERIMENTAL","CONSIDER","VARIETY","DROP","MANUAL"]);_classFilter="";_trainerFilter="";_roomFilter="";
+  _activeRecs=new Set(["PINNED","PROTECT","PROTECT_EXACT","PROTECT_SLOT","INCLUDE","EXPERIMENTAL","CONSIDER","VARIETY","DROP","MANUAL"]);_classFilter="";_trainerFilter="";_roomFilter="";_reasonFilter="";
   _activeLocations=new Set(allLocations());
   _minScore=0;_violOnly=false;_expOnly=false;
   document.querySelectorAll(".fc").forEach(c=>c.classList.add("on"));
@@ -672,6 +675,7 @@ function clearFilters(){
   document.getElementById("fp-class").value="";
   document.getElementById("fp-trainer").value="";
   document.getElementById("fp-room").value="";
+  const srEl=document.getElementById("fp-selection-reason");if(srEl)srEl.value="";
   document.getElementById("fp-score-min").value=0;
   document.getElementById("fp-score-val").textContent=0;
   document.getElementById("fp-violations").checked=false;
@@ -687,22 +691,124 @@ function clearFilters(){
 // ============================================================
 // STATS ROW
 // ============================================================
+const CANONICAL_SELECTION_REASONS = [
+  "Strong historic performance evidence",
+  "Added for variety and to balance class mix",
+  "Protected session & slot",
+  "Experimental",
+  "Trainer constraints"
+];
+
+function getCanonicalSelectionReason(s) {
+  if (!s) return "Added for variety and to balance class mix";
+  if (s.selection_reason_category && CANONICAL_SELECTION_REASONS.includes(s.selection_reason_category)) {
+    return s.selection_reason_category;
+  }
+  if (s.selection_reason && CANONICAL_SELECTION_REASONS.includes(s.selection_reason)) {
+    return s.selection_reason;
+  }
+
+  const rec = String(s.recommendation || "").toUpperCase();
+  const schedReason = String(s.scheduling_reason || "").toLowerCase();
+  const rationale = String(s.rationale || "").toLowerCase();
+
+  // 1. Protected session & slot
+  if (
+    s.is_protected ||
+    s.is_pinned ||
+    ["PINNED", "PROTECT", "PROTECT_EXACT", "PROTECT_SLOT", "PROTECTED"].includes(rec) ||
+    schedReason.includes("pinned") ||
+    schedReason.includes("protected") ||
+    schedReason.includes("rule ownership") ||
+    schedReason.includes("protected_exact")
+  ) {
+    return "Protected session & slot";
+  }
+
+  // 2. Experimental
+  if (
+    s.is_experimental ||
+    rec === "EXPERIMENTAL" ||
+    rationale === "experimental" ||
+    schedReason.includes("experimental")
+  ) {
+    return "Experimental";
+  }
+
+  // 3. Trainer constraints
+  const bestTrainer = (Array.isArray(s.slot_top_trainers) && s.slot_top_trainers[0]?.trainer) || s.best_trainer_name || s.top_trainer_name;
+  const isHighPerformer = (s.predicted_fill_rate || s.historical_avg_fill || 0) >= 0.35 || (s.historical_avg_checkin || 0) >= 5 || (s.score || 0) >= 40;
+  const hasConstraintFlag = !!(s.trainer_constraint || s.trainer_rule_violated || s.rule_violating_trainer || (Array.isArray(s.constraint_violations) && s.constraint_violations.length > 0 && schedReason.includes("trainer")));
+
+  if (
+    hasConstraintFlag ||
+    (bestTrainer && s.trainer_1 && bestTrainer !== s.trainer_1 && isHighPerformer && (s.trainer_violation_reason || s.best_trainer_unavailable || schedReason.includes("cap") || schedReason.includes("swap") || schedReason.includes("rule")))
+  ) {
+    return "Trainer constraints";
+  }
+
+  // 4. Added for variety and to balance class mix (explicit)
+  if (
+    s.is_variety_add ||
+    rationale === "variety" ||
+    rec === "VARIETY" ||
+    rec === "BALANCE" ||
+    schedReason.includes("variety") ||
+    schedReason.includes("mix") ||
+    schedReason.includes("filler") ||
+    schedReason.includes("floor repair") ||
+    schedReason.includes("minimum class count")
+  ) {
+    return "Added for variety and to balance class mix";
+  }
+
+  // 5. Strong historic performance evidence:
+  // Requires actual historical sessions (sessions >= 2) AND solid performance metrics (fill >= 28% or checkins >= 4 or score >= 40)
+  const sessions = Number(s.historical_session_count ?? s.session_count ?? s.sessions ?? 0);
+  const fill = Number(s.historical_avg_fill ?? s.predicted_fill_rate ?? s.avg_fill_rate ?? 0);
+  const checkins = Number(s.historical_avg_checkin ?? s.avg_checkin ?? 0);
+  const score = Number(s.score ?? 0);
+  const isTopPerformerReason = schedReason.includes("top performer") || schedReason.includes("strong performance") || schedReason.includes("proven");
+
+  const hasProvenHistory = (sessions >= 3 && (fill >= 0.28 || checkins >= 4.0 || score >= 40)) ||
+                            (sessions >= 2 && (fill >= 0.35 || checkins >= 5.0 || score >= 45));
+
+  if (hasProvenHistory && (isTopPerformerReason || (!schedReason.includes("filler") && !schedReason.includes("repair")))) {
+    return "Strong historic performance evidence";
+  }
+
+  if (bestTrainer && s.trainer_1 && bestTrainer !== s.trainer_1 && isHighPerformer) {
+    return "Trainer constraints";
+  }
+
+  // 6. Default fallback: Added for variety and to balance class mix
+  return "Added for variety and to balance class mix";
+}
+
 function renderStatsRow(area,slots){
   const total=slots.length;
   const avgFill=total?slots.reduce((s,x)=>s+(x.predicted_fill_rate||0),0)/total:0;
   const avgScore=total?slots.reduce((s,x)=>s+(x.score||0),0)/total:0;
   const violations=slots.filter(s=>s.constraint_violations&&s.constraint_violations.length>0).length;
-  const protected_=slots.filter(s=>["PINNED","PROTECT","PROTECT_EXACT","PROTECT_SLOT"].includes(s.recommendation)).length;
-  const experimental=slots.filter(s=>["INCLUDE","EXPERIMENTAL"].includes(s.recommendation)||s.is_experimental).length;
-  const trainers=new Set(slots.map(s=>s.trainer_1).filter(Boolean)).size;
-  area.insertAdjacentHTML("beforeend",`<div class="stats-row">
+
+  const strongHistoric=slots.filter(s=>getCanonicalSelectionReason(s)==="Strong historic performance evidence").length;
+  const varietyMix=slots.filter(s=>getCanonicalSelectionReason(s)==="Added for variety and to balance class mix").length;
+  const protectedSlots=slots.filter(s=>getCanonicalSelectionReason(s)==="Protected session & slot").length;
+  const experimental=slots.filter(s=>getCanonicalSelectionReason(s)==="Experimental").length;
+  const trainerConstraints=slots.filter(s=>getCanonicalSelectionReason(s)==="Trainer constraints").length;
+
+  const expPct = total ? ((experimental / total) * 100).toFixed(1) : "0.0";
+  const expCls = (total > 0 && (experimental / total) > 0.10) ? "red" : "amber";
+
+  area.insertAdjacentHTML("beforeend",`<div class="stats-row" style="display:flex;flex-wrap:wrap;gap:8px">
     ${sc("Classes",total,"blue")}
     ${sc("Avg Fill",pct(avgFill,1),avgFill>=0.5?"green":avgFill>=0.35?"amber":"red")}
-    ${sc("Avg Score",Math.round(avgScore)+"/100","blue")}
-    ${sc("Trainers",trainers,"")}
-    ${sc("Protected",protected_,"green","protected")}
+    ${sc("Strong Historic",`${strongHistoric} (${total?Math.round(strongHistoric/total*100):0}%)`,"green","reason_strong_historic")}
+    ${sc("Variety & Mix",`${varietyMix} (${total?Math.round(varietyMix/total*100):0}%)`,"purple","reason_variety_mix")}
+    ${sc("Protected Slot",`${protectedSlots} (${total?Math.round(protectedSlots/total*100):0}%)`,"blue","reason_protected")}
+    ${sc("Experimental",`${experimental} (${expPct}%)`,expCls,"reason_experimental")}
+    ${sc("Trainer Constraints",`${trainerConstraints} (${total?Math.round(trainerConstraints/total*100):0}%)`,"amber","reason_trainer_constraints")}
     ${sc("Violations",violations,violations>0?"red":"")}
-    ${sc("Experimental",experimental,"amber","experimental")}
   </div>`);
 }
 function sc(label,value,cls,kind){
@@ -721,15 +827,11 @@ function decisionReasonHtml(s){
 }
 
 function scheduleReasonPlain(s){
-  const reasons=[
-    s.scheduling_reason,
-    s.optimization_reason,
-    s.score_reason,
-    ...(Array.isArray(s.constraint_violations)?s.constraint_violations:[])
-  ].filter(Boolean);
-  if(reasons.length)return reasons.join(" · ");
-  if((s.historical_session_count||0)>0)return "Scheduled with available historical slot data.";
-  return "Newly scheduled class with limited direct history.";
+  const cat = getCanonicalSelectionReason(s);
+  const detail = String(s?.scheduling_reason || s?.rationale || s?.optimization_reason || "").trim();
+  if (!detail) return cat;
+  if (detail.toLowerCase().includes(cat.toLowerCase())) return detail;
+  return `${cat} — ${detail}`;
 }
 function hasAiOptimizationChange(s){
   const rec=String(s?.recommendation||"").toUpperCase();
@@ -772,12 +874,16 @@ function scheduleReasonBadges(s){
 
 function openStatsModal(kind){
   const slots=filterSlots(getActiveLocations().flatMap(loc=>getSlots(loc)));
+  let title="Schedule Decisions";
   const rows=slots.filter(s=>{
-    if(kind==="protected")return ["PINNED","PROTECT","PROTECT_EXACT","PROTECT_SLOT"].includes(s.recommendation);
-    if(kind==="experimental")return ["INCLUDE","EXPERIMENTAL"].includes(s.recommendation)||s.is_experimental;
+    const reason=getCanonicalSelectionReason(s);
+    if(kind==="reason_strong_historic") { title="Strong Historic Performance Evidence Classes"; return reason==="Strong historic performance evidence"; }
+    if(kind==="reason_variety_mix") { title="Variety & Class Mix Balance Classes"; return reason==="Added for variety and to balance class mix"; }
+    if(kind==="reason_protected" || kind==="protected") { title="Protected Session & Slot Classes"; return reason==="Protected session & slot" || ["PINNED","PROTECT","PROTECT_EXACT","PROTECT_SLOT"].includes(s.recommendation); }
+    if(kind==="reason_experimental" || kind==="experimental") { title="Experimental Classes"; return reason==="Experimental" || ["EXPERIMENTAL"].includes(s.recommendation) || s.is_experimental; }
+    if(kind==="reason_trainer_constraints") { title="Trainer Constraint Classes"; return reason==="Trainer constraints"; }
     return false;
   });
-  const title=kind==="protected"?"Protected and Pinned Classes":"Experimental Classes";
   const box=document.getElementById("modal-box");
   box.className="modal-box";
   box.innerHTML=`<div class="modal-hdr">
@@ -786,8 +892,8 @@ function openStatsModal(kind){
   </div>
   <div class="modal-body">
     <table class="hist-modal-table">
-      <thead><tr><th>Class</th><th>Day</th><th>Time</th><th>Location</th><th>Trainer</th><th>Status</th><th>Score</th><th>Decision Reason</th></tr></thead>
-      <tbody>${rows.map(s=>`<tr><td>${rvEscapeHtml(displayClass(s.class_name))}</td><td>${rvEscapeHtml(s.day_of_week||"—")}</td><td>${rvEscapeHtml(s.time||"—")}</td><td>${rvEscapeHtml(s.location||"—")}</td><td>${rvEscapeHtml(s.trainer_1||"—")}</td><td>${rvEscapeHtml(recLabel(s.recommendation||""))}</td><td>${Math.round(s.score||0)}</td><td>${decisionReasonHtml(s)}</td></tr>`).join("")||`<tr><td colspan="8">No classes match this card in the current filters.</td></tr>`}</tbody>
+      <thead><tr><th>Class</th><th>Day</th><th>Time</th><th>Location</th><th>Trainer</th><th>Status</th><th>Score</th><th>Selection Reason</th></tr></thead>
+      <tbody>${rows.map(s=>`<tr><td>${rvEscapeHtml(displayClass(s.class_name))}</td><td>${rvEscapeHtml(s.day_of_week||"—")}</td><td>${rvEscapeHtml(s.time||"—")}</td><td>${rvEscapeHtml(s.location||"—")}</td><td>${rvEscapeHtml(s.trainer_1||"—")}</td><td>${rvEscapeHtml(recLabel(s.recommendation||""))}</td><td>${Math.round(s.score||0)}</td><td>${rvEscapeHtml(getCanonicalSelectionReason(s))}</td></tr>`).join("")||`<tr><td colspan="8">No classes match this card in the current filters.</td></tr>`}</tbody>
     </table>
   </div>`;
   document.getElementById("modal-overlay").classList.add("open");
@@ -953,8 +1059,10 @@ function renderGrid(area,filtered,allSlots){
       const slotsHere=(byDayTime[d]||{})[t]||[];
       slotsHere.sort((a,b)=>(b.score||0)-(a.score||0)).forEach(s=>cell.appendChild(makeClassCard(s)));
       if(!slotsHere.length){
-        const intel=historicSlotIntel(_loc,d,t);
-        if(intel)cell.insertAdjacentHTML("beforeend",emptySlotIntelHtml(intel));
+        const slotIntel=historicSlotIntel(_loc,d,t);
+        const timeIntel=historicTimeIntel(_loc,t);
+        const intel=slotIntel||timeIntel;
+        cell.insertAdjacentHTML("beforeend",emptySlotHoverHtml(intel,slotIntel,d,t));
       }
       cell.ondragover=(e)=>{e.preventDefault();cell.classList.add("drag-over")};
       cell.ondragleave=()=>cell.classList.remove("drag-over");
@@ -1064,6 +1172,7 @@ function makeClassCard(s){
         <span class="cc-meta"><span>◷</span> ${rvEscapeHtml(s.time||"—")}</span>
       </div>
     </div>
+    ${scheduleReasonBadges(s)}
     <div class="cc-bottom">
       <div class="cc-fill-main">
         <div class="cc-fill-head"><span style="font-size:8px;font-weight:800;color:#64748B;text-transform:uppercase">Fill</span><span style="font-size:9px;font-weight:900;color:${fc}">${pct(fill)}</span></div>
@@ -1075,7 +1184,6 @@ function makeClassCard(s){
       </div>
     </div>
     <div class="cc-hover-body">
-      ${scheduleReasonBadges(s)}
       <div class="cc-hover-tools">
         <button class="cc-tool" type="button" data-action="similar"><span class="cc-tool-icon">≈</span> Similar</button>
         <button class="cc-tool secondary" type="button" data-action="replace"><span class="cc-tool-icon">↕</span> Trainer</button>
@@ -2621,10 +2729,17 @@ function openModal(s){
             <span class="drill-pill ${statusCls}">${statusLabel}</span>
             ${isPrime(s.time)?`<span class="drill-pill warn">Prime Slot</span>`:""}
             ${s.above_studio_avg?`<span class="drill-pill good">Above Studio Avg</span>`:""}
-            <span class="drill-pill blue">${score}/100</span>
             ${s.trainer_1?`<button id="drill-trainer-toggle" style="padding:4px 10px;border-radius:999px;border:1px solid #CBD5E1;background:#F8FAFC;color:#475569;font-size:10px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer" onclick="drillToggleTrainer(${JSON.stringify(s).replace(/"/g,'&quot;')})" title="Toggle between all historical data and data for ${rvEscapeAttr(s.trainer_1)} only">All data</button>`:""}
           </div>
         </div>
+        <section style="background:var(--surface2);border:1px solid var(--border-strong);border-radius:14px;padding:14px 18px;margin-bottom:14px">
+          <div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:0.09em;color:var(--primary);margin-bottom:5px;display:flex;align-items:center;gap:6px">
+            <span style="font-size:12px">ⓘ</span> Selection Reason & Rule Compliance
+          </div>
+          <div style="font-size:13.5px;font-weight:800;color:var(--text);line-height:1.45;font-family:'Plus Jakarta Sans',sans-serif">
+            ${rvEscapeHtml(scheduleReasonPlain(s))}
+          </div>
+        </section>
 
         ${m.isSynthetic?`<div style="background:var(--primary-light);border:1px solid var(--primary-mid);border-radius:var(--r8);padding:8px 14px;margin-bottom:12px;font-size:11px;color:var(--primary)">
           ℹ No trainer-specific history found. Metrics use same class, location, day and time history across other trainers.
@@ -2931,6 +3046,36 @@ function emptySlotIntelHtml(r){
       <div class="sg-empty-intel-metric"><span>Fill</span><strong>${pct(fill,0)}</strong></div>
     </div>
     <div class="sg-empty-intel-class">${rvEscapeHtml(displayClass(r.class||""))} · ${r.session_count||0} hist</div>
+  </div>`;
+}
+function emptySlotHoverHtml(intel,slotIntel,day,time){
+  if(!intel){
+    // No data at all — show a minimal placeholder so hover still shows something
+    return`<div class="sg-empty-intel sg-empty-no-data"><div class="sg-empty-intel-title" style="text-align:center;padding:8px 0">No historic data</div></div>`;
+  }
+  const fill=intel.avg_fill_rate||0;
+  const avgIn=round1(intel.avg_checkin||intel.avg_attendance||0);
+  const sessions=Math.round(intel.session_count||0);
+  const bestClass=intel.class||intel.best_class||"";
+  const isSlot=!!slotIntel;
+  const fillColor=fill>=0.6?"#15803D":fill>=0.4?"#D97706":fill>0?"#DC2626":"#94A3B8";
+  const scope=isSlot?`${day} ${time}`:(intel.days||time||"this time");
+  return`<div class="sg-empty-intel${isSlot?" sg-empty-slot-specific":""}">
+    <div class="sg-empty-intel-top">
+      <div class="sg-empty-intel-title">${isSlot?"Slot history":"Time avg"}</div>
+      ${isSlot&&intel.score!=null?`<div class="sg-empty-intel-score">${Math.round(intel.score||0)}</div>`:""}
+    </div>
+    <div class="sg-empty-intel-metrics">
+      <div class="sg-empty-intel-metric">
+        <span>Avg Attend</span>
+        <strong>${avgIn||"—"}</strong>
+      </div>
+      <div class="sg-empty-intel-metric">
+        <span>Fill Rate</span>
+        <strong style="color:${fillColor}">${fill>0?pct(fill,0):"—"}</strong>
+      </div>
+    </div>
+    <div class="sg-empty-intel-class">${bestClass?rvEscapeHtml(displayClass(bestClass))+" · ":""}<span style="opacity:.7">${sessions} hist sessions</span></div>
   </div>`;
 }
 function manualSlotTemplate(ctx,cls,trainer,source,overrides={}){
@@ -3824,10 +3969,16 @@ async function init(){
     loader.style.opacity="0";
     setTimeout(()=>loader.style.display="none",220);
   }
-  // Auto-show compliance report on fresh generation (pipeline sets ?ts= on reload)
-  const isFreshGeneration=new URLSearchParams(location.search).has("ts");
-  if(isFreshGeneration&&SCHEDULE_DATA&&SCHEDULE_DATA.compliance_report&&Object.keys(SCHEDULE_DATA.compliance_report).length){
-    setTimeout(()=>openComplianceReportModal(),400);
+  // Auto-show compliance report ONLY after a fresh schedule generation
+  const isFreshGeneration = sessionStorage.getItem("new_schedule_generated") === "true";
+  if (isFreshGeneration && SCHEDULE_DATA && SCHEDULE_DATA.compliance_report && Object.keys(SCHEDULE_DATA.compliance_report).length) {
+    sessionStorage.removeItem("new_schedule_generated");
+    if (location.search) {
+      try { history.replaceState(null, "", location.pathname); } catch(e) {}
+    }
+    setTimeout(() => openComplianceReportModal(), 400);
+  } else if (location.search && (location.search.includes("ts=") || location.search.includes("fresh="))) {
+    try { history.replaceState(null, "", location.pathname); } catch(e) {}
   }
 }
 
@@ -4141,7 +4292,8 @@ function pollPipelineStatus(){
           setGenerateButtonsLoading(false);
           showToast("Schedule updated — reloading…","");
           setTimeout(()=>{
-            window.location.href = window.location.pathname + '?ts=' + Date.now();
+            sessionStorage.setItem("new_schedule_generated", "true");
+            window.location.href = window.location.pathname;
           }, 800);
         } else if(status==="failed"){
           clearInterval(_pipelinePoller);_pipelinePoller=null;
@@ -7558,12 +7710,18 @@ function chatSend(text){
     const reply=d.reply||d.error||"No response.";
     _chatHistory.push({role:"assistant",content:reply});
     chatAppendMsg("bot",reply);
+    if(d.applied && typeof loadScheduleData==="function"){
+      loadScheduleData(true);
+      if(typeof showToast==="function") showToast("Schedule updated from AI Assistant", "success");
+    }
   }).catch(e=>{
     chatRemoveTyping();
     _chatWaiting=false;
     chatAppendMsg("bot","Connection error. Make sure the server is running.");
   });
 }
+
+
 
 function chatAppendMsg(role,text){
   const msgs=document.getElementById("chat-msgs");
@@ -7574,7 +7732,17 @@ function chatAppendMsg(role,text){
   const time=`${now.getHours()}:${String(now.getMinutes()).padStart(2,"0")}`;
   const div=document.createElement("div");
   div.className=`chat-msg ${role}`;
-  div.innerHTML=`<div class="chat-bubble">${rvEscapeHtml(text)}</div><div class="chat-msg-time">${time}</div>`;
+  let rendered;
+  if(role==="bot"){
+    rendered=rvEscapeHtml(text)
+      .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+      .replace(/\n•\s/g,"<br>&bull;&nbsp;")
+      .replace(/\n•/g,"<br>&bull;")
+      .replace(/\n/g,"<br>");
+  }else{
+    rendered=rvEscapeHtml(text);
+  }
+  div.innerHTML=`<div class="chat-bubble">${rendered}</div><div class="chat-msg-time">${time}</div>`;
   msgs.appendChild(div);
   msgs.scrollTop=msgs.scrollHeight;
 }
@@ -7646,9 +7814,14 @@ const NL_SCHEDULE_WORDS = /\b(class|session|slot|block|morning|evening|midday|mo
 let _nleResult = null;
 
 function nlEditDetect(msg) {
-  if (!msg || msg.length < 8) return false;
+  if (!msg || msg.length < 12) return false;
+  // Exclude purely analytical/question messages
+  const lower = msg.toLowerCase();
+  if (/^(why|what|how|who|where|when|show|list|tell|explain|can you|could you|is there|are there|give me|what's|what is|which)/.test(lower)) return false;
+  if (lower.includes("?") && msg.length < 80) return false; // short questions go to chat
   const hasVerb = NL_EDIT_KEYWORDS.test(msg);
   const hasContext = NL_SCHEDULE_WORDS.test(msg) || NL_TRAINER_WORDS.test(msg);
+  // Require both a clear action verb AND scheduling context
   return hasVerb && hasContext;
 }
 
@@ -7737,12 +7910,8 @@ function nlEditRender(result, instruction) {
 
   let html = "";
 
-  if (edits.length === 0 && result.intent !== "unclear") {
+  if (edits.length === 0) {
     html = `<div style="padding:20px 0;color:#64748B;font-size:13px;text-align:center">No specific edits could be identified. Try being more specific about the class name, day, time, or trainer.</div>`;
-  } else if (result.intent === "unclear" || conf < 0.4) {
-    html = `<div style="padding:14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;color:#92400E;font-size:12px;line-height:1.5">
-      <strong>Couldn't parse this as a clear edit instruction.</strong><br>${(warnings[0] || "Please be more specific — e.g. 'Move Studio Barre 57 with Kajol on Thursday 09:00 to Friday 09:00 at Kenkere House.'")}
-    </div>`;
   } else {
     html += `<div class="nle-section-label">${edits.length} edit${edits.length!==1?"s":""} planned</div><div class="nle-diff">`;
     edits.forEach((edit, editIdx) => {
@@ -7816,7 +7985,7 @@ function nlEditRender(result, instruction) {
   body.innerHTML = html;
   if (footer) footer.style.display = "flex";
   if (footerLeft) footerLeft.textContent = `${edits.length} change${edits.length!==1?"s":""} · ${warnings.length} warning${warnings.length!==1?"s":""}`;
-  if (applyBtn) applyBtn.disabled = edits.length === 0 || result.intent === "unclear";
+  if (applyBtn) applyBtn.disabled = edits.length === 0;
 }
 
 function nlEditRenderError(msg) {
@@ -8148,3 +8317,263 @@ function openComplianceReportModal(initialLoc){
   `;
   document.head.appendChild(s);
 })();
+
+// ============================================================
+// EXPORT SCHEDULE FUNCTIONS (PDF, CSV, HTML, JSON)
+// ============================================================
+
+function getActiveScheduleExportSlots(){
+  const locs = typeof getActiveLocations === 'function' ? getActiveLocations() : [];
+  const allSlots = locs.flatMap(loc => typeof getSlots === 'function' ? getSlots(loc) : []);
+  return typeof filterSlots === 'function' ? filterSlots(allSlots) : allSlots;
+}
+
+function toggleExportMenu(e){
+  if(e) e.stopPropagation();
+  const m = document.getElementById("export-menu");
+  if(m) m.style.display = (m.style.display === "none" || !m.style.display) ? "block" : "none";
+}
+
+function closeExportMenu(){
+  const m = document.getElementById("export-menu");
+  if(m) m.style.display = "none";
+}
+document.addEventListener("click", closeExportMenu);
+
+function exportScheduleCSV(){
+  const slots = getActiveScheduleExportSlots();
+  if(!slots.length){ if(typeof showToast==='function') showToast("No slots found to export", "warn"); return; }
+  const headers = ["Location", "Date", "Day", "Time", "Class Format", "Trainer", "Room", "Capacity", "Fill Rate %", "Projected Attendance", "Historic Sessions", "Class Avg Checkin", "Best Trainer Name", "Score", "Selection Reason"];
+  const csvRows = [headers.join(",")];
+  slots.forEach(s => {
+    const fillPct = (Math.round((s.predicted_fill_rate || s.historical_avg_fill || 0) * 1000) / 10) + "%";
+    const attendance = Math.round((s.predicted_fill_rate || s.historical_avg_fill || 0) * (s.capacity || 20));
+    const histSessions = s.historical_session_count || s.metric_session_count || s.trainer_slot_session_count || 0;
+    const classAvg = Math.round((s.historical_avg_checkin || s.metric_avg_checkin || 0) * 10) / 10;
+    const bestTrainer = (Array.isArray(s.slot_top_trainers) && s.slot_top_trainers[0]?.trainer) || s.best_trainer_name || s.top_trainer_name || s.trainer_1 || "—";
+    const reason = getCanonicalSelectionReason(s);
+
+    const row = [
+      `"${(s.location||'').replace(/"/g, '""')}"`,
+      `"${(s.date||'').replace(/"/g, '""')}"`,
+      `"${(s.day_of_week||'').replace(/"/g, '""')}"`,
+      `"${(s.time||'').replace(/"/g, '""')}"`,
+      `"${(s.class_name||'').replace(/"/g, '""')}"`,
+      `"${(s.trainer_1||'').replace(/"/g, '""')}"`,
+      `"${(s.room||'').replace(/"/g, '""')}"`,
+      s.capacity || s.cap || 0,
+      `"${fillPct}"`,
+      attendance,
+      histSessions,
+      classAvg,
+      `"${bestTrainer.replace(/"/g, '""')}"`,
+      Math.round(s.score || 0),
+      `"${reason.replace(/"/g, '""')}"`
+    ];
+    csvRows.push(row.join(","));
+  });
+  const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const weekStr = document.getElementById("week-badge")?.innerText?.replace(/[^0-9a-zA-Z]/g, "_") || "Schedule";
+  link.setAttribute("href", url);
+  link.setAttribute("download", `Athena_Schedule_${weekStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  if(typeof showToast==='function') showToast("Exported CSV successfully", "success");
+}
+
+function exportScheduleJSON(){
+  const slots = getActiveScheduleExportSlots();
+  if(!slots.length){ if(typeof showToast==='function') showToast("No slots found to export", "warn"); return; }
+  const weekStr = document.getElementById("week-badge")?.innerText || "";
+  const enrichedSlots = slots.map(s => ({
+    ...s,
+    selection_reason: getCanonicalSelectionReason(s),
+    projected_attendance: Math.round((s.predicted_fill_rate || s.historical_avg_fill || 0) * (s.capacity || 20)),
+    historic_sessions: s.historical_session_count || s.metric_session_count || s.trainer_slot_session_count || 0,
+    class_avg_checkin: Math.round((s.historical_avg_checkin || s.metric_avg_checkin || 0) * 10) / 10,
+    best_trainer_name: (Array.isArray(s.slot_top_trainers) && s.slot_top_trainers[0]?.trainer) || s.best_trainer_name || s.top_trainer_name || s.trainer_1 || "—"
+  }));
+  const payload = {
+    export_timestamp: new Date().toISOString(),
+    week_info: weekStr,
+    locations: typeof getActiveLocations === 'function' ? getActiveLocations() : [],
+    total_classes: slots.length,
+    schedule_slots: enrichedSlots
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `Athena_Schedule_${new Date().toISOString().slice(0, 10)}.json`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  if(typeof showToast==='function') showToast("Exported JSON successfully", "success");
+}
+
+function exportScheduleHTML(){
+  const slots = getActiveScheduleExportSlots();
+  if(!slots.length){ if(typeof showToast==='function') showToast("No slots found to export", "warn"); return; }
+  const weekStr = document.getElementById("week-badge")?.innerText || "Schedule";
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Athena Schedule — ${rvEscapeHtml(weekStr)}</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0A0A0C; color: #F9FAFB; padding: 30px; }
+  h1 { color: #00F3FF; font-size: 24px; margin-bottom: 6px; }
+  .meta { color: #9CA3AF; font-size: 13px; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; background: #121218; border-radius: 12px; overflow: hidden; font-size: 12px; }
+  th { background: #1A1A24; color: #9CA3AF; text-align: left; padding: 12px 14px; border-bottom: 1px solid #222; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
+  td { padding: 10px 14px; border-bottom: 1px solid #1E1E28; color: #E5E7EB; }
+  tr:hover { background: rgba(0,243,255,0.03); }
+  .tag { padding: 2px 8px; border-radius: 999px; font-weight: 700; font-size: 10px; background: rgba(0,243,255,0.15); color: #00F3FF; display: inline-block; }
+  .reason { font-size: 11px; color: #9CA3AF; }
+</style>
+</head>
+<body>
+  <h1>Athena Studio Class Schedule</h1>
+  <div class="meta">${rvEscapeHtml(weekStr)} · Total Classes: ${slots.length}</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Day</th>
+        <th>Time</th>
+        <th>Location</th>
+        <th>Class Format</th>
+        <th>Trainer</th>
+        <th>Room</th>
+        <th>Fill %</th>
+        <th>Attendance</th>
+        <th>Historic Sessions</th>
+        <th>Class Avg</th>
+        <th>Best Trainer</th>
+        <th>Selection Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${slots.map(s => {
+        const attendance = Math.round((s.predicted_fill_rate || s.historical_avg_fill || 0) * (s.capacity || 20));
+        const histSessions = s.historical_session_count || s.metric_session_count || s.trainer_slot_session_count || 0;
+        const classAvg = Math.round((s.historical_avg_checkin || s.metric_avg_checkin || 0) * 10) / 10;
+        const bestTrainer = (Array.isArray(s.slot_top_trainers) && s.slot_top_trainers[0]?.trainer) || s.best_trainer_name || s.top_trainer_name || s.trainer_1 || "—";
+        return `<tr>
+          <td><strong>${rvEscapeHtml(s.day_of_week||'')}</strong></td>
+          <td>${rvEscapeHtml(s.time||'')}</td>
+          <td>${rvEscapeHtml(s.location||'')}</td>
+          <td><strong>${rvEscapeHtml(typeof displayClass==='function'?displayClass(s.class_name):s.class_name)}</strong></td>
+          <td>${rvEscapeHtml(s.trainer_1||'')}</td>
+          <td>${rvEscapeHtml(s.room||'—')}</td>
+          <td><span class="tag">${typeof pct==='function'?pct(s.predicted_fill_rate || s.historical_avg_fill || 0):'0%'}</span></td>
+          <td>${attendance}</td>
+          <td>${histSessions}</td>
+          <td>${classAvg}</td>
+          <td>${rvEscapeHtml(bestTrainer)}</td>
+          <td class="reason">${rvEscapeHtml(getCanonicalSelectionReason(s))}</td>
+        </tr>`;
+      }).join("")}
+    </tbody>
+  </table>
+</body>
+</html>`;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `Athena_Schedule_${new Date().toISOString().slice(0, 10)}.html`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  if(typeof showToast==='function') showToast("Exported HTML report successfully", "success");
+}
+
+function exportSchedulePDF(){
+  const slots = getActiveScheduleExportSlots();
+  if(!slots.length){ if(typeof showToast==='function') showToast("No slots found to export", "warn"); return; }
+  const weekStr = document.getElementById("week-badge")?.innerText || "Schedule";
+  const printWin = window.open("", "_blank");
+  printWin.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<title>Athena Schedule — ${rvEscapeHtml(weekStr)}</title>
+<style>
+  @media print {
+    @page { size: landscape; margin: 12mm; }
+  }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111827; padding: 20px; }
+  .hdr { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1E40AF; padding-bottom: 12px; margin-bottom: 20px; }
+  h1 { font-size: 22px; margin: 0; color: #1E40AF; text-transform: uppercase; letter-spacing: 0.05em; }
+  .sub { font-size: 12px; color: #6B7280; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px; }
+  th { background: #F1F5F9; color: #334155; font-weight: 800; text-transform: uppercase; font-size: 8.5px; padding: 6px 8px; border: 1px solid #CBD5E1; text-align: left; }
+  td { padding: 6px 8px; border: 1px solid #E2E8F0; vertical-align: middle; }
+  tr:nth-child(even) td { background: #F8FAFC; }
+  .cls-name { font-weight: 800; color: #0F172A; }
+  .fill-pill { padding: 2px 6px; border-radius: 999px; background: #DBEAFE; color: #1E40AF; font-size: 9.5px; font-weight: 800; }
+  .reason { font-size: 9.5px; color: #64748B; font-style: italic; }
+</style>
+</head>
+<body>
+  <div class="hdr">
+    <div>
+      <h1>Athena Studio Schedule</h1>
+      <div class="sub">AI-Powered Class Schedule Intelligence</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:14px;font-weight:800">${rvEscapeHtml(weekStr)}</div>
+      <div style="font-size:11px;color:#6B7280">${slots.length} Classes Scheduled</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Day</th>
+        <th>Time</th>
+        <th>Location</th>
+        <th>Class Format</th>
+        <th>Trainer</th>
+        <th>Room</th>
+        <th>Fill %</th>
+        <th>Attendance</th>
+        <th>Hist Sessions</th>
+        <th>Class Avg</th>
+        <th>Best Trainer</th>
+        <th>Selection Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${slots.map(s => {
+        const attendance = Math.round((s.predicted_fill_rate || s.historical_avg_fill || 0) * (s.capacity || 20));
+        const histSessions = s.historical_session_count || s.metric_session_count || s.trainer_slot_session_count || 0;
+        const classAvg = Math.round((s.historical_avg_checkin || s.metric_avg_checkin || 0) * 10) / 10;
+        const bestTrainer = (Array.isArray(s.slot_top_trainers) && s.slot_top_trainers[0]?.trainer) || s.best_trainer_name || s.top_trainer_name || s.trainer_1 || "—";
+        return `<tr>
+          <td><strong>${rvEscapeHtml(s.day_of_week||'')}</strong></td>
+          <td>${rvEscapeHtml(s.time||'')}</td>
+          <td>${rvEscapeHtml(s.location||'')}</td>
+          <td class="cls-name">${rvEscapeHtml(typeof displayClass==='function'?displayClass(s.class_name):s.class_name)}</td>
+          <td>${rvEscapeHtml(s.trainer_1||'')}</td>
+          <td>${rvEscapeHtml(s.room||'—')}</td>
+          <td><span class="fill-pill">${typeof pct==='function'?pct(s.predicted_fill_rate || s.historical_avg_fill || 0):'0%'}</span></td>
+          <td>${attendance}</td>
+          <td>${histSessions}</td>
+          <td>${classAvg}</td>
+          <td>${rvEscapeHtml(bestTrainer)}</td>
+          <td class="reason">${rvEscapeHtml(getCanonicalSelectionReason(s))}</td>
+        </tr>`;
+      }).join("")}
+    </tbody>
+  </table>
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 300);
+    };
+  </script>
+</body>
+</html>`);
+  printWin.document.close();
+}

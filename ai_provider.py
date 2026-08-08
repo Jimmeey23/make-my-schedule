@@ -74,7 +74,7 @@ def get_ai_settings() -> Optional[dict]:
 
     openai_key = _clean_key(os.environ.get("OPENAI_API_KEY"))
     if openai_key:
-        model = os.environ.get("OPENAI_MODEL") or OPENAI_ONLY_MODEL
+        model = OPENAI_ONLY_MODEL
         base_url = os.environ.get("OPENAI_BASE_URL") or DEFAULT_OPENAI_BASE_URL
         return _settings(
             provider="openai",

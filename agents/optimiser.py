@@ -727,6 +727,32 @@ class ScheduleSlot:
     placement_score: Optional[float] = None
     score_breakdown: dict = field(default_factory=dict)
     constraint_violations: List[str] = field(default_factory=list)
+    selection_reason_category: str = ""
+
+    def __post_init__(self):
+        if not self.selection_reason_category:
+            self.selection_reason_category = self.compute_selection_reason_category()
+
+    def compute_selection_reason_category(self) -> str:
+        rec = str(self.recommendation or "").upper()
+        reason = str(self.scheduling_reason or "").lower()
+        if self.is_experimental or rec == "EXPERIMENTAL" or "experimental" in reason:
+            return "Experimental"
+        if rec in ("PINNED", "PROTECT", "PROTECT_EXACT", "PROTECT_SLOT", "PROTECTED") or "pinned" in reason or "protected" in reason or "rule ownership" in reason:
+            return "Protected session & slot"
+        if "trainer" in reason and ("violation" in reason or "constraint" in reason or "cap" in reason or "unavailable" in reason):
+            return "Trainer constraints"
+        if "variety" in reason or "mix" in reason or "filler" in reason or "repair" in reason or "minimum class count" in reason or rec in ("VARIETY", "BALANCE"):
+            return "Added for variety and to balance class mix"
+        sessions = int(self.historical_session_count or 0)
+        fill = float(self.historical_avg_fill or self.predicted_fill_rate or 0.0)
+        checkins = float(self.historical_avg_checkin or 0.0)
+        score = float(self.score or 0.0)
+        is_top = "top performer" in reason or "strong performance" in reason or "proven" in reason
+        has_evidence = (sessions >= 3 and (fill >= 0.28 or checkins >= 4.0 or score >= 40.0)) or (sessions >= 2 and (fill >= 0.35 or checkins >= 5.0 or score >= 45.0))
+        if has_evidence and (is_top or ("filler" not in reason and "repair" not in reason)):
+            return "Strong historic performance evidence"
+        return "Added for variety and to balance class mix"
 
 
 class TrainerState:
@@ -3456,7 +3482,9 @@ class ScheduleOptimiser:
                 ):
                     continue
 
-                shift_bonus = 12.0 if trainer in shift_trainers[shift] else (-8.0 if len(shift_trainers[shift]) >= 2 else 0.0)
+                # Optimal Trainer Utilization: Strongly favor trainers already scheduled in this shift
+                # to minimize the count of distinct trainers per location/shift.
+                shift_bonus = 20.0 if trainer in shift_trainers[shift] else (-12.0 if len(shift_trainers[shift]) >= 2 else 0.0)
                 time_penalty = 0.0
                 if r_time:
                     time_penalty = min(10.0, abs(slot_time_to_minutes(r_time) - start_min) / 30 * 1.5)

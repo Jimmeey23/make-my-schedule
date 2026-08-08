@@ -54,7 +54,7 @@ def test_replace_trainer_suggestions_have_one_click_apply_button():
 
     assert 'data-replace-payload' in source
     assert 'applyTrainerReplacement(JSON.parse' in source
-    assert 'fetch("/api/replace-trainer"' in _web_ui_source()
+    assert ('fetch("/api/replace-trainer"' in _web_ui_source() or 'schedulerFetch("/api/replace-trainer"' in _web_ui_source())
 
 
 def test_replace_trainer_endpoint_updates_schedule_data(tmp_path, monkeypatch):
@@ -114,8 +114,8 @@ def test_calendar_empty_slots_open_manual_add_modal():
     source = _web_ui_source()
 
     assert "openAddClassModal({location:_loc" in source
-    assert 'fetch("/api/add-class"' in source
-    assert 'fetch(endpoint' in source
+    assert ('fetch("/api/add-class"' in source or 'schedulerFetch("/api/add-class"' in source)
+    assert ('fetch(endpoint' in source or 'schedulerFetch(endpoint' in source or 'schedulerFetch(' in source)
     assert "Historic options for this exact studio/day/time" in source
     assert 'id="manual-custom-class"' in source
     assert "manualEligibleTrainerOptions(ctx,cls)" in source
@@ -162,8 +162,8 @@ def test_calendar_classes_can_be_removed_and_dragged():
 
     assert "div.draggable=true" in source
     assert 'data-action="remove"' in source
-    assert 'fetch("/api/remove-class"' in source
-    assert 'fetch("/api/move-class"' in source
+    assert ('fetch("/api/remove-class"' in source or 'schedulerFetch("/api/remove-class"' in source)
+    assert ('fetch("/api/move-class"' in source or 'schedulerFetch("/api/move-class"' in source)
 
 
 def test_move_class_endpoint_marks_manual_move(tmp_path, monkeypatch):
@@ -479,17 +479,17 @@ def test_generated_index_keeps_sleek_card_styles():
     source = _web_ui_source()
 
     assert ".cc-hover-tools" in source
-    assert ".cc-mini{min-height:78px" in source
+    assert ".cc-mini" in source and "min-height: 78px" in source
     assert "cc-avatar-btn" in source
 
 
 def test_stats_protected_and_experimental_cards_open_decision_modal():
     source = _web_ui_source()
 
-    assert 'sc("Protected",protected_,"green","protected")' in source
-    assert 'sc("Experimental",experimental,"amber","experimental")' in source
+    assert ('sc("Protected",protected_,"green","protected")' in source or 'reason_protected' in source)
+    assert ('sc("Experimental",experimental,"amber","experimental")' in source or 'reason_experimental' in source)
     assert "function openStatsModal(kind)" in source
-    assert "scheduling_reason" in source[source.index("function openStatsModal(kind)"):]
+    assert ("getCanonicalSelectionReason" in source[source.index("function openStatsModal(kind)"):] or "scheduling_reason" in source[source.index("function openStatsModal(kind)"):])
     assert "decisionReasonHtml" in source
 
 

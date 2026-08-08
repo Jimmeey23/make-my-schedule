@@ -279,7 +279,7 @@ def _history_strength(slot: dict, scores_context: dict, *, allow_slot_fallback: 
 def _candidate_has_stronger_history(before: dict, after: dict, scores_context: dict) -> bool:
     after_hist = _history_strength(after, scores_context, allow_slot_fallback=True)
     if not after_hist:
-        return True
+        return False
     before_hist = _history_strength(before, scores_context, allow_slot_fallback=True)
     before_fill = before_hist["fill"] if before_hist else float(before.get("predicted_fill_rate") or 0)
     before_score = before_hist["score"] if before_hist else float(before.get("score") or 0)
@@ -1844,8 +1844,12 @@ def _nl_edit_plan(payload: dict) -> dict:
         '"best_fit_trainer_candidates":[],"best_fit_class_candidates":[]}],'
         '"warnings":[],"constraint_checks":[]}\n\n'
         "RULES:\n"
+        "- Generate concrete edits even for vague inputs; infer details like location/trainer from context where possible.\n"
+        "- If user says 'morning', 'afternoon', or 'evening', map to standard times (e.g., 09:00, 15:00, 19:00).\n"
+        "- action=add: provide all details (day, time, class, trainer, location).\n"
+        "- If the request is somewhat reasonable (e.g., 'move classes around'), interpret it as specific actions; do not mark as 'unclear'.\n"
         "- action=add: all slot details go under new_day/new_time/new_class/new_trainer; location is required\n"
-        "- If user asks to add MULTIPLE classes (e.g., 'create a schedule with 12 classes', 'add 3 cycle classes'), generate MULTIPLE objects in the 'edits' array with action='add', using reasonable spaced out times (e.g., 08:00, 10:00, 12:00) if exact times aren't given.\n"
+        "- If user asks to add MULTIPLE classes, generate MULTIPLE objects in the 'edits' array.\n"
         "- If trainer is not specified, leave trainer_1 and new_trainer blank.\n"
         "- action=remove: match existing row using day/time/class_name/trainer_1/location\n"
         "- action=move: source in day/time/class_name/trainer_1; destination in new_day/new_time; keep same location unless stated\n"
@@ -1858,7 +1862,7 @@ def _nl_edit_plan(payload: dict) -> dict:
         "- Resolve short names: 'karan'→'Karanvir Bhatia', 'anisha'→'Anisha Shah', 'rohan'→'Rohan Dahima', 'reshma'→'Reshma Sharma', 'atulan'→'Atulan Purohit', 'pranjali'→'Pranjali Jain', 'vivaran'→'Vivaran Dhasmana', 'mrigakshi'→'Mrigakshi Jaiswal', 'pushyank'→'Pushyank Nahar', 'kajol'→'Kajol Kanchan', 'shruti'→'Shruti Kulkarni'\n"
         "- CRITICAL: If the requested trainer has '(off: <day>)' in their entry and the instruction targets that day, set confidence<0.6, add a warning like 'Karanvir Bhatia is off on Wednesday', and suggest an available alternative in best_fit_trainer_candidates\n"
         "- If location not specified, use the active location\n"
-        "- confidence: 0.9+ if all fields unambiguous and trainer is available; 0.5-0.7 if inferred or trainer unavailable; <0.4 if unclear\n"
+        "- confidence: 0.9+ if all fields unambiguous; 0.6-0.8 if inferred from reasonable context; <0.5 only if entirely unintelligible\n"
         "- route_to_optimizer: true ONLY if the user explicitly asks to 'optimize' or 'optimise' a whole day/slot block. DO NOT use this for adding, removing, or creating classes.\n"
         f"\nCURRENT SCHEDULE (location | day time | class | trainer):\n{schedule_text}"
     )
@@ -2045,6 +2049,45 @@ def _find_trainer_candidates(day: str, location: str, class_name: str, profiles:
     return results[:5]
 
 
+def _change_class_in_schedule(payload):
+    slot = payload.get("slot") or {}
+    new_class = payload.get("new_class") or ""
+    new_trainer = payload.get("new_trainer") or ""
+    iteration = payload.get("iteration") or "Main"
+    if not new_class:
+        raise ValueError("Missing new_class")
+    path = WEB_DIR / "schedule_data.json"
+    if not path.exists():
+        raise FileNotFoundError("web/schedule_data.json was not found")
+    data = json.loads(path.read_text())
+    updated = 0
+
+    def update_rows(rows):
+        nonlocal updated
+        if not isinstance(rows, list):
+            return
+        for row in rows:
+            if _same_schedule_slot(row, slot):
+                old_class = row.get("class_name") or ""
+                row["class_name"] = new_class
+                if new_trainer:
+                    row["trainer_1"] = new_trainer
+                row["recommendation"] = "MANUAL"
+                row["scheduling_reason"] = f"Manual class change: {old_class} → {new_class}"
+                updated += 1
+
+    if iteration == "Main":
+        update_rows((data.get("locations") or {}).get(slot.get("location")))
+    else:
+        update_rows(((data.get("iterations") or {}).get(iteration) or {}).get(slot.get("location")))
+
+    if updated == 0:
+        raise ValueError("Could not find the selected class in the active schedule")
+
+    _write_schedule_data(data)
+    return {"updated": updated}
+
+
 def _nl_edit_apply(payload: dict) -> dict:
     """Apply a list of structured edits returned by /api/nl-edit."""
     edits = (payload or {}).get("edits") or []
@@ -2107,7 +2150,7 @@ def _nl_edit_apply(payload: dict) -> dict:
                 }
                 _remove_class_from_schedule({"slot": slot, "iteration": iteration})
                 applied += 1
-            elif action == "move":
+            elif action in ("move", "change_time"):
                 slot = {
                     "location": edit.get("location") or "",
                     "day_of_week": edit.get("day") or "",
@@ -2134,6 +2177,29 @@ def _nl_edit_apply(payload: dict) -> dict:
                     "slot": slot,
                     "new_trainer": edit.get("new_trainer") or "",
                     "iteration": iteration,
+                })
+                applied += 1
+            elif action in ("change_class", "swap_class"):
+                slot = {
+                    "location": edit.get("location") or "",
+                    "day_of_week": edit.get("day") or "",
+                    "time": edit.get("time") or "",
+                    "class_name": edit.get("class_name") or "",
+                    "trainer_1": edit.get("trainer_1") or "",
+                }
+                _change_class_in_schedule({
+                    "slot": slot,
+                    "new_class": edit.get("new_class") or edit.get("class_name") or "",
+                    "new_trainer": edit.get("new_trainer") or "",
+                    "iteration": iteration,
+                })
+                applied += 1
+            elif action in ("optimize_day", "optimize_slot", "optimize"):
+                _optimize_schedule_request({
+                    "iteration": iteration,
+                    "location": edit.get("location") or "",
+                    "day_of_week": edit.get("day") or edit.get("new_day") or "",
+                    "time_slot": edit.get("time") or edit.get("new_time") or "",
                 })
                 applied += 1
             else:
@@ -2834,9 +2900,70 @@ class RulesHandler(BaseHTTPRequestHandler):
                 payload = json.loads(body_raw)
                 user_msg = str(payload.get("message") or "").strip()
                 history = payload.get("history") or []
+                dashboard_ctx = payload.get("dashboard_context") or {}
                 if not user_msg:
                     self._send_json(400, {"error": "Empty message"})
                     return
+
+                # Detect if the instruction is a schedule modification request
+                edit_keywords = (
+                    "add", "create", "insert", "remove", "delete", "cancel", "drop",
+                    "swap", "replace", "substitute", "change", "move", "shift", "reschedule",
+                    "optimize", "optimise", "fix", "switch", "adjust", "update"
+                )
+                lower_msg = user_msg.lower()
+                is_edit_request = any(kw in lower_msg for kw in edit_keywords) and len(user_msg) >= 6
+
+                if is_edit_request:
+                    try:
+                        plan = _nl_edit_plan({"instruction": user_msg, "context": dashboard_ctx})
+                        if plan and not plan.get("error"):
+                            if plan.get("route_to_optimizer"):
+                                scope = plan.get("optimizer_scope") or {}
+                                opt_res = _optimize_schedule_request({
+                                    "iteration": "Main",
+                                    "location": scope.get("location") or dashboard_ctx.get("location") or "",
+                                    "day_of_week": scope.get("day") or "",
+                                    "time_slot": scope.get("time") or "",
+                                })
+                                if opt_res.get("ok"):
+                                    self._send_json(200, {
+                                        "reply": f"⚡ AI Optimizer executed successfully for {scope.get('location') or 'active studio'}. The schedule has been updated.",
+                                        "applied": True,
+                                        "edits": plan.get("edits") or [],
+                                    })
+                                    return
+                            elif plan.get("edits"):
+                                apply_res = _nl_edit_apply({"edits": plan["edits"], "iteration": "Main"})
+                                if apply_res.get("applied", 0) > 0:
+                                    summary = plan.get("summary") or "Schedule updated successfully."
+                                    edit_details = []
+                                    for e in plan["edits"]:
+                                        act = e.get("action", "edit")
+                                        loc = e.get("location", "")
+                                        d = e.get("new_day") or e.get("day") or ""
+                                        t = e.get("new_time") or e.get("time") or ""
+                                        c = e.get("new_class") or e.get("class_name") or ""
+                                        tr = e.get("new_trainer") or e.get("trainer_1") or ""
+                                        edit_details.append(f"• {act.upper()}: {c} with {tr} on {d} {t} at {loc}")
+                                    reply_msg = f"✅ Executed schedule changes:\n" + "\n".join(edit_details)
+                                    self._send_json(200, {
+                                        "reply": reply_msg,
+                                        "applied": True,
+                                        "edits": plan["edits"],
+                                        "summary": summary,
+                                    })
+                                    return
+                                elif plan.get("warnings"):
+                                    warn_text = "\n".join(plan["warnings"])
+                                    self._send_json(200, {
+                                        "reply": f"⚠️ Could not apply directly:\n{warn_text}",
+                                        "applied": False,
+                                        "pending_edits": plan["edits"],
+                                    })
+                                    return
+                    except Exception as plan_err:
+                        print(f"  [Chat Edit Exec Error] {plan_err}")
 
                 system_prompt = build_chat_context(
                     WEB_DIR / "schedule_data.json",
@@ -2845,7 +2972,7 @@ class RulesHandler(BaseHTTPRequestHandler):
                     user_msg,
                 )
 
-                # Try AI
+                # Standard conversational AI reply
                 try:
                     import sys
                     sys.path.insert(0, str(PROJECT_ROOT))
@@ -2855,7 +2982,6 @@ class RulesHandler(BaseHTTPRequestHandler):
                         return
                     client, settings = create_ai_client()
                     if not client:
-                        # Try reading an OpenAI key from schedule_config.
                         cfg_path = _schedule_config_path()
                         if cfg_path.exists():
                             try:
