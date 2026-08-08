@@ -8128,41 +8128,48 @@ function nlEditRender(result, instruction) {
       const trainer = edit.new_trainer || edit.trainer_1 || "?";
       const fromStr = (edit.action==="add" && (edit.new_day||edit.new_time)) ? ` (from ${edit.day||"?"} ${edit.time||"?"})` : "";
 
-      const trCandidates = edit.best_fit_trainer_candidates || [];
-      const clsCandidates = edit.best_fit_class_candidates || [];
+      // Only show up to 3 ranked candidates — the user must explicitly pick
+      // one before this edit is allowed to reach /api/nl-edit-apply.
+      const trCandidates = (edit.best_fit_trainer_candidates || []).slice(0, 3);
+      const clsCandidates = (edit.best_fit_class_candidates || []).slice(0, 3);
       const hasBestFit = trCandidates.length > 0 || clsCandidates.length > 0;
+      const pendingConfirmation = edit.needs_confirmation === true;
 
       let bestFitHtml = "";
       if (trCandidates.length > 0) {
         bestFitHtml += `<div class="nle-bestfit-wrap">
-          <div class="nle-bestfit-label">✨ Best-fit trainer — AI-ranked by fill rate, check-in & availability</div>
+          <div class="nle-bestfit-label">${pendingConfirmation ? "⚠ Choose a trainer to confirm this edit" : "✨ Best-fit trainer"} — AI-ranked by fill rate, check-in & availability</div>
           <select class="nle-bestfit-select" id="nle-tr-select-${editIdx}" onchange="nlEditSelectTrainer(${editIdx}, this.value)">
-            ${trCandidates.map((c,i) => `<option value="${rvEscapeHtml(c.name)}" ${i===0?"selected":""}>${rvEscapeHtml(c.name)} — ${c.avg_fill_rate}% fill · ${c.avg_checkin} avg · Tier ${c.tier}${c.available?"":" ⚠"}</option>`).join("")}
+            <option value="" ${pendingConfirmation ? "selected" : ""} disabled>Select a trainer…</option>
+            ${trCandidates.map((c,i) => `<option value="${rvEscapeHtml(c.name)}" ${(!pendingConfirmation && edit.new_trainer===c.name)?"selected":""}>${rvEscapeHtml(c.name)} — ${c.avg_fill_rate}% fill · ${c.avg_checkin} avg · Tier ${c.tier}${c.available?"":" ⚠"}</option>`).join("")}
           </select>
           <div class="nle-bestfit-cards">${trCandidates.map((c,i) => `
-            <div class="nle-cand-card ${i===0?"selected":""}" id="nle-tr-cand-${editIdx}-${i}" onclick="nlEditPickTrainer(${editIdx},${i})">
+            <div class="nle-cand-card ${(!pendingConfirmation && edit.new_trainer===c.name)?"selected":""}" id="nle-tr-cand-${editIdx}-${i}" onclick="nlEditPickTrainer(${editIdx},${i})">
               <div class="nle-cand-name">${rvEscapeHtml(c.name)}</div>
               <div class="nle-cand-meta">${c.avg_fill_rate}% fill · ${c.avg_checkin} check-in · ${c.session_count} sessions · Tier ${c.tier}${c.available?" ✓":" ⚠ avail?"}</div>
+              ${c.reason ? `<div class="nle-cand-reason">${rvEscapeHtml(c.reason)}</div>` : ""}
             </div>`).join("")}
           </div>
         </div>`;
       }
       if (clsCandidates.length > 0) {
         bestFitHtml += `<div class="nle-bestfit-wrap">
-          <div class="nle-bestfit-label">✨ Best-fit class — AI-ranked by historical performance for this slot</div>
+          <div class="nle-bestfit-label">${pendingConfirmation ? "⚠ Choose a class to confirm this edit" : "✨ Best-fit class"} — AI-ranked by historical performance for this slot</div>
           <select class="nle-bestfit-select" id="nle-cls-select-${editIdx}" onchange="nlEditSelectClass(${editIdx}, this.value)">
-            ${clsCandidates.map((c,i) => `<option value="${rvEscapeHtml(c.name)}" ${i===0?"selected":""}>${rvEscapeHtml(c.name)} — ${c.avg_fill_rate}% fill · ${c.avg_checkin} avg</option>`).join("")}
+            <option value="" ${pendingConfirmation ? "selected" : ""} disabled>Select a class…</option>
+            ${clsCandidates.map((c,i) => `<option value="${rvEscapeHtml(c.name)}" ${(!pendingConfirmation && edit.new_class===c.name)?"selected":""}>${rvEscapeHtml(c.name)} — ${c.avg_fill_rate}% fill · ${c.avg_checkin} avg</option>`).join("")}
           </select>
           <div class="nle-bestfit-cards">${clsCandidates.map((c,i) => `
-            <div class="nle-cand-card ${i===0?"selected":""}" id="nle-cls-cand-${editIdx}-${i}" onclick="nlEditPickClass(${editIdx},${i})">
+            <div class="nle-cand-card ${(!pendingConfirmation && edit.new_class===c.name)?"selected":""}" id="nle-cls-cand-${editIdx}-${i}" onclick="nlEditPickClass(${editIdx},${i})">
               <div class="nle-cand-name">${rvEscapeHtml(c.name)}</div>
               <div class="nle-cand-meta">${c.avg_fill_rate}% fill · ${c.avg_checkin} check-in · ${c.session_count} sessions</div>
+              ${c.reason ? `<div class="nle-cand-reason">${rvEscapeHtml(c.reason)}</div>` : ""}
             </div>`).join("")}
           </div>
         </div>`;
       }
 
-      html += `<div class="nle-edit-card ${edit.action}${hasBestFit?" has-bestfit":""}">
+      html += `<div class="nle-edit-card ${edit.action}${hasBestFit?" has-bestfit":""}${pendingConfirmation?" pending-confirmation":""}">
         <div class="nle-edit-badge">${icon}</div>
         <div class="nle-edit-info">
           <div class="nle-edit-title">${rvEscapeHtml(cls)} — ${rvEscapeHtml(trainer)}</div>
@@ -8189,8 +8196,22 @@ function nlEditRender(result, instruction) {
 
   body.innerHTML = html;
   if (footer) footer.style.display = "flex";
-  if (footerLeft) footerLeft.textContent = `${edits.length} change${edits.length!==1?"s":""} · ${warnings.length} warning${warnings.length!==1?"s":""}`;
-  if (applyBtn) applyBtn.disabled = edits.length === 0;
+  const pendingCount = edits.filter(nlEditIsPending).length;
+  if (footerLeft) footerLeft.textContent = `${edits.length} change${edits.length!==1?"s":""} · ${warnings.length} warning${warnings.length!==1?"s":""}${pendingCount ? ` · ${pendingCount} awaiting your pick` : ""}`;
+  nlEditUpdateApplyState();
+}
+
+// An edit is "pending" until the user has explicitly picked a candidate —
+// the BEST_FIT sentinel or needs_confirmation flag must never reach apply.
+function nlEditIsPending(edit) {
+  return edit.needs_confirmation === true || edit.new_trainer === "BEST_FIT" || edit.new_class === "BEST_FIT";
+}
+
+function nlEditUpdateApplyState() {
+  if (!_nleResult) return;
+  const edits = _nleResult.edits || [];
+  const applyBtn = document.getElementById("nle-apply-btn");
+  if (applyBtn) applyBtn.disabled = edits.length === 0 || edits.some(nlEditIsPending);
 }
 
 function nlEditRenderError(msg) {
@@ -8213,6 +8234,7 @@ function nlEditPickTrainer(editIdx, candIdx) {
   const chosen = cands[candIdx];
   if (!chosen) return;
   edit.new_trainer = chosen.name;
+  edit.needs_confirmation = false;
   // Update select
   const sel = document.getElementById(`nle-tr-select-${editIdx}`);
   if (sel) sel.value = chosen.name;
@@ -8221,6 +8243,7 @@ function nlEditPickTrainer(editIdx, candIdx) {
     const card = document.getElementById(`nle-tr-cand-${editIdx}-${i}`);
     if (card) card.classList.toggle("selected", i === candIdx);
   });
+  nlEditUpdateApplyState();
 }
 
 function nlEditPickClass(editIdx, candIdx) {
@@ -8231,12 +8254,14 @@ function nlEditPickClass(editIdx, candIdx) {
   const chosen = cands[candIdx];
   if (!chosen) return;
   edit.new_class = chosen.name;
+  edit.needs_confirmation = false;
   const sel = document.getElementById(`nle-cls-select-${editIdx}`);
   if (sel) sel.value = chosen.name;
   cands.forEach((_, i) => {
     const card = document.getElementById(`nle-cls-cand-${editIdx}-${i}`);
     if (card) card.classList.toggle("selected", i === candIdx);
   });
+  nlEditUpdateApplyState();
 }
 
 function nlEditSelectTrainer(editIdx, value) {
@@ -8244,11 +8269,13 @@ function nlEditSelectTrainer(editIdx, value) {
   const edit = (_nleResult.edits||[])[editIdx];
   if (!edit) return;
   edit.new_trainer = value;
+  edit.needs_confirmation = false;
   const cands = edit.best_fit_trainer_candidates || [];
   cands.forEach((c, i) => {
     const card = document.getElementById(`nle-tr-cand-${editIdx}-${i}`);
     if (card) card.classList.toggle("selected", c.name === value);
   });
+  nlEditUpdateApplyState();
 }
 
 function nlEditSelectClass(editIdx, value) {
@@ -8256,11 +8283,13 @@ function nlEditSelectClass(editIdx, value) {
   const edit = (_nleResult.edits||[])[editIdx];
   if (!edit) return;
   edit.new_class = value;
+  edit.needs_confirmation = false;
   const cands = edit.best_fit_class_candidates || [];
   cands.forEach((c, i) => {
     const card = document.getElementById(`nle-cls-cand-${editIdx}-${i}`);
     if (card) card.classList.toggle("selected", c.name === value);
   });
+  nlEditUpdateApplyState();
 }
 
 function nlEditConfirm() {
@@ -8268,13 +8297,25 @@ function nlEditConfirm() {
   const edits = _nleResult.edits || [];
   if (!edits.length) { nlEditClose(); return; }
 
-  // Bake in dropdown selections
+  // Bake in dropdown selections (only for edits the user has actually chosen —
+  // the placeholder option has an empty value so untouched pickers are skipped)
   edits.forEach((edit, idx) => {
     const trSel = document.getElementById(`nle-tr-select-${idx}`);
-    if (trSel && trSel.value) edit.new_trainer = trSel.value;
+    if (trSel && trSel.value) { edit.new_trainer = trSel.value; edit.needs_confirmation = false; }
     const clsSel = document.getElementById(`nle-cls-select-${idx}`);
-    if (clsSel && clsSel.value) edit.new_class = clsSel.value;
+    if (clsSel && clsSel.value) { edit.new_class = clsSel.value; edit.needs_confirmation = false; }
   });
+
+  // Hard safety net: an edit still carrying needs_confirmation or the literal
+  // "BEST_FIT" sentinel must never reach /api/nl-edit-apply — the user has to
+  // explicitly pick a candidate first.
+  const pending = edits.filter(nlEditIsPending);
+  const readyEdits = edits.filter(e => !nlEditIsPending(e));
+  if (pending.length) {
+    chatAppendMsg("bot", `⚠️ Pick a candidate for ${pending.length} pending edit${pending.length!==1?"s":""} before applying.`);
+    nlEditUpdateApplyState();
+    if (!readyEdits.length) return;
+  }
 
   // Disable apply button + show loading
   const applyBtn = document.getElementById("nle-apply-btn");
@@ -8286,7 +8327,7 @@ function nlEditConfirm() {
   schedulerFetch("/api/nl-edit-apply", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({edits, iteration}),
+    body: JSON.stringify({edits: readyEdits, iteration}),
   })
   .then(r => r.json())
   .then(result => {

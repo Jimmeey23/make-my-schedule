@@ -11472,6 +11472,13 @@ details.fp-section[open] .fp-section-hdr::after {
   margin-top: 2px
 }
 
+.nle-cand-reason {
+  font-size: 10px;
+  color: #7C3AED;
+  margin-top: 2px;
+  font-style: italic
+}
+
 /* loader inline overrides already handled in <head> */
 
 /* ============================================================ */

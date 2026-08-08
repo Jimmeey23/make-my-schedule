@@ -1071,17 +1071,17 @@ def parse_nl_schedule_edit(
                     edit_loc, edit_day, edit_time, edit_class,
                     metrics_path, profiles_path,
                 )
-                edit["new_trainer"] = candidates[0]["name"] if candidates else ""
                 edit["best_fit_trainer_candidates"] = candidates
                 edit["best_fit_type"] = "trainer"
+                edit["needs_confirmation"] = True
 
             if edit.get("new_class") == "BEST_FIT":
                 candidates = _find_best_fit_class(
                     edit_loc, edit_day, edit_time, edit_trainer,
                     metrics_path,
                 )
-                edit["new_class"] = candidates[0]["name"] if candidates else ""
                 edit["best_fit_class_candidates"] = candidates
                 edit["best_fit_type"] = "class"
+                edit["needs_confirmation"] = True
 
     return result
