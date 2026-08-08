@@ -11992,6 +11992,78 @@ details.fp-section[open] .fp-section-hdr::after {
   /* Dark green */
 }
 
+/* Multi-location grid — additional overrides for descendant elements
+   whose colors are set directly on themselves (not inherited from the
+   already-covered .ml-outer/.ml-hdr/.ml-day-fmt/.ml-loc-cell/.ml-time-col/.ml-day-th) */
+.theme-dark .ml-hdr-row2 {
+  border-top-color: var(--border-strong) !important;
+}
+
+.theme-dark .ml-time-col::after {
+  background: linear-gradient(180deg, transparent, var(--border-strong) 10%, var(--border-strong) 90%, transparent) !important;
+}
+
+.theme-dark .ml-day-th-name {
+  color: var(--text) !important;
+}
+
+.theme-dark .ml-day-th-count {
+  background: var(--primary-light) !important;
+  color: var(--primary) !important;
+}
+
+.theme-dark .ml-day-fmt-title {
+  color: var(--text-muted) !important;
+}
+
+.theme-dark .ml-day-fmt-item:hover {
+  background: var(--surface2) !important;
+}
+
+.theme-dark .ml-day-fmt-count {
+  background: var(--surface2) !important;
+  color: var(--text-2) !important;
+}
+
+.theme-dark .ml-loc-subhdr.kw,
+.theme-dark .ml-loc-subhdr.su,
+.theme-dark .ml-loc-subhdr.ke {
+  background: var(--surface) !important;
+  color: var(--text-2) !important;
+}
+
+.theme-dark .ml-body-row.has-classes {
+  background: var(--surface) !important;
+}
+
+.theme-dark .ml-body-row.no-classes {
+  background: var(--surface2) !important;
+}
+
+.theme-dark .ml-body-row:hover {
+  background: var(--surface2) !important;
+}
+
+.theme-dark .ml-time-cell.has-classes {
+  background: linear-gradient(135deg, var(--surface2), var(--primary-light)) !important;
+}
+
+.theme-dark .ml-time-cell.no-classes {
+  background: var(--surface) !important;
+}
+
+.theme-dark .ml-time-label {
+  color: var(--primary) !important;
+}
+
+.theme-dark .ml-time-label.no-classes {
+  color: var(--text-light) !important;
+}
+
+.theme-dark .ml-loc-cell.empty {
+  color: var(--border-strong) !important;
+}
+
 .theme-dark .heatmap-cell.warm {
   border-color: #FDE68A;
   background: #78350F;
@@ -12941,6 +13013,99 @@ details.fp-section[open] .fp-section-hdr::after {
 .theme-dark .hist-card-tag.drop {
   background: var(--red-light) !important;
   color: var(--red) !important;
+}
+
+.theme-dark .hist-drill-item {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: var(--border-strong) !important;
+}
+
+.theme-dark .hist-table-wrap {
+  background: var(--surface) !important;
+}
+
+.theme-dark .hist-row-action {
+  background: var(--surface) !important;
+  border-color: var(--border-strong) !important;
+}
+
+/* Top/bottom performers modal — modal-level tab bar and footer rows */
+.theme-dark .hist-modal-tabs {
+  background: var(--surface2) !important;
+  border-bottom-color: var(--border-strong) !important;
+}
+
+.theme-dark .hist-modal-tab {
+  color: var(--text-muted) !important;
+}
+
+.theme-dark .hist-modal-tab:hover {
+  background: var(--surface) !important;
+  border-color: var(--border-strong) !important;
+  color: var(--text) !important;
+}
+
+.theme-dark .hist-modal-tab.active {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--bg) !important;
+}
+
+.theme-dark .hist-modal-table tfoot td,
+.theme-dark .drill-session-table tfoot td {
+  background: var(--surface2) !important;
+  border-top-color: var(--border-strong) !important;
+  color: var(--text) !important;
+}
+
+/* Class compliance report modal (renderReport / .cr-*) — the modal shell
+   (.cr-modal, .cr-modal-hdr, .cr-modal-body, .cr-loc-tabs, etc.) already
+   uses var(--surface)/var(--text)/var(--border) and inherits the dark
+   palette via .modal-box coverage above. Only the pass/warn/fail status
+   colors are hardcoded light pastels and need explicit dark equivalents. */
+.theme-dark .cr-sum-card.cr-pass,
+.theme-dark .cr-rule.cr-pass,
+.theme-dark .cr-slot-row.cr-pass {
+  background: var(--green-light) !important;
+  border-color: var(--green) !important;
+}
+
+.theme-dark .cr-sum-card.cr-warn,
+.theme-dark .cr-rule.cr-warn,
+.theme-dark .cr-slot-row.cr-warn {
+  background: var(--prime-light) !important;
+  border-color: var(--prime) !important;
+}
+
+.theme-dark .cr-sum-card.cr-fail,
+.theme-dark .cr-rule.cr-fail,
+.theme-dark .cr-slot-row.cr-fail {
+  background: var(--red-light) !important;
+  border-color: var(--red) !important;
+}
+
+.theme-dark .cr-sum-card.cr-pass .cr-sum-val,
+.theme-dark .cr-rule.cr-pass .cr-rule-icon,
+.theme-dark .cr-slot-score.cr-pass {
+  color: var(--green) !important;
+}
+
+.theme-dark .cr-sum-card.cr-warn .cr-sum-val,
+.theme-dark .cr-rule.cr-warn .cr-rule-icon,
+.theme-dark .cr-slot-score.cr-warn {
+  color: var(--prime) !important;
+}
+
+.theme-dark .cr-sum-card.cr-fail .cr-sum-val,
+.theme-dark .cr-rule.cr-fail .cr-rule-icon,
+.theme-dark .cr-slot-score.cr-fail {
+  color: var(--red) !important;
+}
+
+.theme-dark .cr-viol-badge {
+  background: var(--red-light) !important;
+  color: var(--red) !important;
+  border-color: var(--red) !important;
 }
 
 /* Control center modal — settings skin */
