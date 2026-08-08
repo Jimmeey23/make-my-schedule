@@ -4263,12 +4263,13 @@ function reportAiRunStatus(d){
   sessionStorage.setItem("last_ai_run_status", JSON.stringify(d));
   const usedGreedy=d.planner_mode==="greedy_fallback"||d.ai_planned===false;
   const repaired=Array.isArray(d.repaired_locations)?d.repaired_locations:[];
+  const pct=(typeof d.ai_fraction==="number")?Math.round(d.ai_fraction*100)+"% AI-curated":"";
   if(usedGreedy){
     showToast("Generated with greedy fallback, not AI — check AI API key/model in Control Center","warn",6500);
   }else if(repaired.length){
-    showToast("AI-generated, but greedy-repaired for: "+repaired.join(", "),"warn",6500);
+    showToast("AI-generated"+(pct?" ("+pct+")":"")+", topped up with greedy for: "+repaired.join(", "),"warn",6500);
   }else if(d.planner_mode==="ai"){
-    showToast("Generated with AI ("+((d.ai_models||[])[0]||"model")+")","",3500);
+    showToast("Generated with AI ("+((d.ai_models||[])[0]||"model")+(pct?", "+pct:"")+")","",3500);
   }
 }
 

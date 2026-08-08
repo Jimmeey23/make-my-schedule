@@ -1125,6 +1125,8 @@ def _latest_ai_run_status() -> dict:
         "ai_models": [],
         "repaired_locations": [],
         "created_at": None,
+        "ai_fraction": None,
+        "location_yield": {},
     }
     runs_path = STATE_DIR / "ai_runs.jsonl"
     if runs_path.exists():
@@ -1136,6 +1138,8 @@ def _latest_ai_run_status() -> dict:
                 result["ai_models"] = last.get("models") or []
                 result["repaired_locations"] = last.get("repaired_locations") or []
                 result["created_at"] = last.get("created_at")
+                result["ai_fraction"] = last.get("ai_fraction")
+                result["location_yield"] = last.get("location_yield") or {}
         except Exception:
             pass
     draft_path = STATE_DIR / "05_draft_schedule.json"
@@ -1148,6 +1152,10 @@ def _latest_ai_run_status() -> dict:
             ai_run = draft.get("ai_run") or {}
             if ai_run.get("planner_mode") and not result["planner_mode"]:
                 result["planner_mode"] = ai_run.get("planner_mode")
+            if ai_run.get("location_yield") and not result["location_yield"]:
+                result["location_yield"] = ai_run.get("location_yield")
+            if ai_run.get("ai_fraction") is not None and result["ai_fraction"] is None:
+                result["ai_fraction"] = ai_run.get("ai_fraction")
         except Exception:
             pass
     return result

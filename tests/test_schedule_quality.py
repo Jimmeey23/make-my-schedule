@@ -363,7 +363,7 @@ def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_invalid(tmp
     with pytest.raises(RuntimeError, match="could not produce a valid AI plan"):
         planner.run()
 
-    assert calls == ["gpt-5.4-mini"]
+    assert calls and set(calls) == {"gpt-5.4-mini"}
 
 
 def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_partial(tmp_path, monkeypatch):
@@ -444,7 +444,7 @@ def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_partial(tmp
     with pytest.raises(RuntimeError, match="could not produce a valid AI plan"):
         planner.run()
 
-    assert calls == ["gpt-5.4-mini"]
+    assert calls and set(calls) == {"gpt-5.4-mini"}
 
 
 def test_ai_planner_selects_best_valid_variant_when_enabled(tmp_path, monkeypatch):
@@ -463,6 +463,7 @@ def test_ai_planner_selects_best_valid_variant_when_enabled(tmp_path, monkeypatc
     monkeypatch.setenv("SCHEDULER_FORCE_AI_ONLY", "1")
     monkeypatch.setenv("SCHEDULER_AI_VARIANTS_PER_LOCATION", "2")
     monkeypatch.setattr(ai_planner_module, "OPENAI_AVAILABLE", True)
+    monkeypatch.setattr(ai_planner_module, "DAY_NAMES", ["Monday"])
     monkeypatch.setattr(
         ai_planner_module,
         "create_ai_client",
@@ -522,9 +523,12 @@ def test_ai_planner_selects_best_valid_variant_when_enabled(tmp_path, monkeypatc
 
     output = AISchedulePlanner(target_week_start="2026-05-04", locations=["Kenkere House"]).run()
 
-    assert len(calls) == 2
+    # AM shift tries both variants (variant 2 wins on quality); PM shift also tries both
+    # variants but "Trainer B" is now excluded (already worked AM), so it contributes nothing.
+    assert len(calls) == 4
     assert "AI VARIANT 1/2" in calls[0]
     assert "AI VARIANT 2/2" in calls[1]
+    assert all(s["trainer_1"] == "Trainer B" for s in output["schedule"])
     assert output["schedule"][0]["trainer_1"] == "Trainer B"
     assert output["ai_run"]["variant_count"] == 2
 
@@ -5677,7 +5681,7 @@ def test_ai_only_repairs_invalid_location_plan_instead_of_failing(tmp_path, monk
     monkeypatch.setattr(
         AISchedulePlanner,
         "_fallback_location",
-        lambda self, location, scores_data, profiles_by_name: [repaired_slot],
+        lambda self, location, scores_data, profiles_by_name, ai_slots=None: [repaired_slot],
     )
 
     planner = AISchedulePlanner(
@@ -5690,7 +5694,7 @@ def test_ai_only_repairs_invalid_location_plan_instead_of_failing(tmp_path, monk
     assert output["schedule"][0]["trainer_1"] == "Trainer A"
     assert output["ai_planned"] is True
     assert output["ai_repaired_locations"] == ["Kwality House, Kemps Corner"]
-    assert "only 0 slots parsed" in output["parse_errors"][0]
+    assert "produced 0 slots" in output["parse_errors"][0]
 
 
 def test_ai_repair_uses_single_global_repair_for_multiple_locations(tmp_path, monkeypatch):
@@ -5742,7 +5746,7 @@ def test_ai_repair_uses_single_global_repair_for_multiple_locations(tmp_path, mo
         lambda self, client, model_name, system_prompt, user_prompt, location, max_tokens=None: '{"schedule":[]}',
     )
 
-    def local_conflicting_repair(self, location, scores_data, profiles_by_name):
+    def local_conflicting_repair(self, location, scores_data, profiles_by_name, ai_slots=None):
         return [PlannedSlot(
             location=location,
             date="2026-05-04",
@@ -5759,7 +5763,7 @@ def test_ai_repair_uses_single_global_repair_for_multiple_locations(tmp_path, mo
             constraint_violations=[],
         )]
 
-    def global_non_conflicting_repair(self, repair_locations, scores_data, profiles_by_name):
+    def global_non_conflicting_repair(self, repair_locations, scores_data, profiles_by_name, ai_slots_by_location=None):
         global_repair_calls.append(tuple(repair_locations))
         return [
             PlannedSlot(
@@ -5866,13 +5870,13 @@ def test_openai_structural_underfill_repairs_without_backup_model(tmp_path, monk
     monkeypatch.setattr(
         AISchedulePlanner,
         "_fallback_location",
-        lambda self, location, scores_data, profiles_by_name: [repaired_slot],
+        lambda self, location, scores_data, profiles_by_name, ai_slots=None: [repaired_slot],
     )
 
     planner = AISchedulePlanner(target_week_start="2026-05-04", locations=["Kenkere House"])
     output = planner.run()
 
-    assert calls == ["gpt-5.4-mini"]
+    assert calls and set(calls) == {"gpt-5.4-mini"}
     assert output["schedule"][0]["rationale"] == "greedy_fallback"
 
 

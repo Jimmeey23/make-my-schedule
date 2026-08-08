@@ -1,1 +1,1 @@
-{"running": false, "status": "done", "pid": null, "started": 1786182271.4450161, "message": "Complete \u2014 reload to see new schedule."}
+{"running": true, "status": "running", "pid": 74815, "started": 1786187872.784863, "message": "Optimising schedule \u2014 Courtside Thursday AM requesting gpt-5.4-mini variant 1/2..."}

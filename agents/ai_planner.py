@@ -284,44 +284,7 @@ def _build_system_prompt(profiles: list, rules_catalog: dict) -> str:
 # Per-location user prompt — historical data + targets + format spec
 # ---------------------------------------------------------------------------
 
-def _build_location_prompt(location: str, week_start: str,
-                            scores_data: dict, metrics_data: dict,
-                            profiles: list = None) -> str:
-    from datetime import date, timedelta
-    week_date = date.fromisoformat(week_start)
-    day_to_date = {d: (week_date + timedelta(days=i)).isoformat() for i, d in enumerate(DAY_NAMES)}
-
-    ranking = scores_data.get("class_slot_ranking", [])
-    trainer_metrics = metrics_data.get("trainer_metrics", [])
-    day_band = metrics_data.get("day_band_metrics", [])
-    profiles_by_name = {p.get("name"): p for p in (profiles or []) if p.get("name")}
-    disabled_trainers = _disabled_trainer_names(profiles_by_name)
-
-    # Top performers for this location (fill ≥ 28%, trainer ran ≥ 5 sessions)
-    # Sort by blended score first, then by recency-boosted score
-    loc_top = [
-        r for r in ranking
-        if r["location"] == location
-        and normalize_trainer_name(r.get("trainer")) not in disabled_trainers
-        and r.get("avg_fill_rate", 0) >= 0.28
-        and (r.get("trainer_total_sessions") or r.get("session_count", 0)) >= 5
-    ]
-    loc_top.sort(key=lambda x: (-x["score"], -x.get("avg_fill_rate", 0)))
-
-    # Bottom combos to avoid (fill < 22%, trainer ran ≥ 5 sessions)
-    loc_avoid = [
-        r for r in ranking
-        if r["location"] == location
-        and normalize_trainer_name(r.get("trainer")) not in disabled_trainers
-        and r.get("avg_fill_rate", 0) < 0.22
-        and (r.get("trainer_total_sessions") or r.get("session_count", 0)) >= 5
-    ]
-    loc_avoid.sort(key=lambda x: x.get("avg_fill_rate", 0))
-
-    # Trainer performance at this location
-    loc_trainers = [t for t in trainer_metrics if t["location"] == location]
-    loc_trainers.sort(key=lambda x: -x.get("trainer_avg_checkin", 0))
-
+def _day_target_ranges(location: str) -> Dict[str, Tuple[int, int]]:
     base_targets = DAILY_TARGETS.get(location, {d: 7 for d in DAY_NAMES}).copy()
     target_ranges = {day: (int(value), int(value)) for day, value in base_targets.items()}
     schedule_config_path = CONFIG_DIR / "schedule_config.json"
@@ -342,6 +305,53 @@ def _build_location_prompt(location: str, week_start: str,
                     target_ranges[day] = (lo, hi)
         except Exception:
             pass
+    return target_ranges
+
+
+def _location_performance_context(location: str, ranking: list, disabled_trainers: set) -> Tuple[list, list]:
+    # Top performers for this location (fill ≥ 28%, trainer ran ≥ 5 sessions)
+    # Sort by blended score first, then by recency-boosted score
+    loc_top = [
+        r for r in ranking
+        if r["location"] == location
+        and normalize_trainer_name(r.get("trainer")) not in disabled_trainers
+        and r.get("avg_fill_rate", 0) >= 0.28
+        and (r.get("trainer_total_sessions") or r.get("session_count", 0)) >= 5
+    ]
+    loc_top.sort(key=lambda x: (-x["score"], -x.get("avg_fill_rate", 0)))
+
+    # Bottom combos to avoid (fill < 22%, trainer ran ≥ 5 sessions)
+    loc_avoid = [
+        r for r in ranking
+        if r["location"] == location
+        and normalize_trainer_name(r.get("trainer")) not in disabled_trainers
+        and r.get("avg_fill_rate", 0) < 0.22
+        and (r.get("trainer_total_sessions") or r.get("session_count", 0)) >= 5
+    ]
+    loc_avoid.sort(key=lambda x: x.get("avg_fill_rate", 0))
+    return loc_top, loc_avoid
+
+
+def _build_location_prompt(location: str, week_start: str,
+                            scores_data: dict, metrics_data: dict,
+                            profiles: list = None) -> str:
+    from datetime import date, timedelta
+    week_date = date.fromisoformat(week_start)
+    day_to_date = {d: (week_date + timedelta(days=i)).isoformat() for i, d in enumerate(DAY_NAMES)}
+
+    ranking = scores_data.get("class_slot_ranking", [])
+    trainer_metrics = metrics_data.get("trainer_metrics", [])
+    day_band = metrics_data.get("day_band_metrics", [])
+    profiles_by_name = {p.get("name"): p for p in (profiles or []) if p.get("name")}
+    disabled_trainers = _disabled_trainer_names(profiles_by_name)
+
+    loc_top, loc_avoid = _location_performance_context(location, ranking, disabled_trainers)
+
+    # Trainer performance at this location
+    loc_trainers = [t for t in trainer_metrics if t["location"] == location]
+    loc_trainers.sort(key=lambda x: -x.get("trainer_avg_checkin", 0))
+
+    target_ranges = _day_target_ranges(location)
     slots = LOCATION_SLOTS.get(location, {"am": [], "pm": []})
 
     lines = [
@@ -441,6 +451,150 @@ def _build_location_prompt(location: str, week_start: str,
         "TRAINER LOAD: One trainer may work only one shift per day, one location per shift, and no more than 4 assigned hours in a day. Tier 1 trainers should land near 13-15h where feasible and never exceed 15h/week.",
         "LOW-PERFORMER BLOCK: Do not schedule proven weak class/trainer/slot histories. Any option with repeated history below 3 average check-ins or below 22% fill is a rejection, not a fallback.",
     ]
+
+    return "\n".join(lines)
+
+
+def _max_tokens_for_day(day_target_hi: int) -> int:
+    target = max(1, int(day_target_hi or 7))
+    return max(900, min(3000, int(target * 110) + 500))
+
+
+def _build_day_prompt(location: str, day: str, week_start: str,
+                       scores_data: dict, metrics_data: dict,
+                       profiles: list, accepted_so_far: List["PlannedSlot"],
+                       shift: Optional[str] = None) -> str:
+    """Single-day (optionally single-shift) version of _build_location_prompt.
+
+    Generating one shift of one day at a time keeps the model's constraint-tracking
+    window small (a handful of slots instead of a full week), which is what actually
+    stops it from double-booking a trainer AM+PM or overrunning a weekly cap it lost
+    track of. Trainers who are already exhausted for the week, or already booked the
+    other shift today, must be excluded from the `profiles` list the *caller* passes
+    in (both here and in the paired _build_system_prompt call) — telling the model
+    "don't use X" in text is not reliable enough on its own; removing X from every
+    roster it can see is. `_enforce_hard_limits` still runs afterward as the source
+    of truth.
+    """
+    from datetime import date, timedelta
+    week_date = date.fromisoformat(week_start)
+    day_to_date = {d: (week_date + timedelta(days=i)).isoformat() for i, d in enumerate(DAY_NAMES)}
+
+    ranking = scores_data.get("class_slot_ranking", [])
+    profiles_by_name = {p.get("name"): p for p in (profiles or []) if p.get("name")}
+    disabled_trainers = _disabled_trainer_names(profiles_by_name)
+    loc_top, loc_avoid = _location_performance_context(location, ranking, disabled_trainers)
+
+    lo, hi = _day_target_ranges(location).get(day, (7, 7))
+    slots = LOCATION_SLOTS.get(location, {"am": [], "pm": []})
+
+    trainer_minutes_used: Dict[str, int] = {}
+    trainer_days_worked: Dict[str, Set[str]] = {}
+    for slot in accepted_so_far:
+        key = normalize_trainer_name(slot.trainer_1)
+        trainer_minutes_used[key] = trainer_minutes_used.get(key, 0) + int(
+            slot.duration_min or get_class_duration(slot.class_name)
+        )
+        trainer_days_worked.setdefault(key, set()).add(slot.day_of_week)
+
+    shift_label = {"AM": "AM (morning) ", "PM": "PM (evening) "}.get(shift, "")
+    scope_note = f" — {day} {shift_label}only" if shift else f" — {day} only"
+    am_count, pm_count = len(slots["am"]), len(slots["pm"])
+    am_share = (am_count / (am_count + pm_count)) if (am_count + pm_count) else 0.5
+    if shift == "AM":
+        target_lo, target_hi = max(0, round(lo * am_share)), max(0, round(hi * am_share))
+        time_lines = [f"  AM: {', '.join(slots['am'])}"]
+    elif shift == "PM":
+        target_lo, target_hi = max(0, lo - round(lo * am_share)), max(0, hi - round(hi * am_share))
+        time_lines = [f"  PM: {', '.join(slots['pm'])}"]
+    else:
+        target_lo, target_hi = lo, hi
+        time_lines = [f"  AM: {', '.join(slots['am'])}", f"  PM: {', '.join(slots['pm'])}"]
+
+    lines = [
+        f"## Build schedule for: {location}{scope_note}",
+        f"Date: {day_to_date[day]}",
+        "",
+        f"### Target class count for this call: {target_lo if target_lo == target_hi else f'{target_lo}-{target_hi}'}",
+        "Do not force the lower bound if fewer high-quality qualified combinations are available; do not exceed the upper bound.",
+        "",
+        "### Available time slots for this call:",
+    ] + time_lines
+
+    allowed_classes = LOCATION_ALLOWED_CLASSES.get(location)
+    if allowed_classes:
+        lines += ["", "### Allowed class names for this location (use only these exact names):"]
+        for class_name in allowed_classes:
+            lines.append(f"  {class_name}")
+
+    if profiles:
+        rules_config = load_rules_config()
+        trainer_specific_on = bool(rules_config.get("categories", {}).get("trainer_specific", {}).get("enabled", False))
+        avail_header = (
+            "### TRAINER AVAILABILITY TODAY — HARD LOCKS (only schedule trainers listed below):"
+            if trainer_specific_on else
+            "### TRAINER AVAILABILITY TODAY — default preference (respect unless strong historical reason):"
+        )
+        lines += ["", avail_header]
+        any_listed = False
+        for p in profiles:
+            name = p.get("name")
+            key = normalize_trainer_name(name)
+            if key in disabled_trainers:
+                continue
+            loc_data = p.get("locations", {}).get(location)
+            if not loc_data:
+                continue
+            avail = loc_data.get("available_days") or []
+            if avail and day not in avail:
+                continue
+            tier = p.get("tier", 3)
+            max_mins = _MAX_T1() if tier == 1 else (_MAX_T2() if tier == 2 else _MAX_T3())
+            used = trainer_minutes_used.get(key, 0)
+            remaining = max_mins - used
+            if remaining < 30:
+                continue
+            worked_days = trainer_days_worked.get(key, set())
+            if day not in worked_days and len(worked_days) >= _MAX_WORK_DAYS():
+                continue
+            tw = loc_data.get("time_window") or {}
+            window = f"{tw.get('start','07:00')}-{tw.get('end','20:00')}"
+            max_d = loc_data.get("max_classes_per_day") or 3
+            lines.append(
+                f"  [T{tier}] {name}: window={window} | max={max_d}/day | remaining this week≈{remaining // 60}h{remaining % 60:02d}m"
+            )
+            any_listed = True
+        if not any_listed:
+            lines.append("  (no roster restrictions saved — use certification and history to choose trainers)")
+
+    lines += ["", "### TOP PERFORMERS — class|trainer|day@time|fill|score|n (use these where the day/time matches):"]
+    for r in loc_top[:30]:
+        day_name = DAY_NAMES[r["day"]] if isinstance(r.get("day"), int) and 0 <= r["day"] <= 6 else r.get("day_name", "?")
+        n = r.get("trainer_total_sessions") or r.get("session_count", 0)
+        lines.append(f"  {r['class']}|{r['trainer']}|{day_name}@{r['time']}|{r['avg_fill_rate']:.0%}|{r['score']:.0f}|{n}")
+
+    if loc_avoid:
+        lines += ["", "### AVOID (fill<22%, ≥5 sessions):"]
+        for r in loc_avoid[:12]:
+            day_name = DAY_NAMES[r["day"]] if isinstance(r.get("day"), int) and 0 <= r["day"] <= 6 else r.get("day_name", "?")
+            lines.append(f"  {r['class']}|{r['trainer']}|{day_name}@{r['time']}|{r['avg_fill_rate']:.0%}")
+
+    lines += [
+        "",
+        "Return JSON only — no markdown, no explanation.",
+        f'Schema: {{"location":"...","day":"{day}","schedule":[{{"day":"{day}","time":"08:30","class":"Studio Barre 57","trainer":"Trainer Name","cover":"Cover Trainer"}},...]}}',
+        "",
+        f"CRITICAL: {day}{(' ' + shift_label + 'slots') if shift else ''} only — do not include other days{' or the other shift' if shift else ''}. Use exact class/trainer names from above. Every slot needs a cover trainer.",
+        "HARD RULE: a trainer may appear in AM or PM today, never both. A trainer may not have two overlapping or back-to-back-over-cap classes today.",
+        "PRIORITY 1 — ATTENDANCE & FILL RATE: prioritize historical attendance/fill rate above all else. Preserve high-draw pairings (>50% fill).",
+        "PRIORITY 2 — CLASS & LEVEL MIX: maintain format variety and balanced difficulty progression across today's slots.",
+        "LOW-PERFORMER BLOCK: do not schedule proven weak class/trainer/slot histories (below 3 avg check-ins or below 22% fill).",
+    ]
+    if location in ("Kwality House, Kemps Corner", "Supreme HQ, Bandra"):
+        lines.append(
+            "MUMBAI PARALLEL PEAKS: actively use parallel-room starts in 08:00/08:15/08:30/08:45, "
+            "11:00/11:15/11:30/11:45, and 18:00/18:15/18:30/18:45 clusters where rooms and trainers allow."
+        )
 
     return "\n".join(lines)
 
@@ -1356,64 +1510,92 @@ class AISchedulePlanner:
         all_errors: List[str] = []
         repaired_locations: List[str] = []
 
-        # Build all prompts up front
-        user_prompts = {
-            loc: _build_location_prompt(loc, self.target_week_start, scores_data, metrics_data, profiles)
-            for loc in self.locations
-        }
         variant_count = _ai_variant_count()
+        attempt_model = model_sequence[0]
 
         def _plan_location(location: str):
-            attempts = []
-            max_tokens = _max_tokens_for_location(location)
-            candidates = []
-            min_slots = _minimum_ai_slot_count_for_location(location)
-            for variant_idx in range(variant_count):
-                variant_prompt = _variant_location_prompt(
-                    user_prompts[location],
-                    variant_idx,
-                    variant_count,
-                    int(self.variation_seed or 0),
-                )
-                for attempt_idx, attempt_model in enumerate(model_sequence):
-                    label = f" variant {variant_idx + 1}/{variant_count}" if variant_count > 1 else ""
-                    print(f"  [Agent 5] {location.split(',')[0]} requesting {attempt_model}{label}...", flush=True)
-                    raw = self._call_model(client, attempt_model, system_prompt, variant_prompt, location, max_tokens=max_tokens)
-                    if raw is None:
-                        detail = self._ai_call_errors.get((location, attempt_model), "call failed")
-                        attempts.append(f"{location}: {attempt_model} {detail}")
-                        continue
+            attempts: List[str] = []
+            day_ranges = _day_target_ranges(location)
+            accepted: List[PlannedSlot] = []
 
-                    slots, errors = _parse_schedule_response(
-                        raw, location, self.target_week_start, profiles_by_name
+            for day in DAY_NAMES:
+                lo, _hi = day_ranges.get(day, (7, 7))
+                day_min = max(1, int(round(lo * 0.7))) if lo else 0
+                day_accepted: List[PlannedSlot] = []
+                excluded_names: set = set()
+
+                for shift in ("AM", "PM"):
+                    shift_profiles = [
+                        p for p in profiles
+                        if normalize_trainer_name(p.get("name")) not in excluded_names
+                    ]
+                    shift_system_prompt = (
+                        system_prompt if not excluded_names
+                        else _build_system_prompt(shift_profiles, rules_catalog)
                     )
-                    if len(slots) < min_slots:
-                        attempts.append(
-                            f"{location}: {attempt_model} variant {variant_idx + 1} only {len(slots)} slots parsed; need {min_slots}"
-                        )
-                        attempts.extend(errors[:2])
-                        continue
+                    best_day_slots = day_accepted
+                    best_quality = _candidate_quality([s for s in day_accepted if s.day_of_week == day])
 
-                    slots = _validate_slots(slots, location, profiles_by_name)
-                    # Score & drop low-performers BEFORE enforcing hard limits, so trainer
-                    # hour budgets aren't consumed by slots that will be discarded.
-                    slots = _score_slots(slots, scores_data)
-                    slots = [slot for slot in slots if not any("LOW-PERFORMER" in v for v in (slot.constraint_violations or []))]
-                    slots = _enforce_hard_limits(slots, location, profiles_by_name)
-                    if not _has_enough_slots_after_enforcement(location, slots):
-                        attempts.append(
-                            f"{location}: {attempt_model} variant {variant_idx + 1} only {len(slots)} slots remained after hard-limit enforcement"
+                    for variant_idx in range(variant_count):
+                        shift_prompt = _build_day_prompt(
+                            location, day, self.target_week_start, scores_data, metrics_data,
+                            shift_profiles, accepted + day_accepted, shift=shift,
                         )
-                        attempts.extend(errors[:2])
-                        continue
-                    if attempt_model != model_sequence[0]:
-                        attempts.append(f"{location}: recovered with backup model {attempt_model}")
-                    candidates.append((_candidate_quality(slots), slots, attempts + errors))
-                    break
-            if candidates:
-                candidates.sort(key=lambda item: item[0], reverse=True)
-                return location, candidates[0][1], candidates[0][2]
-            return location, None, attempts or [f"{location}: AI call failed"]
+                        if variant_count > 1:
+                            shift_prompt = _variant_location_prompt(
+                                shift_prompt, variant_idx, variant_count, int(self.variation_seed or 0)
+                            )
+                        label = f" variant {variant_idx + 1}/{variant_count}" if variant_count > 1 else ""
+                        call_tag = f"{location} {day} {shift}"
+                        print(f"  [Agent 5] {location.split(',')[0]} {day} {shift} requesting {attempt_model}{label}...", flush=True)
+                        raw = self._call_model(
+                            client, attempt_model, shift_system_prompt, shift_prompt, call_tag,
+                            max_tokens=_max_tokens_for_day(_hi),
+                        )
+                        if raw is None:
+                            detail = self._ai_call_errors.get((call_tag, attempt_model), "call failed")
+                            attempts.append(f"{call_tag}: {attempt_model} {detail}")
+                            continue
+
+                        new_slots, errors = _parse_schedule_response(
+                            raw, location, self.target_week_start, profiles_by_name
+                        )
+                        new_slots = [
+                            s for s in new_slots
+                            if s.day_of_week == day and normalize_trainer_name(s.trainer_1) not in excluded_names
+                        ]
+                        if not new_slots:
+                            attempts.append(f"{call_tag}: {attempt_model} variant {variant_idx + 1} produced 0 slots")
+                            attempts.extend(errors[:2])
+                            continue
+
+                        new_slots = _validate_slots(new_slots, location, profiles_by_name)
+                        new_slots = _score_slots(new_slots, scores_data)
+                        new_slots = [
+                            s for s in new_slots
+                            if not any("LOW-PERFORMER" in v for v in (s.constraint_violations or []))
+                        ]
+                        combined = _enforce_hard_limits(
+                            accepted + day_accepted + new_slots, location, profiles_by_name
+                        )
+                        candidate_day_slots = [s for s in combined if s.day_of_week == day]
+                        quality = _candidate_quality(candidate_day_slots)
+                        if quality > best_quality:
+                            best_quality = quality
+                            best_day_slots = candidate_day_slots
+                        if len(candidate_day_slots) >= day_min:
+                            break
+
+                    day_accepted = best_day_slots
+                    excluded_names = {normalize_trainer_name(s.trainer_1) for s in day_accepted}
+
+                accepted = [s for s in accepted if s.day_of_week != day] + day_accepted
+
+            min_slots = _minimum_ai_slot_count_for_location(location)
+            shortfall = len(accepted) < min_slots
+            if shortfall:
+                attempts.append(f"{location}: only {len(accepted)} slots after per-day generation; need {min_slots}")
+            return location, accepted, attempts, shortfall
 
         max_workers = _location_parallelism(model_sequence, len(self.locations))
         print(f"  [Agent 5] Calling {', '.join(model_sequence)} in parallel ({max_workers} workers) for {len(self.locations)} locations...")
@@ -1425,35 +1607,46 @@ class AISchedulePlanner:
             for future in as_completed(futures):
                 loc_name = futures[future]
                 try:
-                    location, slots, errors = future.result()
+                    location, slots, errors, shortfall = future.result()
                 except Exception as exc:
-                    location, slots, errors = loc_name, None, [f"{loc_name}: worker crashed: {exc}"]
+                    location, slots, errors, shortfall = loc_name, [], [f"{loc_name}: worker crashed: {exc}"], True
                 done_count += 1
-                status = "ok" if slots is not None else "needs repair"
+                status = "ok" if not shortfall else "needs repair"
                 print(f"  [Agent 5] [{done_count}/{total}] {loc_name} — {status}", flush=True)
-                results[location] = (slots, errors)
+                results[location] = (slots, errors, shortfall)
 
         repair_targets = []
         for location in self.locations:
-            slots, errors = results[location]
+            slots, errors, shortfall = results[location]
             if errors:
                 for e in errors[:3]:
                     print(f"    [PARSE] {e}")
                 all_errors.extend(errors)
-            if slots is None:
+            if shortfall:
                 repair_targets.append(location)
 
+        location_yield: Dict[str, dict] = {}
         if repair_targets:
             repair_scope = list(self.locations) if len(repair_targets) > 1 else list(repair_targets)
             print(
                 f"  [Agent 5] Repairing {len(repair_targets)} location(s) with shared optimiser: "
                 f"{', '.join(repair_scope)}"
             )
+            # Thread the AI's already-accepted slots through as pins so the greedy
+            # optimiser fills only the gap instead of discarding valid AI-curated
+            # slots just because the location as a whole fell short of the floor.
+            ai_slots_by_location = {loc: (results.get(loc, ([], [], False))[0] or []) for loc in repair_scope}
             try:
                 if len(repair_scope) == 1:
-                    repaired_slots = self._fallback_location(repair_scope[0], scores_data, profiles_by_name)
+                    repaired_slots = self._fallback_location(
+                        repair_scope[0], scores_data, profiles_by_name,
+                        ai_slots=ai_slots_by_location[repair_scope[0]],
+                    )
                 else:
-                    repaired_slots = self._fallback_locations(repair_scope, scores_data, profiles_by_name)
+                    repaired_slots = self._fallback_locations(
+                        repair_scope, scores_data, profiles_by_name,
+                        ai_slots_by_location=ai_slots_by_location,
+                    )
             except Exception as exc:
                 print(f"    [REPAIR] shared optimiser crashed: {exc}")
                 repaired_slots = []
@@ -1462,20 +1655,29 @@ class AISchedulePlanner:
                 if slot.location in repaired_by_location:
                     repaired_by_location[slot.location].append(slot)
             for loc in repair_scope:
-                previous_errors = results.get(loc, (None, []))[1]
+                previous_errors = results.get(loc, ([], [], False))[1]
                 loc_slots = repaired_by_location.get(loc, [])
-                results[loc] = (loc_slots, previous_errors)
+                results[loc] = (loc_slots, previous_errors, False)
                 if loc not in repaired_locations:
                     repaired_locations.append(loc)
-                print(f"    [REPAIR] {loc} — {len(loc_slots)} slots from shared greedy fallback", flush=True)
+                ai_kept = sum(1 for s in loc_slots if s.rationale == "ai")
+                greedy_filled = len(loc_slots) - ai_kept
+                location_yield[loc] = {"ai_slots": ai_kept, "greedy_slots": greedy_filled, "total_slots": len(loc_slots)}
+                print(
+                    f"    [REPAIR] {loc} — {len(loc_slots)} slots total "
+                    f"({ai_kept} kept from AI, {greedy_filled} greedy-filled)",
+                    flush=True,
+                )
 
         for location in self.locations:
-            slots, _ = results[location]
+            slots, _, _ = results[location]
             if not slots and force_ai_only:
                 raise RuntimeError(
                     f"[Agent 5] AI-only mode failed at {location}: could not produce a valid AI plan"
                 )
             slots = slots or []
+            if location not in location_yield:
+                location_yield[location] = {"ai_slots": len(slots), "greedy_slots": 0, "total_slots": len(slots)}
             violations = sum(1 for s in slots if s.constraint_violations)
             pred_fill = sum(s.predicted_fill_rate for s in slots) / len(slots) if slots else 0
             print(f"    {location}: {len(slots)} slots | {violations} violations | fill≈{pred_fill:.0%}")
@@ -1484,6 +1686,8 @@ class AISchedulePlanner:
         all_slots = _enforce_global_trainer_overlaps(all_slots, profiles_by_name)
         _print_utilisation(all_slots, profiles_by_name)
 
+        total_ai_slots = sum(v["ai_slots"] for v in location_yield.values())
+        total_yield_slots = sum(v["total_slots"] for v in location_yield.values())
         ai_run = _ai_run_metadata(
             planner_mode="ai",
             target_week_start=self.target_week_start,
@@ -1493,6 +1697,8 @@ class AISchedulePlanner:
             variant_count=variant_count,
             repaired_locations=repaired_locations,
         )
+        ai_run["location_yield"] = location_yield
+        ai_run["ai_fraction"] = round(total_ai_slots / total_yield_slots, 3) if total_yield_slots else None
         output = {
             "target_week_start": self.target_week_start,
             "schedule": [asdict(s) for s in all_slots],
@@ -1618,15 +1824,45 @@ class AISchedulePlanner:
         return output
 
     def _fallback_location(self, location: str, scores_data: dict,
-                           profiles_by_name: dict) -> List[PlannedSlot]:
-        slots = self._fallback_locations([location], scores_data, profiles_by_name)
+                           profiles_by_name: dict, ai_slots: Optional[List[PlannedSlot]] = None) -> List[PlannedSlot]:
+        slots = self._fallback_locations(
+            [location], scores_data, profiles_by_name,
+            ai_slots_by_location={location: ai_slots or []},
+        )
         return [slot for slot in slots if slot.location == location]
 
     def _fallback_locations(self, locations: List[str], scores_data: dict,
-                            profiles_by_name: dict) -> List[PlannedSlot]:
+                            profiles_by_name: dict,
+                            ai_slots_by_location: Optional[Dict[str, List[PlannedSlot]]] = None) -> List[PlannedSlot]:
+        """Run the greedy optimiser to fill a location's gap.
+
+        Any already-accepted AI slots for these locations are threaded through as
+        manual pins, so the optimiser builds its fill *around* them instead of
+        silently discarding valid AI-curated slots just because the location as a
+        whole fell short of the floor.
+        """
         try:
             from agents.optimiser import ScheduleOptimiser
             repair_locations = list(locations or [])
+            ai_slots_by_location = ai_slots_by_location or {}
+            extra_pins: List[dict] = []
+            pin_keys = set()
+            for loc in repair_locations:
+                for s in ai_slots_by_location.get(loc, []):
+                    key = (
+                        s.location, s.day_of_week, s.time,
+                        canonical_class_key(s.class_name), normalize_trainer_name(s.trainer_1),
+                    )
+                    pin_keys.add(key)
+                    extra_pins.append({
+                        "location": s.location,
+                        "day": s.day_of_week,
+                        "time": s.time,
+                        "class": s.class_name,
+                        "trainer": s.trainer_1,
+                        "manual": True,
+                        "id": f"ai_pin_{s.location}_{s.date}_{s.time}_{normalize_trainer_name(s.trainer_1)}",
+                    })
             opt = ScheduleOptimiser(
                 target_week_start=self.target_week_start,
                 locations=repair_locations,
@@ -1634,10 +1870,15 @@ class AISchedulePlanner:
                 variation_seed=self.variation_seed,
                 output_suffix=f"{self.output_suffix}_fallback" if self.output_suffix else "fallback",
                 optimization_mode="max_score",
+                extra_pins=extra_pins or None,
             )
             result = opt.run()
             slots = []
             for s in result.get("schedule", []):
+                key = (
+                    s["location"], s["day_of_week"], s["time"],
+                    canonical_class_key(s["class_name"]), normalize_trainer_name(s["trainer_1"]),
+                )
                 slots.append(PlannedSlot(
                     location=s["location"], date=s["date"],
                     day_of_week=s["day_of_week"], time=s["time"],
@@ -1648,7 +1889,7 @@ class AISchedulePlanner:
                     score=s.get("score", 30.0),
                     constraint_violations=s.get("constraint_violations", []),
                     duration_min=int(s.get("duration_min") or get_class_duration(s.get("class_name", ""))),
-                    rationale="greedy_fallback",
+                    rationale="ai" if key in pin_keys else "greedy_fallback",
                 ))
             return slots
         except Exception as e:

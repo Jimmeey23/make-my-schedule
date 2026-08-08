@@ -7,7 +7,7 @@ Time,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Clas
 08:45,,,,,,,,,,,,,,,,,,,,,Studio Back Body Blaze,Vivaran Dhasmana,Studio 1,14,47%,0,0%,0.0,,,Studio Barre 57,Richard D'Costa,Studio 2,14,60%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Pranjali Jain,Studio 2,14,32%,0,0%,0.0,,,,,,,,,,,,
 09:00,Studio Cardio Barre,Cauveri Vikrant,Studio 1,14,86%,0,0%,0.0,,,,,,,,,,,,,Studio Barre 57,Reshma Sharma,Studio 2,14,40%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Atulan Purohit,Studio 1,14,75%,0,0%,0.0,,,Studio Barre 57,Atulan Purohit,Studio 1,14,68%,0,0%,0.0,,,,,,,,,,,,
 09:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle,Karanvir Bhatia,PowerCycle Studio,14,50%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
-09:30,,,,,,,,,,,Studio FIT,Vivaran Dhasmana,Studio 1,14,92%,0,0%,0.0,,,,,,,,,,,,,Studio Mat 57,Anisha Shah,Studio 1,14,67%,0,0%,0.0,,,Studio Barre 57,Anisha Shah,Studio 2,14,33%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+09:30,,,,,,,,,,,Studio FIT,Vivaran Dhasmana,Studio 1,14,92%,0,0%,0.0,,,,,,,,,,,,,Studio Mat 57,Anisha Shah,Studio 1,14,67%,0,0%,0.0,,,Studio Barre 57,Bret Saldanha,Studio 2,14,33%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
 09:45,,,,,,,,,,,Studio Barre 57,Mrigakshi Jaiswal,Studio 2,14,32%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 10:00,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,14,33%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,14,59%,0,0%,0.0,,
 10:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Karanvir Bhatia,Studio 1,14,100%,0,0%,0.0,,
@@ -15,7 +15,7 @@ Time,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Clas
 11:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Atulan Purohit,Studio 2,14,14%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
 11:30,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Atulan Purohit,Studio 2,14,59%,0,0%,0.0,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,14,53%,0,0%,0.0,,
 11:45,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Cardio Barre,Anmol Sharma,Studio 1,14,28%,0,0%,0.0,,
-12:00,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Karanvir Bhatia,Studio 2,14,20%,0,0%,0.0,,
+12:00,Studio FIT,Simran Dutt,Studio 1,14,20%,0,0%,0.0,,,,,,,,,,,,,Studio Mat 57,Reshma Sharma,Studio 1,14,20%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Anisha Shah,Studio 1,14,20%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Karanvir Bhatia,Studio 2,14,20%,0,0%,0.0,,
 12:30,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Recovery,Pranjali Jain,Studio 1,14,42%,0,0%,0.0,,,,,,,,,,,,
 17:00,Studio PowerCycle,Vivaran Dhasmana,PowerCycle Studio,14,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Simonelle De Vitre,Studio 1,14,56%,0,0%,0.0,,,Studio Mat 57,Reshma Sharma,Studio 1,14,48%,0,0%,0.0,,
 17:30,,,,,,,,,,,Studio Cardio Barre,Reshma Sharma,Studio 2,14,29%,0,0%,0.0,,,Studio Barre 57,Pranjali Jain,Studio 2,14,25%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
@@ -26,27 +26,29 @@ Time,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Clas
 19:00,,,,,,,,,,,Studio Barre 57,Karanvir Bhatia,Studio 1,14,47%,0,0%,0.0,,,Studio Mat 57,Pranjali Jain,Studio 2,14,35%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 19:15,,,,,,,,,,,Studio PowerCycle Express,Simonelle De Vitre,PowerCycle Studio,14,57%,0,0%,0.0,,,Studio Barre 57,Mrigakshi Jaiswal,Studio 1,14,45%,0,0%,0.0,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,14,49%,0,0%,0.0,,,Studio PowerCycle,Simonelle De Vitre,PowerCycle Studio,14,23%,0,0%,0.0,,,Studio PowerCycle,Anmol Sharma,PowerCycle Studio,14,20%,0,0%,0.0,,,,,,,,,,,,
 19:30,Studio FIT,Vivaran Dhasmana,Studio 1,14,86%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Karanvir Bhatia,Studio 2,14,71%,0,0%,0.0,,,,,,,,,,,,,Studio Cardio Barre,Shruti Kulkarni,Studio 1,14,20%,0,0%,0.0,,,,,,,,,,,,
-20:00,Studio Cardio Barre,Kajol Kanchan,Studio 2,14,20%,0,0%,0.0,,,Studio Recovery,Karanvir Bhatia,Studio 1,14,42%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+20:00,Studio Cardio Barre,Kajol Kanchan,Studio 2,14,20%,0,0%,0.0,,,Studio Recovery,Karanvir Bhatia,Studio 1,14,42%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Mat 57,Reshma Sharma,Studio 2,14,20%,0,0%,0.0,,
 
 
 === WEEKLY BREAKDOWN ===
 
 TRAINER ALLOCATION
 Trainer,Total Classes,Total Hours,Avg Fill%,Primary Classes
-Anisha Shah,4,3.8,40%,Studio Barre 57
+Anisha Shah,4,3.8,37%,Studio Cardio Barre
 Anmol Sharma,4,3.2,35%,Studio PowerCycle
 Atulan Purohit,7,6.7,52%,Studio Barre 57
+Bret Saldanha,1,0.9,33%,Studio Barre 57
 Cauveri Vikrant,7,5.7,51%,Studio PowerCycle
 Kajol Kanchan,2,1.9,20%,Studio Mat 57
 Karan Bhatia,1,0.8,66%,Studio PowerCycle
 Karanvir Bhatia,9,8.2,51%,Studio Mat 57
 Mrigakshi Jaiswal,6,5.5,35%,Studio Barre 57
 Pranjali Jain,4,3.8,33%,Studio Barre 57
-Reshma Sharma,6,5.7,40%,Studio Cardio Barre
+Raunak Khemuka,1,0.9,20%,Studio FIT
+Reshma Sharma,8,7.6,35%,Studio Mat 57
 Richard D'Costa,2,1.9,49%,Studio Barre 57
 Shruti Kulkarni,2,1.9,18%,Studio Cardio Barre
 Simonelle De Vitre,5,3.9,39%,Studio PowerCycle
-Simran Dutt,1,0.9,64%,Studio Barre 57
+Simran Dutt,2,1.9,42%,Studio Barre 57
 Vivaran Dhasmana,8,6.8,50%,Studio PowerCycle
 
 CLASS FORMAT ALLOCATION
@@ -54,8 +56,8 @@ Class Format,Total Classes,Avg Fill%,Days Scheduled
 Studio Back Body Blaze,2,42%,2
 Studio Barre 57,21,44%,7
 Studio Cardio Barre,9,31%,7
-Studio FIT,8,66%,7
-Studio Mat 57,7,40%,7
+Studio FIT,11,53%,7
+Studio Mat 57,9,36%,7
 Studio PowerCycle,18,40%,7
 Studio PowerCycle Express,1,57%,1
 Studio Recovery,2,42%,2
@@ -76,7 +78,7 @@ Time,Mon,Tue,Wed,Thu,Fri,Sat,Sun,Total
 11:15,-,-,-,-,Studio Barre 57,-,-,1
 11:30,-,-,-,-,-,Studio Barre 57,Studio PowerCycle,2
 11:45,-,-,-,-,-,-,Studio Cardio Barre,1
-12:00,-,-,-,-,-,-,Studio FIT,1
+12:00,Studio FIT,-,Studio Mat 57,-,Studio FIT,-,Studio FIT,4
 12:30,-,-,-,-,-,Studio Recovery,-,1
 17:00,Studio PowerCycle,-,-,-,-,Studio Barre 57,Studio Mat 57,3
 17:30,-,Studio Cardio Barre,Studio Barre 57,-,-,-,-,2
@@ -87,4 +89,4 @@ Time,Mon,Tue,Wed,Thu,Fri,Sat,Sun,Total
 19:00,-,Studio Barre 57,Studio Mat 57,-,-,-,-,2
 19:15,-,Studio PowerCycle Express,Studio Barre 57,Studio PowerCycle,Studio PowerCycle,Studio PowerCycle,-,5
 19:30,Studio FIT,-,-,Studio FIT,-,Studio Cardio Barre,-,3
-20:00,Studio Cardio Barre,Studio Recovery,-,-,-,-,-,2
+20:00,Studio Cardio Barre,Studio Recovery,-,-,-,-,Studio Mat 57,3

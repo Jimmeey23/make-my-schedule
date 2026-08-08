@@ -993,7 +993,8 @@ class ScheduleOptimiser:
                  overrides_path: Optional[str] = None,
                  variation_seed: Optional[int] = None,
                  output_suffix: str = "",
-                 optimization_mode: str = "max_score"):
+                 optimization_mode: str = "max_score",
+                 extra_pins: Optional[List[dict]] = None):
         valid_modes = {"max_score", "trainer_hours", "class_variety"}
         if optimization_mode not in valid_modes:
             raise ValueError(f"Unknown optimization_mode '{optimization_mode}'")
@@ -1007,6 +1008,15 @@ class ScheduleOptimiser:
         ]
         self.overrides = self._load_overrides(overrides_path)
         self.schedule_config = self._load_schedule_config()
+        if extra_pins:
+            # In-memory only — layer caller-supplied pins (e.g. AI-accepted slots that
+            # a partial repair should build around) on top of the saved manual pins
+            # without touching schedule_config.json.
+            self.schedule_config = dict(self.schedule_config)
+            self.schedule_config["manual_protected"] = [
+                *self.schedule_config.get("manual_protected", []),
+                *extra_pins,
+            ]
         # Apply runtime caps from saved settings (work-days, weekly/daily hour caps,
         # T1 targets). Overrides the module-level defaults so TrainerState picks them up.
         self.runtime_caps = apply_settings_caps_from_config(self.schedule_config)
@@ -4260,7 +4270,14 @@ class ScheduleOptimiser:
                 return False
             if not experimental:
                 return False
-            loc_candidates = list(profile.get("locations", {}).values())
+            home_region = getattr(self, "trainer_home_region", {}).get(profile.get("name"))
+            if home_region and home_region != location_region(location):
+                return False
+            target_region = location_region(location)
+            loc_candidates = [
+                ld for loc_name, ld in (profile.get("locations", {}) or {}).items()
+                if location_region(loc_name) == target_region
+            ]
             if not loc_candidates:
                 return False
             loc_data = max(loc_candidates, key=lambda item: item.get("session_count", 0))
