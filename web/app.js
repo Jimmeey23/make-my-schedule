@@ -104,6 +104,14 @@ function timelineGroup(cn){
 function timelineGroupLabel(k){
   return{strength_lab:"Strength Lab",express:"Express",full:"Full Classes",powercycle:"PowerCycle",cardio:"Cardio",mat:"Mat",recovery:"Recovery",foundations:"Foundations",hiit:"HIIT",special:"Special",manual:"Manual"}[k]||k;
 }
+function classLevel(cn){
+  const n=(cn||"").toLowerCase();
+  if(/strength lab|amped up|trainer'?s choice|hiit/.test(n))return"advanced";
+  if(/barre 57|recovery|powercycle/.test(n))return"beginner";
+  return"intermediate";
+}
+const LEVEL_LABEL={beginner:"Beginner",intermediate:"Intermediate",advanced:"Advanced"};
+const LEVEL_COLOR={beginner:"#22C55E",intermediate:"#F59E0B",advanced:"#EF4444"};
 function timelineColor(s){
   if(s&&((recGroup(s.recommendation)==="MANUAL")||s.manual_added||s.manual_moved))return TIMELINE_GROUP_COLOR.manual;
   return TIMELINE_GROUP_COLOR[timelineGroup(s?.class_name)]||TIMELINE_GROUP_COLOR.full;
@@ -1232,15 +1240,21 @@ function renderTimeline(area,filtered){
     <div class="tl-kpi"><span>Trainers</span><strong>${trainerCount}</strong></div>
   </div>`);
   outerWrap.insertAdjacentHTML("beforeend",`<div class="tl-mode-row">
-    ${[["format","Format"],["fill","Fill"],["trainer","Trainer"],["density","Density"]].map(([k,l])=>`<button class="tl-mode-btn ${_timelineMode===k?"active":""}" onclick="setTimelineMode('${k}')">${l}</button>`).join("")}
+    ${[["format","Format"],["level","Level"],["class","Class"],["fill","Fill"],["trainer","Trainer"],["density","Density"]].map(([k,l])=>`<button class="tl-mode-btn ${_timelineMode===k?"active":""}" onclick="setTimelineMode('${k}')">${l}</button>`).join("")}
   </div>`);
 
   const visibleGroups=[...new Set(filtered.map(s=>timelineGroup(s.class_name)).filter(Boolean))].sort();
+  const visibleLevels=[...new Set(filtered.map(s=>classLevel(s.class_name)))].sort();
+  const visibleClasses=[...new Set(filtered.map(s=>s.class_name).filter(Boolean))].sort();
   const legEl=document.createElement("div");
   legEl.className="tl-legend";
-  legEl.insertAdjacentHTML("beforeend",`<span class="tl-legend-label">${_timelineMode==="fill"?"Fill Bands":_timelineMode==="trainer"?"Trainer Load":"Format Groups"}</span>`);
+  legEl.insertAdjacentHTML("beforeend",`<span class="tl-legend-label">${_timelineMode==="fill"?"Fill Bands":_timelineMode==="trainer"?"Trainer Load":_timelineMode==="level"?"Class Level":_timelineMode==="class"?"Class Name":"Format Groups"}</span>`);
   const legendItems=_timelineMode==="fill"
     ? [["High Fill","#15803D"],["Medium Fill","#D97706"],["Low Fill","#DC2626"]]
+    : _timelineMode==="level"
+    ? visibleLevels.map(l=>[LEVEL_LABEL[l],LEVEL_COLOR[l]])
+    : _timelineMode==="class"
+    ? visibleClasses.map(c=>[shortClass(c),timelineColor({class_name:c})])
     : visibleGroups.map(g=>[timelineGroupLabel(g),TIMELINE_GROUP_COLOR[g]||TIMELINE_GROUP_COLOR.full]);
   legendItems.forEach(([label,col])=>{
     legEl.insertAdjacentHTML("beforeend",`<div class="tl-leg-chip" style="background:${col}"><span class="tl-leg-dot"></span><span>${label}</span></div>`);
@@ -1276,7 +1290,7 @@ function renderTimeline(area,filtered){
 
       const rec=s.recommendation||"CONSIDER";
       const recNorm=recGroup(rec);
-      const clsCol=_timelineMode==="fill"?fillColor(s.predicted_fill_rate||0):timelineColor(s);
+      const clsCol=_timelineMode==="fill"?fillColor(s.predicted_fill_rate||0):_timelineMode==="level"?LEVEL_COLOR[classLevel(s.class_name)]:_timelineMode==="class"?timelineColor({class_name:s.class_name}):timelineColor(s);
       const fill=s.predicted_fill_rate||0;
       const fillBarW=Math.round(fill*100);
       const isPrime2=PRIME_TIMES.has(s.time);
@@ -1290,7 +1304,7 @@ function renderTimeline(area,filtered){
 
       let inner=`<div class="tl-b-top"></div>`;
       if(width>3.5){
-        const label=_timelineMode==="trainer"?(s.trainer_1||"—").split(" ").pop():shortClass(s.class_name);
+        const label=_timelineMode==="trainer"?(s.trainer_1||"—").split(" ").pop():_timelineMode==="level"?LEVEL_LABEL[classLevel(s.class_name)]:shortClass(s.class_name);
         inner+=`<div class="tl-b-name">${label}</div>`;
         if(width>5){inner+=`<div class="tl-b-fill">${pct(fill)}</div>`;}
         if(width>9){
