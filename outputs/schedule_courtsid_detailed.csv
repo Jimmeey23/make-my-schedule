@@ -1,3 +1,10 @@
 Date,Day,Time,Class,Trainer 1,Trainer 2,Cover,Room,Capacity,Duration (min),Score,Recommendation,Reason,Score Breakdown,Historic Sessions,Historic Checkins,Historic Fill Rate,Projected Avg Checkin,Projected Fill Rate,Late Cancel Rate,No Show Rate,Constraint Violations
-2026-05-04,Monday,08:15,Studio Mat 57,Raunak Khemuka,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,7.8,0.5538,0.0000,0.0000,
-2026-05-09,Saturday,16:00,Studio Mat 57,Atulan Purohit,,,Studio 1,14,57,35.0,,,,0,0.00,0.0000,11.5,0.8182,0.0000,0.0000,
+2026-05-04,Monday,12:00,Studio FIT,Atulan Purohit,,,Studio 1,14,57,20.0,,,,0,0.00,0.0000,2.8,0.2000,0.0000,0.0000,
+2026-05-05,Tuesday,20:00,Studio Barre 57,Raunak Khemuka,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,3.6,0.2571,0.0000,0.0000,
+2026-05-06,Wednesday,12:00,Studio FIT,Anisha Shah,,,Studio 1,14,57,20.0,,,,0,0.00,0.0000,2.8,0.2000,0.0000,0.0000,
+2026-05-07,Thursday,08:45,Studio Barre 57,Anmol Sharma,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,4.7,0.3330,0.0000,0.0000,
+2026-05-07,Thursday,11:00,Studio FIT,Vivaran Dhasmana,,,Studio 1,14,57,74.0,,,,0,0.00,0.0000,5.0,0.3572,0.0000,0.0000,
+2026-05-07,Thursday,12:00,Studio Mat 57 Express,Cauveri Vikrant,,,Studio 1,14,30,35.0,,,,0,0.00,0.0000,14.0,1.0000,0.0000,0.0000,
+2026-05-08,Friday,10:15,Studio Cardio Barre,Atulan Purohit,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,4.8,0.3448,0.0000,0.0000,
+2026-05-09,Saturday,12:00,Studio FIT,Vivaran Dhasmana,,,Studio 1,14,57,20.0,,,,0,0.00,0.0000,2.8,0.2000,0.0000,0.0000,
+2026-05-10,Sunday,12:00,Studio FIT,Karanvir Bhatia,,,Studio 1,14,57,20.0,,,,0,0.00,0.0000,2.8,0.2000,0.0000,0.0000,
