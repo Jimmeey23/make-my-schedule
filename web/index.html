@@ -270350,8 +270350,8 @@ document.addEventListener('DOMContentLoaded', updateThemeIcon);
   <div class="chat-hdr">
     <img class="chat-brand-mark" src="images/p57-logo-transparent.png" alt="Athena Scheduler AI assistant">
     <div>
-      <div class="chat-hdr-title">Schedule Intelligence</div>
-      <div class="chat-hdr-sub">Evidence-backed analysis, optimization, and substitutions</div>
+      <div class="chat-hdr-title">AI Assistant</div>
+      <div class="chat-hdr-sub">Schedule intelligence, general help, and operational analysis</div>
     </div>
     <button class="chat-close" onclick="chatSetOpen(false)" aria-label="Close chat">&#x2715;</button>
   </div>
@@ -270366,7 +270366,7 @@ document.addEventListener('DOMContentLoaded', updateThemeIcon);
     <span id="chat-context-label">Ask · All studios · Main</span>
   </div>
   <div class="chat-msgs" id="chat-msgs">
-    <div class="chat-empty"><strong>Ask with dashboard context.</strong>The assistant sees the active studio, iteration, filters, schedule rows, scorecard, and trainer constraints. Use it for trainer swaps, low-fill fixes, class mix gaps, and peak slot opportunities.</div>
+    <div class="chat-empty"><strong>Ask anything, or use dashboard context.</strong>The assistant can answer general questions and also sees the active studio, iteration, filters, schedule rows, scorecard, and trainer constraints for schedule work.</div>
   </div>
   <div class="chat-suggestions" id="chat-suggestions">
     <button class="chat-sugg" onclick="nlEditOpen('Move all Studio Barre 57 classes on Thursday morning to Friday morning at Kenkere House')">✏️ Edit schedule</button>
@@ -270381,7 +270381,7 @@ document.addEventListener('DOMContentLoaded', updateThemeIcon);
     <button class="chat-sugg" onclick="chatSetMode('Analyze');chatSend('Workload check: identify trainers near daily or weekly limits and any risky overlaps.')">Workload check</button>
   </div>
   <div class="chat-input-row">
-    <input class="chat-input" id="chat-input" type="text" placeholder="Ask about schedule, trainers, classes..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend()}">
+    <input class="chat-input" id="chat-input" type="text" placeholder="Ask anything or about schedule, trainers, classes..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend()}">
     <button class="chat-send" onclick="chatSend()">&#x279E;</button>
   </div>
 </div>

@@ -7436,7 +7436,7 @@ function chatSetMode(mode){
   const input=document.getElementById("chat-input");
   if(input){
     const placeholders={
-      Ask:"Ask about schedule, trainers, classes...",
+      Ask:"Ask anything or about schedule, trainers, classes...",
       Analyze:"Ask for evidence-backed schedule analysis...",
       "Optimize Ideas":"Ask for validated optimization ideas...",
       Substitution:"Ask for a safe trainer replacement..."

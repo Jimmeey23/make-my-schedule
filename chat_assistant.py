@@ -23,6 +23,140 @@ def _load_json(path: Path, fallback):
         return fallback
 
 
+def _load_text(path: Path) -> str:
+    try:
+        return Path(path).read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return ""
+
+
+def _tokenize(text: str) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9']+", str(text or "").lower())
+        if len(token) > 2
+    }
+
+
+def _chunk_text(text: str, target_lines: int = 28) -> list[str]:
+    lines = [line.rstrip() for line in str(text or "").splitlines()]
+    chunks = []
+    current = []
+    for line in lines:
+        current.append(line)
+        if len(current) >= target_lines:
+            chunk = "\n".join(current).strip()
+            if chunk:
+                chunks.append(chunk)
+            current = []
+    if current:
+        chunk = "\n".join(current).strip()
+        if chunk:
+            chunks.append(chunk)
+    return chunks
+
+
+def _json_to_readable_text(value, indent: int = 0) -> str:
+    prefix = "  " * indent
+    if isinstance(value, dict):
+        parts = []
+        for key, item in value.items():
+            if isinstance(item, (dict, list)):
+                parts.append(f"{prefix}{key}:")
+                parts.append(_json_to_readable_text(item, indent + 1))
+            else:
+                parts.append(f"{prefix}{key}: {item}")
+        return "\n".join(parts)
+    if isinstance(value, list):
+        parts = []
+        for item in value:
+            if isinstance(item, (dict, list)):
+                parts.append(_json_to_readable_text(item, indent))
+            else:
+                parts.append(f"{prefix}- {item}")
+        return "\n".join(parts)
+    return f"{prefix}{value}"
+
+
+def _flatten_rulebook_context() -> str:
+    config = _load_json(Path("config/schedule_config.json"), {})
+    rules = _load_json(Path("config/rules_config.json"), {})
+    trainer_profiles = _load_json(Path("rules/trainer_profiles.json"), {})
+    class_formats = _load_json(Path("rules/class_formats.json"), {})
+    universal_rules = _load_json(Path("rules/universal_rules.json"), {})
+    location_rule_parts = []
+    for loc, data in (config.get("targets") or {}).items():
+        weekly_floor = (config.get("settings_options") or {}).get("location_weekly_floors", {}).get(loc, "")
+        location_rule_parts.append(f"{loc}: weekly_floor={weekly_floor} targets={json.dumps(data, ensure_ascii=False)}")
+    return "\n\n".join([
+        "SCHEDULE CONFIG:\n" + _json_to_readable_text({
+            "settings_options": config.get("settings_options") or {},
+            "trainer_priority": config.get("trainer_priority") or {},
+            "format_trainer_priority": config.get("format_trainer_priority") or {},
+            "weekly_floors": (config.get("settings_options") or {}).get("location_weekly_floors") or {},
+        }),
+        "LOCATION TARGETS:\n" + "\n".join(location_rule_parts[:20]),
+        "UNIVERSAL RULES:\n" + _json_to_readable_text(rules.get("rules") or {}),
+        "TRAINER PROFILES:\n" + _json_to_readable_text(list((trainer_profiles or {}).values())[:25] if isinstance(trainer_profiles, dict) else trainer_profiles[:25]),
+        "CLASS FORMATS:\n" + _json_to_readable_text(class_formats),
+        "UNIVERSAL RULE FILE:\n" + _json_to_readable_text(universal_rules),
+    ])
+
+
+def _retrieval_sources() -> list[tuple[str, str]]:
+    sources = [
+        ("CLAUDE.md", _load_text(Path("CLAUDE.md"))),
+        ("Studio_Scheduling_Rulebook.html", _load_text(Path("Studio_Scheduling_Rulebook.html"))),
+        ("config/schedule_config.json", _json_to_readable_text(_load_json(Path("config/schedule_config.json"), {}))),
+        ("config/rules_config.json", _json_to_readable_text(_load_json(Path("config/rules_config.json"), {}))),
+        ("rules/trainer_profiles.json", _json_to_readable_text(_load_json(Path("rules/trainer_profiles.json"), {}))),
+        ("rules/class_formats.json", _json_to_readable_text(_load_json(Path("rules/class_formats.json"), {}))),
+        ("rules/universal_rules.json", _json_to_readable_text(_load_json(Path("rules/universal_rules.json"), {}))),
+    ]
+    return [(name, text) for name, text in sources if text.strip()]
+
+
+def build_knowledge_context(message: str, dashboard_context: dict | None = None, limit: int = 5) -> str:
+    query_terms = _tokenize(message)
+    dashboard_context = dashboard_context or {}
+    for key in ("location", "day", "class_name", "trainer_1", "mode", "iteration"):
+        value = dashboard_context.get(key)
+        if value:
+            query_terms.update(_tokenize(value))
+    filters = dashboard_context.get("filters") or {}
+    for value in filters.values():
+        if isinstance(value, list):
+            for item in value:
+                query_terms.update(_tokenize(item))
+        else:
+            query_terms.update(_tokenize(value))
+
+    scored_chunks = []
+    for source_name, text in _retrieval_sources():
+        chunks = _chunk_text(text, target_lines=28)
+        for idx, chunk in enumerate(chunks):
+            chunk_terms = _tokenize(chunk)
+            overlap = len(query_terms & chunk_terms)
+            if overlap == 0:
+                continue
+            density = overlap / max(1, len(chunk_terms))
+            score = overlap * 3 + density * 10
+            if source_name.endswith(".md"):
+                score += 1
+            scored_chunks.append((score, source_name, idx + 1, chunk))
+
+    scored_chunks.sort(key=lambda item: (-item[0], item[1], item[2]))
+    picked = scored_chunks[:limit]
+    if not picked:
+        return "RETRIEVED KNOWLEDGE: none matched the current query."
+    lines = ["RETRIEVED KNOWLEDGE:"]
+    for score, source, chunk_no, chunk in picked:
+        snippet = " ".join(line.strip() for line in chunk.splitlines() if line.strip())
+        snippet = re.sub(r"\s+", " ", snippet)[:900]
+        lines.append(f"- source={source} chunk={chunk_no} score={round(score, 2)} | {snippet}")
+    return "\n".join(lines)
+
+
 def _norm(value: str) -> str:
     return " ".join(str(value or "").split()).strip()
 
