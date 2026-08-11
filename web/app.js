@@ -7822,14 +7822,13 @@ function nlEditRender(result, instruction) {
   nlEditUpdateApplyState();
 }
 
-// An edit is "pending" until the user has explicitly picked a candidate —
-// the BEST_FIT sentinel or needs_confirmation flag must never reach apply.
-// Only count it as pending when a picker actually exists (candidates present);
-// otherwise there is nothing for the user to pick and it would deadlock Apply.
+// An edit is pending until the user has explicitly picked a candidate. A
+// BEST_FIT request with no compliant candidates also stays blocked: sending
+// that sentinel to the server can never produce a safe schedule change.
 function nlEditIsPending(edit) {
   if (edit.needs_confirmation === true) return true;
-  if (edit.new_trainer === "BEST_FIT" && (edit.best_fit_trainer_candidates || []).length > 0) return true;
-  if (edit.new_class === "BEST_FIT" && (edit.best_fit_class_candidates || []).length > 0) return true;
+  if (edit.new_trainer === "BEST_FIT") return true;
+  if (edit.new_class === "BEST_FIT") return true;
   return false;
 }
 

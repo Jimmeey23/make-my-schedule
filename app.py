@@ -807,6 +807,51 @@ def _compliant_trainer_candidates(data, iteration, target_slot):
     return sorted(candidates, key=lambda item: (-item["score"], item["tier"], item["name"]))[:6]
 
 
+def _expand_global_trainer_replacement(result, iteration):
+    """Turn a scoped global replacement into one confirmable edit per live class."""
+    if result.get("intent") != "global_replace_trainer" or result.get("edits"):
+        return result
+    path = WEB_DIR / "schedule_data.json"
+    if not path.exists():
+        return result
+    scope = result.get("scope") or {}
+    trainer = str(scope.get("trainer") or "").strip()
+    if not trainer:
+        result.setdefault("warnings", []).append("Name the trainer to replace before applying a global replacement.")
+        return result
+
+    def matches(value, expected):
+        return not expected or str(value or "").strip().lower() == str(expected).strip().lower()
+
+    data = json.loads(path.read_text())
+    matched = [
+        slot for slot in _iteration_schedule_rows(data, iteration)
+        if matches(slot.get("trainer_1"), trainer)
+        and matches(slot.get("location"), scope.get("location"))
+        and matches(slot.get("day_of_week"), scope.get("day"))
+        and (not scope.get("time_from") or str(slot.get("time") or "") >= str(scope["time_from"]))
+        and (not scope.get("time_to") or str(slot.get("time") or "") <= str(scope["time_to"]))
+    ]
+    result["edits"] = [{
+        "action": "modify",
+        "location": slot.get("location"),
+        "day": slot.get("day_of_week"),
+        "time": slot.get("time"),
+        "class_name": slot.get("class_name"),
+        "trainer_1": slot.get("trainer_1"),
+        "new_trainer": "BEST_FIT",
+        "reason": f"Replace {trainer} with a rule-compliant cover trainer",
+    } for slot in matched]
+    if matched:
+        result["summary"] = f"Find rule-compliant cover trainers for {len(matched)} {trainer} class(es)"
+        result.setdefault("constraint_checks", []).append(
+            f"Expanded the global request into {len(matched)} live class replacement(s)."
+        )
+    else:
+        result.setdefault("warnings", []).append("No live classes matched the requested trainer, day, location, and time scope.")
+    return result
+
+
 def _enrich_nl_edit_compliance(result, iteration):
     """Replace model/history-only candidate lists with live rule-compliant options."""
     path = WEB_DIR / "schedule_data.json"
@@ -1913,7 +1958,9 @@ def nl_edit():
             METRICS_PATH,
             _trainer_profiles_path(),
         )
-        result = _enrich_nl_edit_compliance(result, context.get("iteration") or "Main")
+        iteration = context.get("iteration") or "Main"
+        result = _expand_global_trainer_replacement(result, iteration)
+        result = _enrich_nl_edit_compliance(result, iteration)
         return _json(result)
     except Exception as exc:
         return _json({"error": str(exc)}, 500)
