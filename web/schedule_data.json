@@ -187347,7 +187347,7 @@
         "date": "2026-05-04",
         "day_of_week": "Monday",
         "time": "18:00",
-        "class_name": "Studio Mat 57 Express",
+        "class_name": "Studio Cardio Barre Express",
         "trainer_1": "Pranjali Jain",
         "trainer_2": "",
         "cover": "",
@@ -191817,7 +191817,9 @@
         "slot_avg_checkin": null,
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
-        "slot_empty_sessions": null
+        "slot_empty_sessions": null,
+        "ai_optimized": true,
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Cardio Barre Express with Pranjali Jain has score 31.01 and fill 33% over 3 sessions for this exact day/time/location."
       },
       {
         "location": "Kwality House, Kemps Corner",
@@ -209804,7 +209806,7 @@
         "date": "2026-05-05",
         "day_of_week": "Tuesday",
         "time": "11:00",
-        "class_name": "Studio Cardio Barre",
+        "class_name": "Studio Mat 57",
         "trainer_1": "Karanvir Bhatia",
         "trainer_2": "",
         "cover": "",
@@ -209848,7 +209850,9 @@
         "slot_avg_checkin": null,
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
-        "slot_empty_sessions": null
+        "slot_empty_sessions": null,
+        "ai_optimized": true,
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Mat 57 with Karanvir Bhatia has score 66.06 and fill 55% over 3 sessions for this exact day/time/location."
       },
       {
         "location": "Kwality House, Kemps Corner",
@@ -232058,7 +232062,7 @@
         "date": "2026-05-07",
         "day_of_week": "Thursday",
         "time": "07:30",
-        "class_name": "Studio Cardio Barre",
+        "class_name": "Studio Mat 57 Express",
         "trainer_1": "Mrigakshi Jaiswal",
         "trainer_2": "",
         "cover": "",
@@ -232884,7 +232888,9 @@
         "slot_avg_checkin": null,
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
-        "slot_empty_sessions": null
+        "slot_empty_sessions": null,
+        "ai_optimized": true,
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Mat 57 Express with Mrigakshi Jaiswal has score 55.29 and fill 51% over 38 sessions for this exact day/time/location."
       },
       {
         "location": "Kwality House, Kemps Corner",
@@ -252275,7 +252281,7 @@
         "date": "2026-05-08",
         "day_of_week": "Friday",
         "time": "19:00",
-        "class_name": "Studio Mat 57",
+        "class_name": "Studio Cardio Barre Plus",
         "trainer_1": "Pranjali Jain",
         "trainer_2": "",
         "cover": "",
@@ -252319,7 +252325,9 @@
         "slot_avg_checkin": null,
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
-        "slot_empty_sessions": null
+        "slot_empty_sessions": null,
+        "ai_optimized": true,
+        "scheduling_reason": "Server-vetted class-slot improvement: Studio Cardio Barre Plus with Pranjali Jain has score 32.15 and fill 24% over 4 sessions for this exact day/time/location."
       },
       {
         "location": "Kwality House, Kemps Corner",
