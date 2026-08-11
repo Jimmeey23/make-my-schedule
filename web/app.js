@@ -5318,22 +5318,6 @@ function renderSettingsView(area){
   wrap.className="sett-view";
   wrap.innerHTML=`
     <div class="settings-console-layout">
-      <aside class="settings-console-rail">
-        <div class="sett-source-card">
-          <div class="sett-source-title">Control Center</div>
-          <div class="sett-source-sub">Canonical settings, routing, and planner intelligence.</div>
-        </div>
-        <nav class="sett-nav">
-          <div class="sett-nav-group-label">Core</div>
-          <button class="sett-nav-btn active" data-target="ssec-trainers" onclick="settJumpToSection(this)">Trainers <span class="sett-nav-count">Directory</span></button>
-          <button class="sett-nav-btn" data-target="ssec-qualifications" onclick="settJumpToSection(this)">Eligibility <span class="sett-nav-count">Matrix</span></button>
-          <button class="sett-nav-btn" data-target="ssec-availability" onclick="settJumpToSection(this)">Availability <span class="sett-nav-count">Leave</span></button>
-          <div class="sett-nav-group-label">Rules</div>
-          <button class="sett-nav-btn" data-target="ssec-rules" onclick="settJumpToSection(this)">Targets <span class="sett-nav-count">Mix</span></button>
-          <div class="sett-nav-group-label">Intelligence</div>
-          <button class="sett-nav-btn" data-target="ssec-advanced" onclick="settJumpToSection(this)">AI &amp; Planning <span class="sett-nav-count">Policy</span></button>
-        </nav>
-      </aside>
       <main class="sett-main">
         <div class="sett-main-actions">
           <div class="sett-action-group">
@@ -5501,14 +5485,6 @@ function renderSettingsView(area){
   `;
   area.appendChild(wrap);
   settLoadData();
-}
-
-function settJumpToSection(btn){
-  const target=btn?.dataset?.target;
-  if(!target)return;
-  document.querySelectorAll(".sett-nav-btn").forEach(b=>b.classList.toggle("active",b===btn));
-  const section=document.getElementById(target);
-  section?.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 function settSetTab(tab){

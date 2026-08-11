@@ -8219,20 +8219,9 @@ details.fp-section[open] .fp-section-hdr::after {
 
 .settings-console-layout {
   display: grid;
-  grid-template-columns: 270px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
   align-items: start
-}
-
-.settings-console-rail {
-  position: sticky;
-  top: 108px;
-  align-self: start;
-  background: linear-gradient(180deg, #fff, #F8FAFC);
-  border: 1px solid #DCE3EB;
-  border-radius: 18px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, .06);
-  padding: 14px
 }
 
 .settings-console-old-rail,
@@ -8389,6 +8378,21 @@ details.fp-section[open] .fp-section-hdr::after {
   font-family: 'Plus Jakarta Sans', sans-serif
 }
 
+.sett-ghost-btn:hover {
+  background: #F8FAFC;
+  border-color: #94A3B8
+}
+
+.sett-ghost-btn.primary {
+  background: #1E40AF;
+  color: #fff;
+  border-color: #1E40AF
+}
+
+.sett-ghost-btn.primary:hover {
+  background: #2563EB
+}
+
 .sett-ghost-btn.danger {
   background: #FEF2F2;
   color: #B91C1C;
@@ -8468,7 +8472,7 @@ details.fp-section[open] .fp-section-hdr::after {
 .sett-option-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px
+  gap: 10px
 }
 
 .sett-option-card {
@@ -8761,12 +8765,6 @@ details.fp-section[open] .fp-section-hdr::after {
   color: #fff
 }
 
-.sett-main-actions {
-  position: sticky;
-  top: 0;
-  z-index: 20
-}
-
 .sett-subpanel {
   display: none;
   animation: settPanelIn .28s ease both
@@ -8944,10 +8942,6 @@ details.fp-section[open] .fp-section-hdr::after {
     grid-template-columns: 1fr
   }
 
-  .settings-console-rail {
-    position: static
-  }
-
   .settings-console-old-rail,
   .settings-console-old-inspector {
     position: static
@@ -8983,26 +8977,27 @@ details.fp-section[open] .fp-section-hdr::after {
 
 /* Studio Control Room settings skin */
 .control-center-modal .sett-main-actions {
-  top: 0;
+  position: sticky;
+  top: -22px;
   z-index: 40;
   border: 1px solid rgba(203, 213, 225, .82);
-  background: rgba(255, 255, 255, .92);
-  backdrop-filter: blur(14px) saturate(1.2);
+  background: rgba(255, 255, 255, .86);
+  backdrop-filter: blur(18px) saturate(1.35);
   border-radius: 16px;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .075);
 }
 
 .control-center-modal .sett-section {
   border: 1px solid rgba(203, 213, 225, .92);
   border-radius: 18px;
   background: linear-gradient(180deg, #FFFFFF 0%, #FBFDFF 100%);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
-  padding: 20px
+  box-shadow: 0 18px 44px rgba(15, 23, 42, .07);
+  padding: 22px;
 }
 
 .control-center-modal .sett-section-label {
-  font-size: 18px;
-  letter-spacing: -.03em;
+  font-size: 19px;
+  letter-spacing: -.035em;
   color: #0B1220;
   font-weight: 900;
 }
@@ -9014,7 +9009,7 @@ details.fp-section[open] .fp-section-hdr::after {
 }
 
 .control-center-modal .sett-section-head {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   padding-bottom: 14px;
   border-bottom: 1px solid #E5E7EB;
 }
@@ -13301,3 +13296,4 @@ details.fp-section[open] .fp-section-hdr::after {
 .theme-dark .control-center-modal .sett-bulk-field label {
   color: var(--text-muted) !important;
 }
+
