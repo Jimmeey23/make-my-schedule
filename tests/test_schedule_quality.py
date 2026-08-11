@@ -2681,7 +2681,7 @@ def test_serve_optimize_schedule_accepts_numeric_ai_slot_ids(tmp_path, monkeypat
     assert result["applied_count"] == 1
     assert result["rejected_count"] == 0
     assert json.loads(schedule_path.read_text())["locations"]["Supreme HQ, Bandra"][0]["trainer_1"] == "Trainer B"
-    prompt_text = captured["body"]["messages"][1]["content"]
+    prompt_text = captured["body"]["input"][1]["content"]
     assert '"id": "1"' in prompt_text
 
 
@@ -3335,7 +3335,7 @@ def test_serve_optimize_schedule_retries_when_all_ai_operations_rejected(tmp_pat
     assert len(posts) == 2
     assert result["applied_count"] == 1
     assert result["summary"].startswith("Retry found")
-    assert "Previous operations were all rejected" in posts[1]["messages"][-1]["content"]
+    assert "Previous operations were all rejected" in posts[1]["input"][-1]["content"]
 
 
 def test_serve_optimize_schedule_uses_deterministic_fallback_after_failed_retry(tmp_path, monkeypatch):

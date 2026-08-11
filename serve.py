@@ -595,6 +595,24 @@ def _parse_optimizer_ai_json(content: str) -> dict:
         raise ValueError(str(exc)) from exc
 
 
+def _extract_optimizer_ai_content(data: dict, use_responses: bool) -> str:
+    if use_responses:
+        content = data.get("output_text") or ""
+        if content:
+            return content
+        parts = []
+        for item in data.get("output") or []:
+            for block in item.get("content") or []:
+                if block.get("type") in {"output_text", "text"}:
+                    parts.append(block.get("text") or "")
+        content = "".join(parts)
+        if content:
+            return content
+        # Some tests and compatibility shims still return Chat Completions shape.
+        return (data.get("choices") or [{}])[0].get("message", {}).get("content") or "{}"
+    return (data.get("choices") or [{}])[0].get("message", {}).get("content") or "{}"
+
+
 def _slot_from_meta(meta: dict, locations: dict) -> dict:
     slot = meta.get("slot")
     if slot is not None:
@@ -984,17 +1002,7 @@ def _run_optimize_with_ai(payload: dict) -> dict:
         return {"ok": False, "error": f"Optimize call failed: {exc}"}
 
     try:
-        if use_responses:
-            content = data.get("output_text") or ""
-            if not content:
-                parts = []
-                for item in data.get("output") or []:
-                    for block in item.get("content") or []:
-                        if block.get("type") in {"output_text", "text"}:
-                            parts.append(block.get("text") or "")
-                content = "".join(parts)
-        else:
-            content = (data.get("choices") or [{}])[0].get("message", {}).get("content") or "{}"
+        content = _extract_optimizer_ai_content(data, use_responses)
         parsed = _parse_optimizer_ai_json(content)
     except Exception as exc:
         return {"ok": False, "error": f"Could not parse AI response: {exc}"}
@@ -1030,25 +1038,26 @@ def _run_optimize_with_ai(payload: dict) -> dict:
             }
             for item in rejected[:8]
         ]
-        retry_body["messages"] = [
-            *body["messages"],
-            {
-                "role": "user",
-                "content": (
-                    "Previous operations were all rejected by server validation. "
-                    "Return a new JSON object with only operations that avoid these rejection reasons. "
-                    "Prefer safe trainer swaps or peak add_class operations with trainers who have no overlap, no same-day cross-studio assignment, and at least 2 days off. "
-                    "Do not repeat any operation shape that was rejected.\n"
-                    + json.dumps(rejection_feedback, ensure_ascii=False)
-                ),
-            },
-        ]
+        retry_message = {
+            "role": "user",
+            "content": (
+                "Previous operations were all rejected by server validation. "
+                "Return a new JSON object with only operations that avoid these rejection reasons. "
+                "Prefer safe trainer swaps or peak add_class operations with trainers who have no overlap, no same-day cross-studio assignment, and at least 2 days off. "
+                "Do not repeat any operation shape that was rejected.\n"
+                + json.dumps(rejection_feedback, ensure_ascii=False)
+            ),
+        }
+        if use_responses:
+            retry_body["input"] = [*body["input"], retry_message]
+        else:
+            retry_body["messages"] = [*body["messages"], retry_message]
         try:
             with httpx.Client(timeout=httpx.Timeout(60.0, connect=10.0)) as http:
                 retry_resp = http.post(url, headers=headers, json=retry_body)
                 if retry_resp.status_code < 400:
                     retry_data = retry_resp.json()
-                    retry_content = (retry_data.get("choices") or [{}])[0].get("message", {}).get("content") or "{}"
+                    retry_content = _extract_optimizer_ai_content(retry_data, use_responses)
                     retry_parsed = _parse_optimizer_ai_json(retry_content)
                     retry_operations = retry_parsed.get("operations") or []
                     retry_applied, retry_rejected = _apply_ai_schedule_operations(
