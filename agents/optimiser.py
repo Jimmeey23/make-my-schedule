@@ -406,6 +406,10 @@ MIN_PROVEN_AVG_CHECKIN = 3.0
 MIN_PROVEN_FILL_RATE = 0.22
 MIN_PROVEN_SESSIONS = 3
 MIN_EARLY_REPAIR_SESSIONS = 8
+LOCATION_ATTENDANCE_TARGETS = {
+    KWALITY_LOCATION: 8.0,
+    SUPREME_LOCATION: 7.0,
+}
 
 # Per-class hard scheduling constraints (day/time guards applied inside _build_candidates)
 # Each entry: (allowed_days, earliest_start_min, latest_start_min)
@@ -1690,8 +1694,8 @@ class ScheduleOptimiser:
         priority = {
             SUPREME_LOCATION: 0,
             KWALITY_LOCATION: 1,
-            "Copper & Cloves": 2,
-            "Kenkere House": 3,
+            "Kenkere House": 2,
+            "Copper & Cloves": 3,
             "Courtside": 4,
         }
         return sorted(self.locations, key=lambda loc: (priority.get(loc, 50), self.locations.index(loc)))
@@ -3520,6 +3524,7 @@ class ScheduleOptimiser:
                 horizontal_bonus = self._horizontal_slot_adjustment(location, time_str, cname)
                 level_bonus = self._class_level_slot_adjustment(location, time_str, cname)
                 express_bonus = self._express_slot_adjustment(cname, time_str)
+                attendance_bonus = self._attendance_target_adjustment(location, placement_hist)
                 target_penalty = self._weekly_over_target_penalty(
                     location,
                     cname,
@@ -3535,7 +3540,7 @@ class ScheduleOptimiser:
                     shift_bonus=shift_bonus,
                     diversity_adjustment=div_adj,
                     hours_bonus=hours_bonus,
-                    popularity_bonus=popularity_bonus + horizontal_bonus + level_bonus + express_bonus + target_penalty + intraday_div + weekly_mix_bonus,
+                    popularity_bonus=popularity_bonus + horizontal_bonus + level_bonus + express_bonus + attendance_bonus + target_penalty + intraday_div + weekly_mix_bonus,
                     ai_delta=ai_delta,
                     time_penalty=time_penalty,
                     recommendation=rec_for_noise,
@@ -3763,10 +3768,11 @@ class ScheduleOptimiser:
                     cname,
                     self._weekly_count(wcc, st_today, cname),
                 )
+                attendance_bonus = self._attendance_target_adjustment(location, hist)
                 fallback_public_score = (65.0 if hist.get("session_count", 0) > 0 else 55.0) + target_penalty
                 if fallback_public_score < MIN_SCHEDULABLE_SCORE:
                     continue
-                fallback_placement_score = fallback_public_score + self._location_tier_priority_score(name, location)
+                fallback_placement_score = fallback_public_score + attendance_bonus + self._location_tier_priority_score(name, location)
                 fallback_placement_score += self._format_trainer_priority_score(name, location, cname)
                 recommendation = "PROTECT_EXACT" if is_protected_strength_lab_history(cname, hist) else "INCLUDE"
                 public_score, placement_score, recommendation, slot_is_exp = self._public_score_fields(
@@ -3841,6 +3847,122 @@ class ScheduleOptimiser:
                 state.weekly_minutes,
                 state.classes_at_location(location),
                 name,
+            )
+
+        ranked_repair_candidates = []
+        dow = DOW_REVERSE[day_name]
+        for row in self._candidate_rows(location, dow, day_filter=True):
+            class_name = row.get("class", "")
+            trainer = row.get("trainer", "")
+            if not class_name or not trainer:
+                continue
+            if not location_class_allowed(location, class_name):
+                continue
+            if self._same_class_already_at_time(slots_today, time_str, class_name):
+                continue
+            if self._would_repeat_consecutive_format(slots_today, time_str, class_name):
+                continue
+            if would_block_recovery(class_name, time_str, slots_today):
+                continue
+            if self._class_mix_hard_blocked(location, class_name):
+                continue
+            if not self._class_mix_allows_candidate(
+                location, class_name, self._weekly_count(wcc, slots_today, class_name)
+            ):
+                continue
+            fam = self.class_family.get(class_name, "barre_57")
+            if is_excluded_class(class_name, fam):
+                continue
+            if location in BENGALURU_LOCATIONS and "PowerCycle" in class_name:
+                continue
+            if "Strength Lab" in class_name and location != KWALITY_LOCATION:
+                continue
+            cap = MAX_FORMAT_PER_DAY.get(class_name, DEFAULT_MAX_FORMAT_PER_DAY)
+            if fmt_today.get(class_name, 0) >= cap:
+                continue
+            dur = get_class_duration(class_name)
+            room = self._find_best_room(room_occ, day_name, fam, start_min, dur, get_class_format(class_name))
+            if room is None:
+                continue
+            if trainer in already_trainers:
+                continue
+            profile = self.trainer_profiles.get(trainer, {})
+            needed_qual = qualification_key_for_class(class_name)
+            if not profile.get("qualifications", {}).get(needed_qual, False):
+                continue
+            if self._is_inactive(trainer) or self._on_leave(trainer, date_str, location):
+                continue
+            if self._custom_rule_blocks(location, day_name, time_str, class_name, trainer):
+                continue
+            if self._loc_excluded(trainer, location):
+                continue
+            if not self._trainer_ok(trainer, location, day_name, time_str, class_name, experimental=True):
+                continue
+            hist = self._get_hist(location, class_name, trainer, dow, time_str)
+            slot_hist = self._get_hist_slot(location, class_name, dow, time_str)
+            evidence = hist if int(hist.get("session_count", 0) or 0) > 0 else slot_hist
+            if not evidence or int(evidence.get("session_count", 0) or 0) < 1:
+                continue
+            if is_low_performing_history(evidence, min_sessions=MIN_PROVEN_SESSIONS):
+                continue
+            base_score = float(row.get("score", 0.0) or 0.0)
+            avg_checkin = float(evidence.get("avg_checkin", evidence.get("avg_attendance", 0.0)) or 0.0)
+            avg_fill = float(evidence.get("avg_fill_rate", 0.0) or 0.0)
+            sessions = int(evidence.get("session_count", 0) or 0)
+            if base_score < 35.0 and avg_checkin < 4.0 and avg_fill < 0.30:
+                continue
+            placement_score = (
+                base_score
+                + self._attendance_target_adjustment(location, evidence)
+                + self._trainer_hours_bonus(trainer, day_name)
+                + self._tier_priority_score(trainer) * 0.25
+                + self._location_tier_priority_score(trainer, location) * 0.35
+                + self._format_trainer_priority_score(trainer, location, class_name) * 0.25
+                + self._horizontal_slot_adjustment(location, time_str, class_name)
+                + min(20.0, sessions)
+            )
+            ranked_repair_candidates.append((placement_score, row, room, dur, evidence))
+
+        for placement_score, row, room, dur, hist in sorted(ranked_repair_candidates, key=lambda item: -item[0]):
+            class_name = row["class"]
+            trainer = row["trainer"]
+            public_score, out_placement_score, recommendation, slot_is_exp = self._public_score_fields(
+                max(35.0, float(row.get("score", 35.0) or 35.0)),
+                max(35.0, placement_score),
+                hist.get("session_count", 0),
+                row.get("recommendation", "CONSIDER"),
+                False,
+            )
+            return ScheduleSlot(
+                location=location,
+                date=date_str,
+                day_of_week=day_name,
+                time=time_str,
+                class_name=class_name,
+                trainer_1=trainer,
+                trainer_2="",
+                cover="",
+                room=room,
+                capacity=rooms.get(room, {}).get("capacity", 15),
+                duration_min=dur,
+                predicted_fill_rate=self._evidence_adjusted_fill(hist),
+                score=public_score,
+                recommendation=recommendation,
+                is_experimental=slot_is_exp,
+                scheduling_reason=(
+                    "Daily floor repair: ranked demand-backed slot selected "
+                    f"({hist.get('session_count', 0)} sessions, "
+                    f"{hist.get('avg_fill_rate', 0):.0%} fill, "
+                    f"{hist.get('avg_checkin', hist.get('avg_attendance', 0)):.1f} avg check-in)."
+                ),
+                historical_avg_fill=hist.get("avg_fill_rate", 0.0),
+                historical_avg_checkin=hist.get("avg_checkin", hist.get("avg_attendance", 0.0)),
+                historical_session_count=hist.get("session_count", 0),
+                historical_late_cancel_rate=hist.get("avg_late_cancel_rate", 0.0),
+                historical_no_show_rate=hist.get("avg_no_show_rate", 0.0),
+                performance_score=public_score,
+                placement_score=out_placement_score,
+                constraint_violations=self._quick_check(location, day_name, time_str, class_name, slots_today),
             )
 
         for class_name in fallback_classes:
@@ -4034,6 +4156,7 @@ class ScheduleOptimiser:
             ai_delta = self._get_ai_hint_delta(location, class_name, trainer, dow)
             horizontal_bonus = self._horizontal_slot_adjustment(location, time_str, class_name)
             express_bonus = self._express_slot_adjustment(class_name, time_str)
+            attendance_bonus = self._attendance_target_adjustment(location, placement_hist)
             target_penalty = self._weekly_over_target_penalty(
                 location,
                 class_name,
@@ -4056,6 +4179,7 @@ class ScheduleOptimiser:
                 + horizontal_bonus
                 + level_bonus
                 + express_bonus
+                + attendance_bonus
                 + target_penalty
                 + pref_boost
                 - time_penalty,
@@ -4219,6 +4343,20 @@ class ScheduleOptimiser:
             elif get_class_format(s.class_name) == cand_fam and cand_fam:
                 penalty -= 14.0 * window_scale
         return max(-60.0, penalty)
+
+    def _attendance_target_adjustment(self, location: str, hist: dict) -> float:
+        """Prefer slots that move studio average attendance toward the business target."""
+        target = LOCATION_ATTENDANCE_TARGETS.get(location)
+        if not target or not hist:
+            return 0.0
+        avg_checkin = float(hist.get("avg_checkin", hist.get("avg_attendance", 0.0)) or 0.0)
+        sessions = int(hist.get("session_count", 0) or 0)
+        if sessions <= 0 or avg_checkin <= 0:
+            return 0.0
+        if avg_checkin >= target:
+            return min(36.0, (avg_checkin - target) * 8.0 + 16.0)
+        gap = target - avg_checkin
+        return -min(42.0, gap * 7.0)
 
     def _horizontal_mix_allows_candidate(self, location: str, time_str: str, class_name: str) -> bool:
         """Hard cap repeated class/format columns across the week for a location+time."""
