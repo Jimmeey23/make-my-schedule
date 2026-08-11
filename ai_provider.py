@@ -7,6 +7,7 @@ from typing import Optional, Tuple
 PROJECT_ROOT = Path(__file__).parent
 ENV_PATH = PROJECT_ROOT / ".env"
 OPENAI_ONLY_MODEL = "gpt-5.6-terra"
+OPENAI_GENERATION_MODEL = "gpt-5.4-mini"
 DEFAULT_MODEL = OPENAI_ONLY_MODEL
 DEFAULT_BACKUP_MODEL = ""
 DEFAULT_BASE_URL = "https://api.openai.com/v1"

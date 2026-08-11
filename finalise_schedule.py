@@ -14,6 +14,13 @@ OUTPUTS_DIR = PROJECT_ROOT / "outputs"
 
 
 def _week_bounds(schedule_data: dict) -> tuple[str, str, str]:
+    configured_week = str(schedule_data.get("generated_for_week") or "").strip()[:10]
+    if configured_week:
+        start = date.fromisoformat(configured_week)
+        week_start = start - timedelta(days=start.weekday())
+        week_end = week_start + timedelta(days=6)
+        label = f"{week_start.strftime('%d %b')} - {week_end.strftime('%d %b %Y')}"
+        return week_start.isoformat(), week_end.isoformat(), label
     rows = [
         row
         for loc_rows in (schedule_data.get("locations") or {}).values()
@@ -50,6 +57,7 @@ def finalise_schedule_document(
     supabase_request: Callable[..., Any],
     schedule_path: Path | None = None,
     outputs_dir: Path | None = None,
+    week_start: str | None = None,
 ) -> dict:
     schedule_path = schedule_path or (WEB_DIR / "schedule_data.json")
     outputs_dir = outputs_dir or OUTPUTS_DIR
@@ -57,6 +65,19 @@ def finalise_schedule_document(
         raise FileNotFoundError("web/schedule_data.json was not found")
 
     schedule_data = json.loads(schedule_path.read_text(encoding="utf-8"))
+    if week_start:
+        selected_start = date.fromisoformat(str(week_start)[:10])
+        selected_start = selected_start - timedelta(days=selected_start.weekday())
+        schedule_data["generated_for_week"] = selected_start.isoformat()
+        schedule_data["day_dates"] = {
+            day: (selected_start + timedelta(days=idx)).isoformat()
+            for idx, day in enumerate(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+        }
+        for loc_rows in (schedule_data.get("locations") or {}).values():
+            for row in loc_rows or []:
+                day = row.get("day_of_week")
+                if day in schedule_data["day_dates"]:
+                    row["date"] = schedule_data["day_dates"][day]
     week_start, week_end, week_label = _week_bounds(schedule_data)
     pdf_bytes = build_schedule_report_pdf(schedule_data, week_label)
     outputs_dir.mkdir(exist_ok=True)

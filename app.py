@@ -41,6 +41,7 @@ BENGALURU_LOCATIONS = {"Kenkere House", "Copper & Cloves"}
 MAIN_STUDIOS = {"Kwality House, Kemps Corner", "Supreme HQ, Bandra", "Kenkere House"}
 DERIVED_STUDIOS = {"Courtside", "Copper & Cloves"}
 DEFAULT_OPENAI_MODEL = "gpt-5.6-terra"
+DEFAULT_GENERATION_MODEL = "gpt-5.4-mini"
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
@@ -373,7 +374,8 @@ def _inject_ai_runtime_env(child_env: dict, runtime: dict) -> None:
         "AI_BACKUP_MODEL",
     ):
         child_env.pop(key, None)
-    child_env["OPENAI_MODEL"] = DEFAULT_OPENAI_MODEL
+    child_env["OPENAI_MODEL"] = DEFAULT_GENERATION_MODEL
+    child_env["SCHEDULER_GENERATION_MODEL"] = DEFAULT_GENERATION_MODEL
     child_env["OPENAI_BASE_URL"] = DEFAULT_OPENAI_BASE_URL
 
 
@@ -394,6 +396,19 @@ def _resolve_pipeline_request_options(payload=None) -> dict:
     child_env = os.environ.copy()
     child_env["PIPELINE_WEEK"] = week
     child_env["PYTHONUNBUFFERED"] = "1"
+    known_locations = {
+        "Kwality House, Kemps Corner",
+        "Supreme HQ, Bandra",
+        "Kenkere House",
+        "Copper & Cloves",
+    }
+    requested_locations = payload.get("locations") or payload.get("selected_locations") or []
+    if isinstance(requested_locations, str):
+        requested_locations = [loc.strip() for loc in requested_locations.split(",") if loc.strip()]
+    requested_locations = [str(loc).strip() for loc in requested_locations if str(loc).strip()]
+    invalid_locations = [loc for loc in requested_locations if loc not in known_locations]
+    if invalid_locations:
+        raise ValueError(f"Unknown location(s): {', '.join(invalid_locations)}")
 
     if use_ai:
         api_key = (
@@ -416,6 +431,7 @@ def _resolve_pipeline_request_options(payload=None) -> dict:
         "week": week,
         "use_ai": use_ai,
         "child_env": child_env,
+        "locations": requested_locations,
     }
 
 
@@ -758,7 +774,7 @@ def _candidate_history_score(trainer, slot, metrics):
 
 
 def _compliant_trainer_candidates(data, iteration, target_slot):
-    """Return only trainers that pass the same validation used when saving edits."""
+    """Return qualified trainer options, including workload-cap overages as poor fits."""
     try:
         profiles = json.loads(_trainer_profiles_path().read_text())
     except Exception:
@@ -777,12 +793,14 @@ def _compliant_trainer_candidates(data, iteration, target_slot):
             continue
         proposed = dict(target_slot)
         proposed["trainer_1"] = trainer
+        validation_error = ""
         try:
             _validate_manual_slot(data, iteration, proposed, original_slot=target_slot)
-        except ValueError:
-            continue
-        if _quality_gate_warning(proposed, metrics):
-            continue
+        except ValueError as exc:
+            validation_error = str(exc)
+            if "weekly cap" not in validation_error.lower():
+                continue
+        quality_warning = _quality_gate_warning(proposed, metrics)
         history_score, fill, checkin, sessions = _candidate_history_score(trainer, proposed, metrics)
         tier = int(profile.get("tier") or 3)
         weekly_minutes = sum(
@@ -790,7 +808,18 @@ def _compliant_trainer_candidates(data, iteration, target_slot):
             if (row.get("trainer_1") or "").strip().lower() == trainer.lower()
             and not _same_schedule_slot(row, target_slot)
         ) + _slot_duration(proposed)
-        score = history_score + max(0, 4 - tier) * 8 + max(0, 15 - weekly_minutes / 60)
+        assigned_hours = round(weekly_minutes / 60, 1)
+        over_cap = assigned_hours > 15 or bool(validation_error)
+        fit_label = "Poor fit" if over_cap else ("Best fit" if history_score >= 60 and tier <= 2 else "Good fit")
+        score = history_score + max(0, 4 - tier) * 8 + max(0, 15 - assigned_hours) - (35 if over_cap else 0)
+        reason_parts = []
+        if over_cap:
+            reason_parts.append(validation_error or f"Would take trainer to {assigned_hours}h, above the 15h weekly cap.")
+        else:
+            reason_parts.append("Passes availability, qualification, clash, shift, location, room and workload checks.")
+        if quality_warning:
+            reason_parts.append(quality_warning)
+        reason_parts.append(f"{fill * 100:.0f}% fill, {checkin:.1f} avg check-in, {sessions} sessions.")
         candidates.append({
             "name": trainer,
             "score": round(score, 1),
@@ -799,11 +828,10 @@ def _compliant_trainer_candidates(data, iteration, target_slot):
             "session_count": sessions,
             "tier": tier,
             "available": True,
-            "compliant": True,
-            "reason": (
-                f"Compliant with availability, qualification, clash, shift, location, room and workload rules. "
-                f"{fill * 100:.0f}% fill, {checkin:.1f} avg check-in, {sessions} sessions"
-            ),
+            "compliant": not over_cap,
+            "fit_label": fit_label,
+            "assigned_hours": assigned_hours,
+            "reason": " ".join(reason_parts),
         })
     return sorted(candidates, key=lambda item: (-item["score"], item["tier"], item["name"]))[:6]
 
@@ -866,6 +894,38 @@ def _enrich_nl_edit_compliance(result, iteration):
     checks = result.setdefault("constraint_checks", [])
 
     for edit in result.get("edits") or []:
+        if edit.get("action") in {"add", "bulk_add", "create"}:
+            slot = {
+                "location": edit.get("location"),
+                "day_of_week": edit.get("new_day") or edit.get("day"),
+                "time": edit.get("new_time") or edit.get("time"),
+                "class_name": edit.get("new_class") or edit.get("class_name"),
+                "trainer_1": edit.get("new_trainer") or edit.get("trainer_1") or "",
+            }
+            requested_trainer = str(slot.get("trainer_1") or "").strip()
+            if requested_trainer and requested_trainer.upper() != "BEST_FIT":
+                edit["needs_confirmation"] = False
+                continue
+            candidates = _compliant_trainer_candidates(data, iteration, slot)
+            edit["best_fit_trainer_candidates"] = candidates
+            if candidates:
+                edit["new_trainer"] = "BEST_FIT"
+                edit["trainer_1"] = ""
+                edit["needs_confirmation"] = True
+                checks.append(
+                    f"Prepared {len(candidates)} trainer option(s) for {slot.get('class_name')} on "
+                    f"{slot.get('day_of_week')} {slot.get('time')} for user confirmation."
+                )
+            else:
+                edit["new_trainer"] = "BEST_FIT"
+                edit["trainer_1"] = ""
+                edit["needs_confirmation"] = True
+                warnings.append(
+                    f"No qualified trainer option is available for {slot.get('class_name')} on "
+                    f"{slot.get('day_of_week')} {slot.get('time')} at {slot.get('location')}."
+                )
+            continue
+
         if edit.get("action") != "modify" or edit.get("new_trainer") != "BEST_FIT":
             continue
         source = _find_live_slot(data, iteration, {
@@ -1077,6 +1137,8 @@ def _add_class_to_schedule(payload):
         raise FileNotFoundError("web/schedule_data.json was not found")
     data = json.loads(path.read_text())
     slot = dict(slot)
+    if str(slot.get("trainer_1") or "").strip().upper() == "BEST_FIT":
+        raise ValueError("A specific trainer must be chosen before this class can be added")
     slot.setdefault("recommendation", "MANUAL")
     slot.setdefault("manual_added", True)
     slot.setdefault("scheduling_reason", "Manual class added from calendar")
@@ -1160,11 +1222,12 @@ def _write_schedule_data(data, event_type="schedule_updated", summary="Schedule 
     return {"saved": bool(schedule_saved), "collaboration": collaboration_saved}
 
 
-def _finalise_schedule_to_supabase():
+def _finalise_schedule_to_supabase(week_start=None):
     return finalise_schedule_document(
         supabase_request,
         schedule_path=WEB_DIR / "schedule_data.json",
         outputs_dir=OUTPUTS_DIR,
+        week_start=week_start,
     )
 
 
@@ -1860,6 +1923,8 @@ def run_pipeline():
         "--variation-seed", str(variation_seed),
         "--output-suffix", output_suffix,
     ]
+    if options.get("locations"):
+        cmd.extend(["--location", ",".join(options["locations"])])
     print(f"  [API] Spawning pipeline: {' '.join(cmd)}")
     try:
         global _latest_schedule_file
@@ -2194,7 +2259,8 @@ def save_schedule_supabase():
 @app.route("/api/finalize-schedule", methods=["POST"])
 def finalise_schedule():
     try:
-        return _json({"ok": True, "finalised": _finalise_schedule_to_supabase()})
+        payload = request.get_json(silent=True) or {}
+        return _json({"ok": True, "finalised": _finalise_schedule_to_supabase(payload.get("week_start") or payload.get("week"))})
     except Exception as e:
         return _json({"error": str(e)}, 400)
 

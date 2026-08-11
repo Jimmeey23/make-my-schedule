@@ -104,7 +104,11 @@ def run_pipeline(
     STATE_DIR.mkdir(exist_ok=True)
     Path("outputs").mkdir(exist_ok=True)
 
-    locations = [location] if location else DEFAULT_LOCATIONS
+    if location:
+        requested_locations = [loc.strip() for loc in str(location).split(",") if loc.strip()]
+        locations = requested_locations or DEFAULT_LOCATIONS
+    else:
+        locations = DEFAULT_LOCATIONS
     perf_csv_path = perf_csv_path or csv_path
     weights = json.loads(scoring_weights) if scoring_weights else None
 

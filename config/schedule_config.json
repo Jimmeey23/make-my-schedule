@@ -1298,6 +1298,7 @@
     "ai_api_key": "",
     "ai_provider": "openai",
     "ai_model": "gpt-5.6-terra",
+    "ai_generation_model": "gpt-5.4-mini",
     "ai_backup_model": "",
     "ai_base_url": "https://api.openai.com/v1",
     "ai_optimize_api_key": "",

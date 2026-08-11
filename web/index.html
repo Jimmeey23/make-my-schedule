@@ -84,11 +84,11 @@
       <input type="date" id="schedule-week-start" onchange="persistScheduleWeekSelection()">
     </label>
     <button class="finalise-btn" id="finalise-btn" onclick="finaliseSchedule()">Finalize PDF</button>
-    <button class="gen-btn" id="gen-btn" onclick="runPipelineFromHeader(false)">
+    <button class="gen-btn" id="gen-btn" onclick="openGenerateScheduleModal(false)">
       <span class="gen-spinner" id="gen-spinner"></span>
       &#9654; Generate
     </button>
-    <button class="gen-btn ai" id="gen-ai-btn" onclick="runPipelineFromHeader(true)">
+    <button class="gen-btn ai" id="gen-ai-btn" onclick="openGenerateScheduleModal(true)">
       <span class="gen-spinner"></span>
       Generate with AI
     </button>

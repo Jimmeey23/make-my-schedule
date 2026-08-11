@@ -413,7 +413,7 @@ def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_invalid(tmp
     with pytest.raises(RuntimeError, match="could not produce a valid AI plan"):
         planner.run()
 
-    assert calls and set(calls) == {"gpt-5.6-terra"}
+    assert calls and set(calls) == {"gpt-5.4-mini"}
 
 
 def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_partial(tmp_path, monkeypatch):
@@ -494,7 +494,7 @@ def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_partial(tmp
     with pytest.raises(RuntimeError, match="could not produce a valid AI plan"):
         planner.run()
 
-    assert calls and set(calls) == {"gpt-5.6-terra"}
+    assert calls and set(calls) == {"gpt-5.4-mini"}
 
 
 def test_ai_planner_selects_best_valid_variant_when_enabled(tmp_path, monkeypatch):
@@ -867,6 +867,148 @@ def test_chat_substitution_questions_are_answered_by_llm(monkeypatch):
     assert "RANKED SUBSTITUTION CANDIDATES" in system_context
     assert "recommendation_status=eligible" in system_context
     assert "recommendation_status=blocked" in system_context
+
+
+def test_serve_nl_bulk_add_requires_confirmed_top_trainer(tmp_path, monkeypatch):
+    web_dir = tmp_path / "web"
+    web_dir.mkdir()
+    (web_dir / "schedule_data.json").write_text(json.dumps({
+        "locations": {
+            "Copper & Cloves": [
+                {
+                    "location": "Copper & Cloves",
+                    "date": "2026-05-04",
+                    "day_of_week": "Monday",
+                    "time": "08:30",
+                    "class_name": "Copper + Cloves Barre 57",
+                    "trainer_1": "Trainer Existing",
+                }
+            ]
+        }
+    }))
+    profiles_path = tmp_path / "trainer_profiles.json"
+    profiles_path.write_text(json.dumps([
+        {
+            "name": "Trainer A",
+            "active": True,
+            "tier": 1,
+            "qualifications": {"all_barre": True},
+            "locations": {
+                "Copper & Cloves": {
+                    "available_days": ["Tuesday", "Wednesday"],
+                    "week_off_days": [],
+                }
+            },
+        }
+    ]))
+    monkeypatch.setattr(serve_module, "WEB_DIR", web_dir)
+    monkeypatch.setattr(serve_module, "TRAINER_PROFILES_PATH", profiles_path)
+    monkeypatch.setattr(serve_module, "_load_known_trainers", lambda: ["Trainer A"])
+    monkeypatch.setattr(serve_module, "_load_known_classes", lambda: ["Copper + Cloves Barre 57"])
+
+    class FakeCompletions:
+        def create(self, **kwargs):
+            content = json.dumps({
+                "summary": "Add two Copper classes",
+                "intent": "bulk_add",
+                "confidence": 0.9,
+                "route_to_optimizer": False,
+                "optimizer_scope": {},
+                "edits": [
+                    {
+                        "action": "add",
+                        "location": "Copper & Cloves",
+                        "day": "Tuesday",
+                        "time": "08:30",
+                        "class_name": "Copper + Cloves Barre 57",
+                        "trainer_1": "",
+                        "new_trainer": "",
+                    },
+                    {
+                        "action": "add",
+                        "location": "Copper & Cloves",
+                        "day": "Wednesday",
+                        "time": "08:30",
+                        "class_name": "Copper + Cloves Barre 57",
+                        "trainer_1": "",
+                        "new_trainer": "",
+                    },
+                ],
+                "warnings": [],
+                "constraint_checks": [],
+            })
+            return type("Resp", (), {
+                "choices": [type("Choice", (), {
+                    "message": type("Msg", (), {"content": content})()
+                })()]
+            })()
+
+    class FakeClient:
+        chat = type("Chat", (), {"completions": FakeCompletions()})()
+
+    monkeypatch.setitem(sys.modules, "ai_provider", type("AIModule", (), {
+        "OPENAI_AVAILABLE": True,
+        "create_ai_client": staticmethod(lambda: (FakeClient(), {"model": "gpt-5.6-terra"})),
+    }))
+
+    result = serve_module._nl_edit_plan({
+        "instruction": "add more classes to copper",
+        "context": {"location": "Copper & Cloves"},
+    })
+
+    assert len(result["edits"]) == 2
+    assert all(edit["new_trainer"] == "BEST_FIT" for edit in result["edits"])
+    assert all(edit["trainer_1"] == "" for edit in result["edits"])
+    assert all(edit["needs_confirmation"] is True for edit in result["edits"])
+    assert all(edit["best_fit_trainer_candidates"][0]["name"] == "Trainer A" for edit in result["edits"])
+
+
+def test_flask_nl_bulk_add_requires_confirmed_top_trainer(tmp_path, monkeypatch):
+    result = {
+        "edits": [
+            {
+                "action": "add",
+                "location": "Copper & Cloves",
+                "day": "Tuesday",
+                "time": "08:30",
+                "class_name": "Copper + Cloves Barre 57",
+                "trainer_1": "",
+                "new_trainer": "",
+            },
+            {
+                "action": "add",
+                "location": "Copper & Cloves",
+                "day": "Wednesday",
+                "time": "08:30",
+                "class_name": "Copper + Cloves Barre 57",
+                "trainer_1": "",
+                "new_trainer": "",
+            },
+        ],
+        "warnings": [],
+        "constraint_checks": [],
+    }
+    web_dir = tmp_path / "web"
+    web_dir.mkdir()
+    (web_dir / "schedule_data.json").write_text(json.dumps({"locations": {"Copper & Cloves": []}}))
+    monkeypatch.setattr(flask_app_module, "WEB_DIR", web_dir)
+    monkeypatch.setattr(flask_app_module, "_compliant_trainer_candidates", lambda data, iteration, slot: [{
+        "name": "Trainer A",
+        "score": 90,
+        "avg_fill_rate": 70,
+        "avg_checkin": 8,
+        "session_count": 10,
+        "tier": 1,
+        "compliant": True,
+    }])
+    monkeypatch.setattr(flask_app_module, "_iteration_schedule_rows", lambda data, iteration: [])
+
+    enriched = flask_app_module._enrich_nl_edit_compliance(result, "Main")
+
+    assert all(edit["new_trainer"] == "BEST_FIT" for edit in enriched["edits"])
+    assert all(edit["trainer_1"] == "" for edit in enriched["edits"])
+    assert all(edit["needs_confirmation"] is True for edit in enriched["edits"])
+    assert all(edit["best_fit_trainer_candidates"][0]["name"] == "Trainer A" for edit in enriched["edits"])
 
 
 def test_optimize_schedule_applies_validated_ai_patch(tmp_path, monkeypatch):
@@ -2219,7 +2361,8 @@ def test_pipeline_request_uses_saved_ai_key_when_ai_generation_requested(tmp_pat
     assert options["week"] == "2026-05-11"
     assert options["use_ai"] is True
     assert options["child_env"]["OPENAI_API_KEY"] == "saved-test-key"
-    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.6-terra"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert options["child_env"]["SCHEDULER_GENERATION_MODEL"] == "gpt-5.4-mini"
     assert options["child_env"]["SCHEDULER_FORCE_AI_ONLY"] == "1"
     assert "SCHEDULER_FORCE_GREEDY" not in options["child_env"]
 
@@ -2277,7 +2420,8 @@ def test_serve_pipeline_request_uses_saved_ai_key_when_ai_generation_requested(t
     assert options["week"] == "2026-05-11"
     assert options["use_ai"] is True
     assert options["child_env"]["OPENAI_API_KEY"] == "saved-test-key"
-    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.6-terra"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert options["child_env"]["SCHEDULER_GENERATION_MODEL"] == "gpt-5.4-mini"
     assert options["child_env"]["SCHEDULER_FORCE_AI_ONLY"] == "1"
     assert "SCHEDULER_FORCE_GREEDY" not in options["child_env"]
 
@@ -2344,7 +2488,8 @@ def test_serve_pipeline_request_forces_openai_gpt54mini_only(tmp_path, monkeypat
 
     child_env = options["child_env"]
     assert child_env["OPENAI_API_KEY"] == "payload-openai-key"
-    assert child_env["OPENAI_MODEL"] == "gpt-5.6-terra"
+    assert child_env["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert child_env["SCHEDULER_GENERATION_MODEL"] == "gpt-5.4-mini"
     assert child_env["OPENAI_BASE_URL"] == "https://api.openai.com/v1"
     assert child_env["SCHEDULER_FORCE_AI_ONLY"] == "1"
     assert "OPENROUTER_API_KEY" not in child_env
@@ -2377,7 +2522,8 @@ def test_pipeline_request_coerces_old_provider_config_to_openai_only(tmp_path, m
     })
 
     assert options["child_env"]["OPENAI_API_KEY"] == "saved-openrouter-key"
-    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.6-terra"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert options["child_env"]["SCHEDULER_GENERATION_MODEL"] == "gpt-5.4-mini"
     assert options["child_env"]["OPENAI_BASE_URL"] == "https://api.openai.com/v1"
     assert "DEEPSEEK_API_KEY" not in options["child_env"]
     assert "OPENROUTER_API_KEY" not in options["child_env"]
@@ -2434,7 +2580,8 @@ def test_serve_pipeline_request_coerces_old_provider_config_to_openai_only(tmp_p
     }, "2026-05-04")
 
     assert options["child_env"]["OPENAI_API_KEY"] == "saved-openrouter-key"
-    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.6-terra"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert options["child_env"]["SCHEDULER_GENERATION_MODEL"] == "gpt-5.4-mini"
     assert options["child_env"]["OPENAI_BASE_URL"] == "https://api.openai.com/v1"
     assert "DEEPSEEK_API_KEY" not in options["child_env"]
     assert "OPENROUTER_API_KEY" not in options["child_env"]
@@ -5939,7 +6086,7 @@ def test_openai_structural_underfill_repairs_without_backup_model(tmp_path, monk
     planner = AISchedulePlanner(target_week_start="2026-05-04", locations=["Kenkere House"])
     output = planner.run()
 
-    assert calls and set(calls) == {"gpt-5.6-terra"}
+    assert calls and set(calls) == {"gpt-5.4-mini"}
     assert output["schedule"][0]["rationale"] == "greedy_fallback"
 
 

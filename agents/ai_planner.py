@@ -1251,10 +1251,9 @@ def _ai_attempt_settings(primary_settings: dict) -> List[dict]:
     next_settings = dict(primary_settings)
     next_settings["provider"] = "openai"
     next_settings["model"] = (
-        os.environ.get("OPENAI_MODEL")
-        or os.environ.get("SCHEDULER_AI_MODEL")
-        or primary_settings.get("model")
-        or "gpt-5.6-terra"
+        os.environ.get("SCHEDULER_GENERATION_MODEL")
+        or os.environ.get("OPENAI_SCHEDULE_GENERATION_MODEL")
+        or "gpt-5.4-mini"
     )
     next_settings["backup_model"] = ""
     next_settings["base_url"] = "https://api.openai.com/v1"

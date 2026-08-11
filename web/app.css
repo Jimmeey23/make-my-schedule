@@ -154,6 +154,7 @@ button {
   position: relative;
   overflow: visible;
   isolation: isolate;
+  animation: athenaLogoDrift 5.2s ease-in-out infinite;
 }
 
 .logo::before,
@@ -199,6 +200,18 @@ button {
   }
   50% {
     filter: drop-shadow(0 8px 20px rgba(124, 58, 237, .55)) drop-shadow(0 0 14px rgba(235, 129, 95, .4));
+  }
+}
+
+@keyframes athenaLogoDrift {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  45% {
+    transform: translateY(-2px) rotate(-1deg);
+  }
+  72% {
+    transform: translateY(1px) rotate(1deg);
   }
 }
 
@@ -11520,6 +11533,37 @@ details.fp-section[open] .fp-section-hdr::after {
   font-style: italic
 }
 
+.nle-fit-badge {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 4px 7px;
+  border: 1px solid #E2E8F0;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  color: #475569;
+  background: #F8FAFC
+}
+
+.nle-fit-badge.best-fit {
+  color: #166534;
+  background: #DCFCE7;
+  border-color: #86EFAC
+}
+
+.nle-fit-badge.good-fit {
+  color: #075985;
+  background: #E0F2FE;
+  border-color: #7DD3FC
+}
+
+.nle-fit-badge.poor-fit {
+  color: #991B1B;
+  background: #FEE2E2;
+  border-color: #FCA5A5
+}
+
 /* loader inline overrides already handled in <head> */
 
 /* ============================================================ */
@@ -11643,10 +11687,13 @@ details.fp-section[open] .fp-section-hdr::after {
 /* Typography Overrides */
 .theme-dark .hdr-title,
 .theme-dark .brand-plan {
-  background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 100%) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)) !important;
+  background: none !important;
+  color: #FFFFFF !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.28), 0 0 22px rgba(0, 243, 255, 0.18) !important;
+  filter: none !important;
 }
 
 .theme-dark .brand-57 {
@@ -11711,8 +11758,8 @@ details.fp-section[open] .fp-section-hdr::after {
 .theme-dark .logo-img {
   background: transparent !important;
   mix-blend-mode: normal !important;
-  filter: drop-shadow(0 0 10px rgba(0, 243, 255, 0.5)) drop-shadow(0 0 20px rgba(188, 19, 254, 0.35)) !important;
-  animation: logoFloatBreath 4.5s cubic-bezier(.45, 0, .55, 1) infinite, athenaGlowDark 4.5s ease-in-out infinite !important;
+  filter: drop-shadow(0 0 12px rgba(0, 243, 255, 0.58)) drop-shadow(0 0 24px rgba(188, 19, 254, 0.42)) !important;
+  animation: logoFloatBreath 3.4s cubic-bezier(.45, 0, .55, 1) infinite, athenaGlowDark 3.4s ease-in-out infinite !important;
 }
 
 @keyframes athenaGlowDark {

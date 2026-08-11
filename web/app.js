@@ -4069,7 +4069,8 @@ function getSelectedScheduleWeekStart(){
   const picker=document.getElementById("schedule-week-start");
   const stored=localStorage.getItem("schedule_week_start")||"";
   const current=(SCHEDULE_DATA&&SCHEDULE_DATA.generated_for_week)||WEEK_LABEL||"";
-  return mondayForDateValue(picker?.value)||mondayForDateValue(stored)||mondayForDateValue(current)||"";
+  const thisWeek=mondayForDateValue(dateToInputValue(new Date()));
+  return mondayForDateValue(picker?.value)||mondayForDateValue(stored)||thisWeek||mondayForDateValue(current)||"";
 }
 function persistScheduleWeekSelection(){
   const picker=document.getElementById("schedule-week-start");if(!picker)return;
@@ -4079,10 +4080,64 @@ function persistScheduleWeekSelection(){
 }
 function initScheduleWeekPicker(){
   const picker=document.getElementById("schedule-week-start");if(!picker)return;
-  const weekStart=getSelectedScheduleWeekStart();if(weekStart){picker.value=weekStart;localStorage.setItem("schedule_week_start",weekStart);}
+  const weekStart=mondayForDateValue(dateToInputValue(new Date()));
+  if(weekStart){picker.value=weekStart;localStorage.setItem("schedule_week_start",weekStart);persistScheduleWeekSelection();}
 }
 
-function runPipelineFromHeader(useAi=false){
+let _pendingGenerateUseAi=false;
+
+function scheduleLocationsList(){
+  const fromSchedule=Object.keys((SCHEDULE_DATA&&SCHEDULE_DATA.locations)||{});
+  const defaults=["Kwality House, Kemps Corner","Supreme HQ, Bandra","Kenkere House","Copper & Cloves"];
+  return [...new Set(fromSchedule.length?fromSchedule:defaults)];
+}
+
+function openGenerateScheduleModal(useAi=false){
+  _pendingGenerateUseAi=Boolean(useAi);
+  const box=document.getElementById("modal-box");
+  const overlay=document.getElementById("modal-overlay");
+  if(!box||!overlay){runPipelineFromHeader(useAi);return;}
+  const weekStart=getSelectedScheduleWeekStart()||mondayForDateValue(dateToInputValue(new Date()));
+  const locs=scheduleLocationsList();
+  box.className="modal-box";
+  box.innerHTML=`<div class="modal-hdr">
+    <div><div class="modal-class-name">${useAi?"Generate with AI":"Generate Schedule"}</div><div class="modal-meta">Choose week and studio scope</div></div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="modal-section">
+      <div class="fp-label">Schedule Week Starting Monday</div>
+      <input class="fp-select" type="date" id="gen-week-start" value="${rvEscapeAttr(weekStart)}" onchange="this.value=mondayForDateValue(this.value)">
+    </div>
+    <div class="modal-section">
+      <div class="fp-label">Locations To Generate</div>
+      <div class="fp-location-list">
+        ${locs.map(loc=>`<label class="fp-location-item active" style="cursor:pointer">
+          <input type="checkbox" class="gen-location-check" value="${rvEscapeAttr(loc)}" checked onchange="this.closest('.fp-location-item').classList.toggle('active',this.checked)">
+          <span>${rvEscapeHtml(loc)}</span>
+        </label>`).join("")}
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button class="nle-btn cancel" onclick="closeModal()">Cancel</button>
+      <button class="nle-btn apply" onclick="confirmGenerateSchedule()">Generate</button>
+    </div>
+  </div>`;
+  overlay.classList.add("open");
+}
+
+function confirmGenerateSchedule(){
+  const weekInput=document.getElementById("gen-week-start");
+  const weekStart=mondayForDateValue(weekInput?.value)||getSelectedScheduleWeekStart();
+  const picker=document.getElementById("schedule-week-start");
+  if(picker&&weekStart){picker.value=weekStart;persistScheduleWeekSelection();}
+  const selected=[...document.querySelectorAll(".gen-location-check:checked")].map(el=>el.value).filter(Boolean);
+  if(!selected.length){showToast("Select at least one location","warn");return;}
+  closeModal();
+  runPipelineFromHeader(_pendingGenerateUseAi,{locations:selected});
+}
+
+function runPipelineFromHeader(useAi=false,opts={}){
   const weekStart=getSelectedScheduleWeekStart();
   if(!weekStart){showToast("Choose a valid schedule week first","warn");return;}
   const buttons=[document.getElementById("gen-btn"),document.getElementById("gen-ai-btn"),document.getElementById("optimize-ai-btn")];
@@ -4093,10 +4148,12 @@ function runPipelineFromHeader(useAi=false){
   const aiOpts = _settSchedConfig.settings_options||{};
   const apiKey = String(aiOpts.ai_api_key||"").trim();
   const payload = {week_start:weekStart,use_ai:Boolean(useAi)};
+  if(Array.isArray(opts.locations)&&opts.locations.length) payload.locations=opts.locations;
   if(useAi){
     if(apiKey) payload.api_key = apiKey;
     payload.ai_provider = "openai";
-    payload.ai_model = "gpt-5.6-terra";
+    payload.ai_model = "gpt-5.4-mini";
+    payload.ai_generation_model = "gpt-5.4-mini";
     payload.ai_backup_model = "";
     payload.ai_base_url = "https://api.openai.com/v1";
   }
@@ -4108,7 +4165,8 @@ function runPipelineFromHeader(useAi=false){
         const msg=document.getElementById("pb-msg");
         if(bar)bar.className="visible";
         if(msg)msg.textContent=pipelineDisplayMessage(res.message,0);
-        showToast(`${useAi?"AI generation":"Generation"} started for week of ${weekStart}`,"");
+        const locMsg=Array.isArray(payload.locations)&&payload.locations.length?` · ${payload.locations.length} location${payload.locations.length!==1?"s":""}`:"";
+        showToast(`${useAi?"AI generation":"Generation"} started for week of ${weekStart}${locMsg}`,"");
         pollPipelineStatus();
       } else {
         showToast("Error: "+(res.error||"Unknown error"),"error");
@@ -4262,8 +4320,10 @@ function optSumClose() {
 
 function finaliseSchedule(){
   const btn=document.getElementById("finalise-btn");
+  const weekStart=getSelectedScheduleWeekStart();
+  if(!weekStart){showToast("Choose a valid schedule week first","warn");return;}
   if(btn){btn.disabled=true;btn.textContent="Finalising…";}
-  schedulerFetch("/api/finalise-schedule",{method:"POST"})
+  schedulerFetch("/api/finalise-schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({week_start:weekStart})})
     .then(r=>r.json().then(j=>({ok:r.ok,json:j})))
     .then(({ok,json})=>{
       if(!ok||!json.ok)throw new Error(json.error||"Could not finalise schedule");
@@ -5069,6 +5129,7 @@ function settDefaultConfig(){
       ai_api_key:"",
       ai_provider:"openai",
       ai_model:"gpt-5.6-terra",
+      ai_generation_model:"gpt-5.4-mini",
       ai_backup_model:"",
       ai_base_url:"https://api.openai.com/v1",
       ai_optimize_api_key:"",
@@ -5110,6 +5171,7 @@ function settNormalizeConfig(config){
   next.settings_options.ai_api_key=String(next.settings_options.ai_api_key||"");
   next.settings_options.ai_provider="openai";
   next.settings_options.ai_model="gpt-5.6-terra";
+  next.settings_options.ai_generation_model="gpt-5.4-mini";
   next.settings_options.ai_backup_model="";
   next.settings_options.ai_base_url="https://api.openai.com/v1";
   next.settings_options.ai_optimize_api_key=String(next.settings_options.ai_optimize_api_key||"");
@@ -5564,11 +5626,12 @@ function settRenderAdvancedOptions(){
   const select=(key,choices)=>`<select onchange="settSetAdvancedOption('${key}',this.value,'string')">${choices.map(([v,l])=>`<option value="${v}" ${o[key]===v?"selected":""}>${l}</option>`).join("")}</select>`;
   wrap.innerHTML=`
     <div class="sett-config-panel">
-      <div class="sett-section-kicker">AI Generation</div>
+      <div class="sett-section-kicker">AI Keys & Schedule Generation</div>
       <div class="sett-option-grid">
-        ${settAdvancedOptionCard("field","ai_provider","AI Provider","All AI-powered generation uses OpenAI only.",`<input type="text" value="OpenAI" disabled>`)}
+        ${settAdvancedOptionCard("field","ai_provider","AI Provider","All AI-powered functions use OpenAI only.",`<input type="text" value="OpenAI" disabled>`)}
         ${settAdvancedOptionCard("field","ai_api_key","OpenAI API Key","Used for all AI generation and assistant features.",`<input type="password" value="${rvEscapeAttr(o.ai_api_key||"")}" placeholder="Paste OpenAI key" autocomplete="off" onchange="settSetAdvancedOption('ai_api_key',this.value,'string')">`)}
-        ${settAdvancedOptionCard("field","ai_model","OpenAI Model","Locked model for every AI function.",`<input type="text" value="gpt-5.6-terra" disabled>`)}
+        ${settAdvancedOptionCard("field","ai_generation_model","Schedule Generation Model","Cost-controlled model used only for full schedule generation.",`<input type="text" value="gpt-5.4-mini" disabled>`)}
+        ${settAdvancedOptionCard("field","ai_model","Assistant/Edit Model","Higher-accuracy model for chatbot edits, best-fit trainer/class recommendations, and precise schedule changes.",`<input type="text" value="gpt-5.6-terra" disabled>`)}
         ${settAdvancedOptionCard("field","ai_base_url","OpenAI Base URL","Locked OpenAI API endpoint.",`<input type="text" value="https://api.openai.com/v1" disabled>`)}
       </div>
     </div>
@@ -7431,13 +7494,21 @@ function chatSetOpen(open){
   _chatOpen=!!open;
   const drawer=document.getElementById("chat-drawer");
   const badge=document.getElementById("chat-fab-badge");
-  if(drawer)drawer.classList.toggle("open",_chatOpen);
+  if(drawer){
+    drawer.classList.toggle("open",_chatOpen);
+    drawer.style.display=_chatOpen?"flex":"";
+  }
   if(badge)badge.classList.remove("show");
   if(_chatOpen){
     const input=document.getElementById("chat-input");
     if(input)setTimeout(()=>input.focus(),220);
   }
 }
+
+document.addEventListener("DOMContentLoaded",()=>{
+  const closeBtn=document.querySelector(".chat-close");
+  if(closeBtn)closeBtn.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();chatSetOpen(false);});
+});
 
 document.addEventListener("pointerdown",e=>{
   if(!_chatOpen)return;
@@ -7561,6 +7632,21 @@ function chatAppendMsg(role,text){
   msgs.scrollTop=msgs.scrollHeight;
 }
 
+function chatAppendHtml(role,html){
+  const msgs=document.getElementById("chat-msgs");
+  if(!msgs)return null;
+  const empty=msgs.querySelector(".chat-empty");
+  if(empty)empty.remove();
+  const now=new Date();
+  const time=`${now.getHours()}:${String(now.getMinutes()).padStart(2,"0")}`;
+  const div=document.createElement("div");
+  div.className=`chat-msg ${role}`;
+  div.innerHTML=`<div class="chat-bubble">${html}</div><div class="chat-msg-time">${time}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+  return div;
+}
+
 function chatShowTyping(){
   const msgs=document.getElementById("chat-msgs");
   if(!msgs)return;
@@ -7626,6 +7712,17 @@ const NL_TRAINER_WORDS = /\b(trainer|instructor|coach)\b/i;
 const NL_SCHEDULE_WORDS = /\b(class|session|slot|block|morning|evening|midday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|am|pm|week|day)\b/i;
 
 let _nleResult = null;
+let _nleInlineBody = null;
+let _nleInlineFooter = null;
+
+function nleEl(id){
+  const inline=document.getElementById("nle-inline-panel");
+  if(inline){
+    const found=inline.querySelector(`#${id}`);
+    if(found)return found;
+  }
+  return document.getElementById(id);
+}
 
 function nlEditDetect(msg) {
   if (!msg || msg.length < 12) return false;
@@ -7640,24 +7737,30 @@ function nlEditDetect(msg) {
 }
 
 function nlEditOpen(instruction) {
-  const overlay = document.getElementById("nle-overlay");
-  const body = document.getElementById("nle-body");
-  const footer = document.getElementById("nle-footer");
-  const title = document.getElementById("nle-title");
-  const sub = document.getElementById("nle-sub");
   _nleResult = null;
-  title.textContent = "Analyzing your instruction…";
-  sub.textContent = `"${instruction.length > 80 ? instruction.slice(0,80)+"…" : instruction}"`;
-  body.innerHTML = `<div class="nle-loading"><div class="nle-dots"><div class="nle-dot"></div><div class="nle-dot"></div><div class="nle-dot"></div></div><span>Parsing schedule edits — this takes a few seconds…</span></div>`;
-  if (footer) footer.style.display = "none";
-  overlay.classList.add("open");
+  const node=chatAppendHtml("bot",`<div class="nle-inline" id="nle-inline-panel">
+    <div class="nle-hdr" style="padding:0 0 10px;border:0">
+      <div class="nle-hdr-main">
+        <div class="nle-hdr-title" id="nle-title-inline">Analyzing your instruction…</div>
+        <div class="nle-hdr-sub" id="nle-sub-inline">"${rvEscapeHtml(instruction.length > 80 ? instruction.slice(0,80)+"…" : instruction)}"</div>
+      </div>
+    </div>
+    <div class="nle-body" id="nle-body-inline"><div class="nle-loading"><div class="nle-dots"><div class="nle-dot"></div><div class="nle-dot"></div><div class="nle-dot"></div></div><span>Parsing schedule edits — this takes a few seconds…</span></div></div>
+    <div class="nle-footer" id="nle-footer-inline" style="display:none"><div class="nle-footer-left" id="nle-footer-left-inline"></div><div class="nle-footer-btns"><button class="nle-btn cancel" onclick="nlEditClose()">Cancel</button><button class="nle-btn apply" id="nle-apply-btn-inline" onclick="nlEditConfirm()">Apply Changes</button></div></div>
+  </div>`);
+  _nleInlineBody=node?.querySelector("#nle-body-inline")||null;
+  _nleInlineFooter=node?.querySelector("#nle-footer-inline")||null;
   nlEditRequest(instruction);
 }
 
 function nlEditClose() {
   const overlay = document.getElementById("nle-overlay");
   if (overlay) overlay.classList.remove("open");
+  const inline=document.getElementById("nle-inline-panel");
+  if(inline)inline.remove();
   _nleResult = null;
+  _nleInlineBody = null;
+  _nleInlineFooter = null;
 }
 
 function nlEditRequest(instruction) {
@@ -7685,12 +7788,12 @@ function nlEditRequest(instruction) {
 }
 
 function nlEditRender(result, instruction) {
-  const body = document.getElementById("nle-body");
-  const footer = document.getElementById("nle-footer");
-  const footerLeft = document.getElementById("nle-footer-left");
-  const title = document.getElementById("nle-title");
-  const sub = document.getElementById("nle-sub");
-  const applyBtn = document.getElementById("nle-apply-btn");
+  const body = _nleInlineBody || document.getElementById("nle-body");
+  const footer = _nleInlineFooter || document.getElementById("nle-footer");
+  const footerLeft = document.getElementById("nle-footer-left-inline") || document.getElementById("nle-footer-left");
+  const title = document.getElementById("nle-title-inline") || document.getElementById("nle-title");
+  const sub = document.getElementById("nle-sub-inline") || document.getElementById("nle-sub");
+  const applyBtn = document.getElementById("nle-apply-btn-inline") || document.getElementById("nle-apply-btn");
 
   if (result.error) {
     nlEditRenderError(result.error);
@@ -7710,7 +7813,13 @@ function nlEditRender(result, instruction) {
     chatAppendMsg("bot", `🔄 Routing to AI optimizer scoped to ${scope.day || scope.time_from || "active view"}…`);
     schedulerFetch("/api/optimize-schedule", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
       .then(r=>r.json())
-      .then(json => { setOptimizeButtonLoading && setOptimizeButtonLoading(false); optSumShow(json); })
+      .then(json => {
+        setOptimizeButtonLoading && setOptimizeButtonLoading(false);
+        const applied=(json.applied||[]).length||json.applied_count||0;
+        const rejected=(json.rejected||[]).length||json.rejected_count||0;
+        chatAppendMsg("bot", `Optimizer completed: ${applied} change${applied!==1?"s":""} applied, ${rejected} skipped. ${json.summary||""}`);
+        nlEditReloadSchedule();
+      })
       .catch(err => { setOptimizeButtonLoading && setOptimizeButtonLoading(false); chatAppendMsg("bot","❌ Optimizer error: "+err); });
     return;
   }
@@ -7741,25 +7850,29 @@ function nlEditRender(result, instruction) {
       const trainer = edit.new_trainer || edit.trainer_1 || "?";
       const fromStr = (edit.action==="add" && (edit.new_day||edit.new_time)) ? ` (from ${edit.day||"?"} ${edit.time||"?"})` : "";
 
-      // Only show up to 3 ranked candidates — the user must explicitly pick
-      // one before this edit is allowed to reach /api/nl-edit-apply.
-      const trCandidates = (edit.best_fit_trainer_candidates || []).slice(0, 3);
+      const trCandidates = (edit.best_fit_trainer_candidates || []);
       const clsCandidates = (edit.best_fit_class_candidates || []).slice(0, 3);
       const hasBestFit = trCandidates.length > 0 || clsCandidates.length > 0;
-      const pendingConfirmation = edit.needs_confirmation === true;
+      const pendingConfirmation = edit.needs_confirmation === true || edit.new_trainer === "BEST_FIT" || edit.new_class === "BEST_FIT";
 
       let bestFitHtml = "";
       if (trCandidates.length > 0) {
         bestFitHtml += `<div class="nle-bestfit-wrap">
-          <div class="nle-bestfit-label">${pendingConfirmation ? "⚠ Choose a compliant trainer to confirm this edit" : "✨ Rule-compliant trainer"} — validated against live availability, qualifications, clashes, shifts, locations and workload</div>
+          <div class="nle-bestfit-label">Choose a trainer to confirm this edit — qualified options are shown even when workload cap makes them a weaker fit</div>
           <select class="nle-bestfit-select" id="nle-tr-select-${editIdx}" onchange="nlEditSelectTrainer(${editIdx}, this.value)">
             <option value="" ${pendingConfirmation ? "selected" : ""} disabled>Select a trainer…</option>
-            ${trCandidates.map((c,i) => `<option value="${rvEscapeHtml(c.name)}" ${(!pendingConfirmation && edit.new_trainer===c.name)?"selected":""}>${rvEscapeHtml(c.name)} — compliant · ${c.avg_fill_rate}% fill · ${c.avg_checkin} avg · Tier ${c.tier}</option>`).join("")}
+            ${trCandidates.map((c,i) => `<option value="${rvEscapeHtml(c.name)}">${rvEscapeHtml(c.name)} — ${rvEscapeHtml(c.fit_label||"Good fit")} · ${c.assigned_hours||0}h assigned · Tier ${c.tier}</option>`).join("")}
           </select>
           <div class="nle-bestfit-cards">${trCandidates.map((c,i) => `
-            <div class="nle-cand-card ${(!pendingConfirmation && edit.new_trainer===c.name)?"selected":""}" id="nle-tr-cand-${editIdx}-${i}" onclick="nlEditPickTrainer(${editIdx},${i})">
-              <div class="nle-cand-name">${rvEscapeHtml(c.name)}</div>
-              <div class="nle-cand-meta">${c.compliant ? "✓ rule-compliant · " : ""}${c.avg_fill_rate}% fill · ${c.avg_checkin} check-in · ${c.session_count} sessions · Tier ${c.tier}</div>
+            <div class="nle-cand-card" id="nle-tr-cand-${editIdx}-${i}" onclick="nlEditPickTrainer(${editIdx},${i})">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span class="trainer-mgr-avatar" style="width:34px;height:34px">${trainerImage(c.name)?`<img src="${trainerImage(c.name)}" alt="${rvEscapeAttr(c.name)}">`:trainerInitials(c.name)}</span>
+                <div style="min-width:0;flex:1">
+                  <div class="nle-cand-name">${rvEscapeHtml(c.name)}</div>
+                  <div class="nle-cand-meta">${c.avg_fill_rate}% fill · ${c.avg_checkin} check-in · ${c.session_count} sessions · Tier ${c.tier} · ${c.assigned_hours||0}h assigned</div>
+                </div>
+                <span class="nle-fit-badge ${(c.fit_label||"good fit").toLowerCase().replace(/\s+/g,"-")}">${rvEscapeHtml(c.fit_label||"Good fit")}</span>
+              </div>
               ${c.reason ? `<div class="nle-cand-reason">${rvEscapeHtml(c.reason)}</div>` : ""}
             </div>`).join("")}
           </div>
@@ -7844,18 +7957,18 @@ function nlEditIsUnresolved(edit) {
 function nlEditUpdateApplyState() {
   if (!_nleResult) return;
   const edits = _nleResult.edits || [];
-  const applyBtn = document.getElementById("nle-apply-btn");
+  const applyBtn = document.getElementById("nle-apply-btn-inline") || document.getElementById("nle-apply-btn");
   if (applyBtn) applyBtn.disabled = edits.length === 0 || edits.some(nlEditIsPending);
 }
 
 function nlEditRenderError(msg) {
-  const body = document.getElementById("nle-body");
-  const footer = document.getElementById("nle-footer");
-  const title = document.getElementById("nle-title");
+  const body = _nleInlineBody || document.getElementById("nle-body");
+  const footer = _nleInlineFooter || document.getElementById("nle-footer");
+  const title = document.getElementById("nle-title-inline") || document.getElementById("nle-title");
   title.textContent = "Could not parse instruction";
   body.innerHTML = `<div style="padding:14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;color:#991B1B;font-size:12px">${rvEscapeHtml(msg)}</div>`;
   if (footer) footer.style.display = "flex";
-  const applyBtn = document.getElementById("nle-apply-btn");
+  const applyBtn = document.getElementById("nle-apply-btn-inline") || document.getElementById("nle-apply-btn");
   if (applyBtn) applyBtn.disabled = true;
 }
 
@@ -7952,8 +8065,8 @@ function nlEditConfirm() {
   }
 
   // Disable apply button + show loading
-  const applyBtn = document.getElementById("nle-apply-btn");
-  const footerLeft = document.getElementById("nle-footer-left");
+  const applyBtn = document.getElementById("nle-apply-btn-inline") || document.getElementById("nle-apply-btn");
+  const footerLeft = document.getElementById("nle-footer-left-inline") || document.getElementById("nle-footer-left");
   if (applyBtn) { applyBtn.disabled = true; applyBtn.textContent = "Applying…"; }
 
   const iteration = (typeof _iter !== "undefined" && _iter) ? _iter : "Main";

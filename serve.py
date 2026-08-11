@@ -42,6 +42,7 @@ BENGALURU_LOCATIONS = {"Kenkere House", "Copper & Cloves"}
 MAIN_STUDIOS = {"Kwality House, Kemps Corner", "Supreme HQ, Bandra", "Kenkere House"}
 DERIVED_STUDIOS = {"Courtside", "Copper & Cloves"}
 DEFAULT_OPENAI_MODEL = "gpt-5.6-terra"
+DEFAULT_GENERATION_MODEL = "gpt-5.4-mini"
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
@@ -1237,7 +1238,8 @@ def _inject_ai_runtime_env(child_env: dict, runtime: dict) -> None:
         "AI_BACKUP_MODEL",
     ):
         child_env.pop(key, None)
-    child_env["OPENAI_MODEL"] = DEFAULT_OPENAI_MODEL
+    child_env["OPENAI_MODEL"] = DEFAULT_GENERATION_MODEL
+    child_env["SCHEDULER_GENERATION_MODEL"] = DEFAULT_GENERATION_MODEL
     child_env["OPENAI_BASE_URL"] = DEFAULT_OPENAI_BASE_URL
 
 
@@ -1259,6 +1261,19 @@ def _resolve_pipeline_request_options(payload: dict | None, default_week: str) -
     child_env = os.environ.copy()
     child_env["PIPELINE_WEEK"] = week
     child_env["PYTHONUNBUFFERED"] = "1"
+    known_locations = {
+        "Kwality House, Kemps Corner",
+        "Supreme HQ, Bandra",
+        "Kenkere House",
+        "Copper & Cloves",
+    }
+    requested_locations = payload.get("locations") or payload.get("selected_locations") or []
+    if isinstance(requested_locations, str):
+        requested_locations = [loc.strip() for loc in requested_locations.split(",") if loc.strip()]
+    requested_locations = [str(loc).strip() for loc in requested_locations if str(loc).strip()]
+    invalid_locations = [loc for loc in requested_locations if loc not in known_locations]
+    if invalid_locations:
+        raise ValueError(f"Unknown location(s): {', '.join(invalid_locations)}")
 
     if use_ai:
         api_key = (
@@ -1277,7 +1292,7 @@ def _resolve_pipeline_request_options(payload: dict | None, default_week: str) -
         child_env["SCHEDULER_FORCE_GREEDY"] = "1"
         child_env.pop("SCHEDULER_FORCE_AI_ONLY", None)
 
-    return {"week": week, "use_ai": use_ai, "child_env": child_env}
+    return {"week": week, "use_ai": use_ai, "child_env": child_env, "locations": requested_locations}
 
 
 def _same_schedule_slot(row, slot):
@@ -1756,11 +1771,12 @@ def _write_schedule_data(data):
     return _save_schedule_to_supabase(data)
 
 
-def _finalise_schedule_to_supabase():
+def _finalise_schedule_to_supabase(week_start=None):
     return finalise_schedule_document(
         supabase_request,
         schedule_path=WEB_DIR / "schedule_data.json",
         outputs_dir=OUTPUTS_DIR,
+        week_start=week_start,
     )
 
 
@@ -2131,11 +2147,12 @@ def _nl_edit_plan(payload: dict) -> dict:
                 profiles=[], exclude=requested_trainer, time_str=time_target,
             )
             edit["best_fit_trainer_candidates"] = candidates
-            # Only require confirmation when the trainer truly wasn't specified
-            # by the user AND there's something to confirm from — an empty
-            # candidate list means there's no picker to show, so leaving this
-            # True would permanently disable Apply.
-            edit["needs_confirmation"] = bool(candidates) if not requested_trainer else False
+            if not requested_trainer and candidates and edit.get("action") == "add":
+                edit["new_trainer"] = "BEST_FIT"
+                edit["trainer_1"] = ""
+                edit["needs_confirmation"] = True
+            else:
+                edit["needs_confirmation"] = bool(candidates) if not requested_trainer else False
             if not requested_trainer and not candidates:
                 # No dedicated "no candidates" field exists in web/app.js's
                 # nlEditRender — it derives that message structurally from the
@@ -2179,7 +2196,7 @@ def _qual_key(class_name: str) -> str:
 
 def _find_trainer_candidates(day: str, location: str, class_name: str, profiles: list,
                               exclude: str = "", time_str: str = "") -> list:
-    """Return up to 5 available, qualified trainers for the given day/location/class."""
+    """Return qualified trainer options, including weekly-cap overages as poor fits."""
     try:
         raw_profiles = json.loads(_trainer_profiles_path().read_text())
     except Exception:
@@ -2196,6 +2213,7 @@ def _find_trainer_candidates(day: str, location: str, class_name: str, profiles:
 
     # Load current schedule to detect conflicts
     existing_assignments: dict[str, list[str]] = {}  # trainer → [shift, ...]
+    weekly_minutes_by_trainer: dict[str, int] = {}
     try:
         sched_path = WEB_DIR / "schedule_data.json"
         if sched_path.exists():
@@ -2205,6 +2223,8 @@ def _find_trainer_candidates(day: str, location: str, class_name: str, profiles:
                     if r.get("day_of_week") == day:
                         t = r.get("trainer_1") or ""
                         tm = r.get("time") or ""
+                        if t:
+                            weekly_minutes_by_trainer[t] = weekly_minutes_by_trainer.get(t, 0) + _slot_duration(r)
                         if t and tm:
                             try:
                                 h = int(tm.split(":")[0])
@@ -2243,17 +2263,31 @@ def _find_trainer_candidates(day: str, location: str, class_name: str, profiles:
                 continue  # already teaching this shift on this day
             if trainer_shifts and target_shift not in trainer_shifts:
                 continue  # has the other shift — cross-shift not allowed
+        assigned_hours = round((weekly_minutes_by_trainer.get(name, 0) + 57) / 60, 1)
+        over_cap = assigned_hours > 15
+        history_fill = float(loc_data.get("avg_fill_rate") or 0)
+        history_checkin = float(loc_data.get("avg_checkin") or 0)
+        fit_label = "Poor fit" if over_cap else ("Best fit" if int(p.get("tier") or 3) <= 2 and history_checkin >= 7 else "Good fit")
+        reason = (
+            f"Would reach {assigned_hours}h assigned this week across all locations. "
+            + ("Poor fit because this crosses the 15h weekly cap. " if over_cap else "Available and qualified for this class/location/day. ")
+            + f"Location history: {history_fill}% fill, {history_checkin:.1f} avg check-in."
+        )
         results.append({
             "name": name,
             "tier": p.get("tier") or 3,
-            "avg_checkin": round(float(loc_data.get("avg_checkin") or 0), 1),
-            "avg_fill_rate": round(float(loc_data.get("avg_fill_rate") or 0), 1),
+            "avg_checkin": round(history_checkin, 1),
+            "avg_fill_rate": round(history_fill, 1),
             "session_count": int(loc_data.get("session_count") or 0),
             "available": True,
+            "compliant": not over_cap,
+            "fit_label": fit_label,
+            "assigned_hours": assigned_hours,
+            "reason": reason,
         })
 
-    results.sort(key=lambda x: (x["tier"], -x["avg_checkin"]))
-    return results[:5]
+    results.sort(key=lambda x: (x.get("fit_label") == "Poor fit", x["tier"], -x["avg_checkin"], x["name"]))
+    return results
 
 
 def _change_class_in_schedule(payload):
@@ -2344,7 +2378,12 @@ def _nl_edit_apply(payload: dict) -> dict:
         edit = norm(raw_edit)
         # Server-side enforcement of the confirmation requirement — the client
         # (web/app.js) already blocks these, but the API must not trust that.
-        if edit.get("needs_confirmation"):
+        if (
+            edit.get("needs_confirmation")
+            or edit.get("new_trainer") == "BEST_FIT"
+            or edit.get("new_class") == "BEST_FIT"
+            or edit.get("trainer_1") == "BEST_FIT"
+        ):
             errors.append({"action": action, "slot": edit, "error": "Edit still requires user confirmation of a candidate pick"})
             continue
         try:
@@ -2580,8 +2619,8 @@ def create_server(port_arg: str) -> tuple[HTTPServer, int]:
     raise RuntimeError("Could not bind an available port") from last_error
 
 
-def build_pipeline_command(csv_path: str, week: str, variation_seed: int, output_suffix: str) -> list[str]:
-    return [
+def build_pipeline_command(csv_path: str, week: str, variation_seed: int, output_suffix: str, locations: list[str] | None = None) -> list[str]:
+    cmd = [
         sys.executable, str(PROJECT_ROOT / "orchestrator.py"),
         "--csv", csv_path,
         "--week", week,
@@ -2589,6 +2628,9 @@ def build_pipeline_command(csv_path: str, week: str, variation_seed: int, output
         "--variation-seed", str(variation_seed),
         "--output-suffix", output_suffix,
     ]
+    if locations:
+        cmd.extend(["--location", ",".join(locations)])
+    return cmd
 
 
 def is_output_artifact_path(path: str) -> bool:
@@ -2931,7 +2973,7 @@ class RulesHandler(BaseHTTPRequestHandler):
             week = options["week"]
             variation_seed = int(_time.time()) % 100000 + _run_counter
             output_suffix = f"run{_run_counter}_{uuid.uuid4().hex[:6]}"
-            cmd = build_pipeline_command(csv_path, week, variation_seed, output_suffix)
+            cmd = build_pipeline_command(csv_path, week, variation_seed, output_suffix, options.get("locations"))
             print(
                 "  [API] run-pipeline mode="
                 f"{'ai' if options['use_ai'] else 'standard'} "
@@ -3146,8 +3188,11 @@ class RulesHandler(BaseHTTPRequestHandler):
 
         if path in {"/api/finalise-schedule", "/api/finalize-schedule"}:
             try:
-                result = _finalise_schedule_to_supabase()
+                payload = json.loads(body_raw or "{}")
+                result = _finalise_schedule_to_supabase(payload.get("week_start") or payload.get("week"))
                 self._send_json(200, {"ok": True, "finalised": result})
+            except json.JSONDecodeError as e:
+                self._send_json(400, {"error": f"Invalid JSON: {e}"})
             except Exception as e:
                 self._send_json(400, {"error": str(e)})
             return
