@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css?v=6" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   (function() {
     var theme = localStorage.getItem('athena-theme');
@@ -38,6 +39,15 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<section class="collaboration-login" id="collaboration-login" hidden aria-labelledby="collaboration-login-title">
+  <div class="collaboration-login-card">
+    <img src="images/p57-logo-transparent.png" alt="Athena Scheduler" class="collaboration-login-logo">
+    <p class="collaboration-eyebrow">Athena Scheduler</p>
+    <h1 id="collaboration-login-title">Schedule together, in real time.</h1>
+    <p id="collaboration-login-hint">Sign in to collaborate on live schedules.</p>
+    <button id="collaboration-google-signin" class="collaboration-google-button" type="button" onclick="collaborationSignIn()">Continue with Google</button>
+  </div>
+</section>
 
 <header class="app-header">
   <div class="hdr-left" onclick="window.location.href='/'" style="cursor:pointer;" title="Go to home">
@@ -50,6 +60,10 @@
     </div>
   </div>
   <div class="hdr-actions">
+    <div class="collaboration-presence-wrap" aria-live="polite">
+      <div class="collaboration-presence" id="collaboration-presence"></div>
+      <span id="collaboration-presence-count">Working solo</span>
+    </div>
     <button class="theme-toggle-btn" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Dark/Light Mode" style="background:transparent;border:1px solid var(--border);border-radius:6px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-right:10px;color:var(--text);">
       <span class="icon-light" style="display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
       <span class="icon-dark" style="display:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
@@ -284,6 +298,7 @@ function updateThemeIcon() {
 // Initialize icon on load
 document.addEventListener('DOMContentLoaded', updateThemeIcon);
 </script>
+<script src="collaboration.js"></script>
 <script src="app.js"></script>
 
 <button class="chat-fab" id="chat-fab" onclick="chatToggle()" title="Ask AI about the schedule">

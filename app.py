@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib import error as urlerror
 from urllib import request as urlrequest
 
-from flask import Flask, Response, request
+from flask import Flask, Response, has_request_context, request
 
 from agents.ingestor import DataIngestor
 from chat_assistant import build_chat_context, build_knowledge_context, parse_nl_schedule_edit
@@ -946,7 +946,11 @@ def _replace_trainer_in_schedule(payload):
     if updated == 0:
         raise ValueError("Could not find the selected class in the active schedule")
 
-    _write_schedule_data(data)
+    _write_schedule_data(
+        data,
+        "replace_trainer",
+        f"Replaced {slot.get('trainer_1') or 'unassigned'} with {new_trainer} for {slot.get('class_name')} on {slot.get('day_of_week')} {slot.get('time')}",
+    )
 
     from chat_assistant import _load_json as _cl_load_json
     metrics = _cl_load_json(METRICS_PATH, {})
@@ -999,7 +1003,11 @@ def _replace_class_in_schedule(payload):
     if updated == 0:
         raise ValueError("Could not find the selected class in the active schedule")
 
-    _write_schedule_data(data)
+    _write_schedule_data(
+        data,
+        "change_class",
+        f"Changed {slot.get('class_name') or 'class'} to {new_class} on {slot.get('day_of_week')} {slot.get('time')}",
+    )
 
     from chat_assistant import _load_json as _cl_load_json
     metrics = _cl_load_json(METRICS_PATH, {})
@@ -1031,7 +1039,11 @@ def _add_class_to_schedule(payload):
     else:
         data.setdefault("iterations", {}).setdefault(iteration, {}).setdefault(loc, []).append(slot)
 
-    supabase_saved = _write_schedule_data(data)
+    supabase_saved = _write_schedule_data(
+        data,
+        "add_class",
+        f"Added {slot.get('class_name')} with {slot.get('trainer_1')} on {slot.get('day_of_week')} {slot.get('time')}",
+    )
 
     from chat_assistant import _load_json as _cl_load_json
     metrics = _cl_load_json(METRICS_PATH, {})
@@ -1072,7 +1084,7 @@ def _add_classes_to_schedule(payload):
         else:
             data.setdefault("iterations", {}).setdefault(iteration, {}).setdefault(loc, []).append(slot)
 
-    supabase_saved = _write_schedule_data(data)
+    supabase_saved = _write_schedule_data(data, "bulk_add_classes", f"Added {len(prepared)} classes")
     return {"added": len(prepared), "supabase_saved": supabase_saved}
 
 
@@ -1086,13 +1098,17 @@ def _save_schedule_to_supabase(data):
         return {"saved": False, "error": str(exc)}
 
 
-def _write_schedule_data(data):
+def _write_schedule_data(data, event_type="schedule_updated", summary="Schedule updated"):
     path = WEB_DIR / "schedule_data.json"
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(data, indent=2))
     os.replace(tmp, path)
     _regenerate_index_from_template(data)
-    return _save_schedule_to_supabase(data)
+    schedule_saved = _save_schedule_to_supabase(data)
+    collaboration_saved = _publish_collaboration_schedule(data, event_type, summary)
+    if isinstance(schedule_saved, dict):
+        return {**schedule_saved, "collaboration": collaboration_saved}
+    return {"saved": bool(schedule_saved), "collaboration": collaboration_saved}
 
 
 def _finalise_schedule_to_supabase():
@@ -1119,7 +1135,11 @@ def _clear_schedule(payload):
     else:
         for loc in list(((data.get("iterations") or {}).get(iteration) or {}).keys()):
             data.setdefault("iterations", {}).setdefault(iteration, {})[loc] = []
-    supabase_saved = _write_schedule_data(data)
+    supabase_saved = _write_schedule_data(
+        data,
+        "clear_schedule",
+        f"Cleared the {iteration} schedule",
+    )
     return {"cleared": True, "supabase_saved": supabase_saved}
 
 
@@ -1133,7 +1153,11 @@ def _remove_class_from_schedule(payload):
     if idx < 0:
         raise ValueError("Could not find the selected class in the active schedule")
     rows.pop(idx)
-    supabase_saved = _write_schedule_data(data)
+    supabase_saved = _write_schedule_data(
+        data,
+        "remove_class",
+        f"Removed {slot.get('class_name')} on {slot.get('day_of_week')} {slot.get('time')}",
+    )
     return {"removed": 1, "supabase_saved": supabase_saved}
 
 
@@ -1165,7 +1189,11 @@ def _move_class_in_schedule(payload):
     })
     _validate_manual_slot(data, iteration, moved, original_slot=slot)
     _rows_for_iteration(data, iteration, target["location"]).append(moved)
-    supabase_saved = _write_schedule_data(data)
+    supabase_saved = _write_schedule_data(
+        data,
+        "move_class",
+        f"Moved {slot.get('class_name')} from {slot.get('day_of_week')} {slot.get('time')} to {target.get('day_of_week')} {target.get('time')}",
+    )
     return {"moved": 1, "slot": moved, "supabase_saved": supabase_saved}
 
 
@@ -1222,6 +1250,71 @@ def supabase_settings() -> tuple[str, str]:
         url = url[: -len("/rest/v1")]
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or ""
     return url, key
+
+
+def supabase_browser_settings() -> tuple[str, str]:
+    url, _ = supabase_settings()
+    return url, (os.environ.get("SUPABASE_ANON_KEY") or "").strip()
+
+
+def _current_collaboration_actor() -> dict:
+    """Resolve a Supabase Auth user without ever exposing the service key."""
+    if not has_request_context():
+        return {"id": None, "name": "System"}
+    token = (request.headers.get("Authorization") or "").removeprefix("Bearer ").strip()
+    url, anon_key = supabase_browser_settings()
+    if not token or not url or not anon_key:
+        return {"id": None, "name": "System"}
+    auth_request = urlrequest.Request(
+        f"{url}/auth/v1/user",
+        headers={"apikey": anon_key, "Authorization": f"Bearer {token}"},
+    )
+    try:
+        with urlrequest.urlopen(auth_request, timeout=5) as response:
+            user = json.loads(response.read().decode())
+    except (urlerror.URLError, urlerror.HTTPError, ValueError):
+        return {"id": None, "name": "Unauthenticated"}
+    metadata = user.get("user_metadata") or {}
+    name = metadata.get("full_name") or metadata.get("name") or user.get("email") or "Team member"
+    return {"id": user.get("id"), "name": str(name)[:120]}
+
+
+def _publish_collaboration_schedule(data, event_type="schedule_updated", summary="Schedule updated"):
+    """Persist the shared session and its user-attributed audit record."""
+    if not all(supabase_settings()):
+        return {"saved": False, "error": "Supabase is not configured"}
+    actor = _current_collaboration_actor()
+    session = {
+        "id": "main",
+        "schedule_data": data,
+        "updated_by": actor["id"],
+        "updated_by_name": actor["name"],
+        "updated_at": "now()",
+    }
+    try:
+        # updated_at is maintained by the database default/trigger; avoid sending
+        # a string expression through PostgREST.
+        session.pop("updated_at")
+        supabase_request(
+            "POST",
+            "/schedule_sessions?on_conflict=id",
+            [session],
+            "resolution=merge-duplicates,return=representation",
+        )
+        supabase_request(
+            "POST",
+            "/schedule_edit_log",
+            [{
+                "session_id": "main",
+                "user_id": actor["id"],
+                "user_name": actor["name"],
+                "event_type": event_type,
+                "summary": summary[:500],
+            }],
+        )
+        return {"saved": True, "actor": actor["name"]}
+    except Exception as exc:
+        return {"saved": False, "error": str(exc)}
 
 
 def supabase_request(method: str, path: str, body=None, prefer: str | None = None):
@@ -1319,6 +1412,31 @@ def supabase_status():
         "has_key": bool(key),
         "url_host": urlparse(url).netloc if url else "",
     })
+
+
+@app.route("/api/collaboration-config")
+def collaboration_config():
+    url, anon_key = supabase_browser_settings()
+    return _json({
+        "enabled": bool(url and anon_key),
+        "url": url,
+        "anon_key": anon_key,
+        "session_id": "main",
+    })
+
+
+@app.route("/api/collaboration/edit-log")
+def collaboration_edit_log():
+    if not all(supabase_settings()):
+        return _json({"edits": [], "configured": False})
+    try:
+        rows = supabase_request(
+            "GET",
+            "/schedule_edit_log?session_id=eq.main&select=user_name,event_type,summary,created_at&order=created_at.desc&limit=100",
+        )
+        return _json({"edits": rows, "configured": True})
+    except Exception as exc:
+        return _json({"edits": [], "configured": True, "error": str(exc)}, 500)
 
 
 @app.route("/api/pipeline-status")

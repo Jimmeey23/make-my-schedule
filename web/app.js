@@ -57,6 +57,10 @@ function schedulerSetAdminToken(token){
 async function schedulerFetch(url,options={}){
   const opts={...options};
   const headers=new Headers(opts.headers||{});
+  if(typeof collaborationAuthToken==="function"){
+    const accessToken=await collaborationAuthToken();
+    if(accessToken)headers.set("Authorization",`Bearer ${accessToken}`);
+  }
   const token=schedulerAdminToken();
   if(token)headers.set("X-Scheduler-Admin-Token",token);
   opts.headers=headers;
@@ -3976,6 +3980,7 @@ async function hydrateLatestScheduleIfEmpty(){
 }
 
 async function init(){
+  if(typeof collaborationRequireAuth==="function")await collaborationRequireAuth();
   await hydrateLatestScheduleIfEmpty();
   renderInitialUi();
   const loader=document.getElementById("initial-loader");
