@@ -584,8 +584,8 @@
       "time": "11:00",
       "class": "Studio Barre 57",
       "trainer": "Simran Dutt",
-      "note": "Auto-pinned from high-performance historical slots",
-      "enabled": true
+      "note": "Auto-pinned from high-performance historical slots \u2014 disabled: trainer is inactive with no trainer_profiles.json record",
+      "enabled": false
     },
     {
       "id": "pin-fri-1700-studiotra-ken",
@@ -724,8 +724,8 @@
       "time": "17:45",
       "class": "Studio Mat 57 Express",
       "trainer": "Simran Dutt",
-      "note": "Auto-pinned from high-performance historical slots",
-      "enabled": true
+      "note": "Auto-pinned from high-performance historical slots \u2014 disabled: trainer is inactive with no trainer_profiles.json record",
+      "enabled": false
     },
     {
       "id": "pin-mon-0715-studiostr-kwa",
@@ -763,7 +763,6 @@
   "leave_periods": [],
   "off_days": [],
   "inactive_trainers": [
-    "",
     "Dhruv Mehta",
     "Janhavi Jain",
     "Kabir Varma",
@@ -1279,7 +1278,7 @@
     "default_bulk_scope": "selection",
     "target_cap_buffer": 1,
     "target_selection_strategy": "seeded_range",
-    "weekly_hours_cap": 17,
+    "weekly_hours_cap": 15,
     "tier1_min_weekly_hours": 13,
     "tier1_ideal_weekly_hours": 15,
     "max_daily_trainer_hours": 4,
@@ -1313,7 +1312,7 @@
   "source_of_truth": {
     "owner": "settings-command-center",
     "conflict_policy": "settings_override_soft_rules",
-    "updated_at": "2026-08-08T15:27:11.141Z"
+    "updated_at": "2026-08-11T05:14:43.978Z"
   },
   "scoring_weights": {
     "fill_rate": 25,

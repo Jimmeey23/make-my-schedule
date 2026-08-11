@@ -124,11 +124,6 @@ def canonical_mix_class(class_name: str) -> str:
     return class_name or "Unknown"
 
 
-def _rules_panel_html() -> str:
-    """Deprecated floating drawer — now replaced by the Rules nav tab in the main UI template."""
-    return ""
-
-
 def target_schedule_score(location: str) -> float:
     return float(LOCATION_MIN_SCHEDULE_SCORE.get(location, MIN_SCHEDULE_SCORE))
 
@@ -771,11 +766,12 @@ class OutputReporter:
         try:
             with open(Path("rules/trainer_profiles.json")) as _tf:
                 _tpd = json.load(_tf)
-            for _t in _tpd.get("trainers", []):
+            _tprofiles = _tpd.get("trainers", []) if isinstance(_tpd, dict) else _tpd
+            for _t in _tprofiles:
                 if _t.get("tier") == 1:
                     tier1_trainers.add(_t["name"])
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"[reporter] warning: could not load trainer tiers from trainer_profiles.json: {exc}")
 
         # ---- Per-trainer aggregations ----------------------------------
         trainer_daily_min: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
@@ -1213,8 +1209,8 @@ class OutputReporter:
                         _sr.get("time", ""),
                     )
                     slot_scores_lookup[_k] = _sr
-            except Exception:
-                pass
+            except Exception as exc:
+                print(f"[reporter] warning: could not load slot score lookups from {scores_path}: {exc}")
 
         def _clean_time(value) -> str:
             text = str(value or "").strip()
@@ -1586,8 +1582,6 @@ class OutputReporter:
                 .replace("/*INJECT_WEEK_LABEL*/", f'"{week_label}"')
                 .replace("/*INJECT_OPPORTUNITIES*/", json.dumps(OPTIMISATION_OPPORTUNITIES))
             )
-            # Inject Rules panel into template path just before </body>
-            html = html.replace("</body>", _rules_panel_html() + "\n</body>", 1)
             (WEB_DIR / "index.html").write_text(html, encoding="utf-8")
             print(f"[Agent 6] Web interface written to {WEB_DIR}/index.html (template-based)")
             print(f"[Agent 6] To view with rule toggles, run:")
@@ -3003,7 +2997,6 @@ document.addEventListener("keydown", e=>{{
 }});
 </script>
 
-{_rules_panel_html()}
 </body>
 </html>"""
 

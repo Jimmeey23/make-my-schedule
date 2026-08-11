@@ -97,6 +97,13 @@ STRENGTH_FIT_PRIORITY_TRAINERS = {
 }
 MUMBAI_TIER1_SUPREME_MIN_SHARE = 0.45
 MUMBAI_TIER1_SUPREME_MAX_SHARE = 0.55
+# Trainers with a mandatory weekend off, independent of their saved availability
+# days. This is a hard trainer-specific rule not currently expressed in
+# rules/trainer_profiles.json or config/schedule_config.json custom_rules — per
+# CLAUDE.md this should eventually be a saved hard custom rule instead of code,
+# but is kept here (named, single source) until that migration happens so
+# behavior doesn't change silently.
+MANDATORY_WEEKEND_OFF_TRAINERS = {"Anisha Shah", "Vivaran Dhasmana", "Mrigakshi Jaiswal", "Pushyank Nahar"}
 MIN_CLASS_START_MIN = 7 * 60
 BLOCKED_MIDDAY_START_MIN = 13 * 60
 BLOCKED_MIDDAY_END_MIN = 15 * 60
@@ -1165,8 +1172,8 @@ class ScheduleOptimiser:
                 for d in days:
                     if day_name and str(d).strip().lower() == day_name.lower():
                         return True
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"[optimiser] warning: could not read recurring off-day for {trainer}: {exc}")
         return False
 
     def _date_for_day(self, day_name: str) -> Optional[str]:
@@ -1876,8 +1883,8 @@ class ScheduleOptimiser:
             saved = (self.schedule_config.get("settings_options") or {}).get("location_weekly_floors") or {}
             for k, v in saved.items():
                 weekly_min[k] = int(v)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"[optimiser] warning: could not read saved weekly floor overrides, using CLAUDE.md defaults: {exc}")
         for location in list(weekly_min):
             if location in LOCATION_WEEKLY_CLASS_BOUNDS:
                 weekly_min[location] = self._weekly_target_for_location(location)
@@ -2200,12 +2207,19 @@ class ScheduleOptimiser:
         return boost + mix_boost - penalty
 
     def _score_noise(self, recommendation: str) -> float:
-        """Add controlled randomness for schedule variation. Pinned/PROTECT_EXACT get minimal noise."""
+        """Add a small tie-breaking jitter for schedule variation.
+
+        Kept deliberately small: on a ~0-100 score scale, noise this size can
+        only nudge close ties, not override real historical-performance signal
+        (a large stddev here previously let noise outrank a proven performer
+        by chance, fighting the "prioritize proven performers" intent).
+        Pinned/PROTECT_EXACT get even less, since those are already decided.
+        """
         if self._rng is None:
             return 0.0
         if recommendation in ("PINNED", "PROTECT_EXACT"):
             return self._rng.gauss(0, 3.0)
-        return self._rng.gauss(0, 45.0)
+        return self._rng.gauss(0, 8.0)
 
     def _evidence_adjusted_fill(self, hist: dict, fallback: float = 0.20) -> float:
         """Return a conservative fill estimate for scheduled output.
@@ -4284,7 +4298,7 @@ class ScheduleOptimiser:
         avail_days = self._available_days(trainer, location, loc_data.get("available_days", []))
         
         # Mandatory Weekend Off for specific trainers
-        if trainer in ["Anisha Shah", "Vivaran Dhasmana", "Mrigakshi Jaiswal", "Pushyank Nahar"]:
+        if trainer in MANDATORY_WEEKEND_OFF_TRAINERS:
             if day_name in ["Saturday", "Sunday"]:
                 return False
 

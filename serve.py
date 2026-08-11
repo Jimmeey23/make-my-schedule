@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 from agents.ingestor import DataIngestor
 from chat_assistant import build_chat_context
 from finalise_schedule import finalise_schedule_document
+from report_pdf import build_schedule_report_pdf_from_slots
 from rule_config import build_rules_catalog, load_rules_config, update_rules_config
 
 PROJECT_ROOT = Path(__file__).parent
@@ -2412,7 +2413,7 @@ def _nl_edit_apply(payload: dict) -> dict:
 
 
 def _regenerate_index_from_template(schedule_data=None):
-    from agents.reporter import OPTIMISATION_OPPORTUNITIES, _rules_panel_html
+    from agents.reporter import OPTIMISATION_OPPORTUNITIES
 
     template_path = WEB_DIR / "template.html"
     schedule_path = WEB_DIR / "schedule_data.json"
@@ -2438,7 +2439,6 @@ def _regenerate_index_from_template(schedule_data=None):
         .replace("/*INJECT_WEEK_LABEL*/", f'"{week_label}"')
         .replace("/*INJECT_OPPORTUNITIES*/", json.dumps(OPTIMISATION_OPPORTUNITIES))
     )
-    html = html.replace("</body>", _rules_panel_html() + "\n</body>", 1)
     (WEB_DIR / "index.html").write_text(html, encoding="utf-8")
 
 
@@ -2673,6 +2673,18 @@ class RulesHandler(BaseHTTPRequestHandler):
     def _send_json(self, code: int, data: dict):
         body = json.dumps(data).encode()
         self._send(code, "application/json", body)
+
+    def _send_pdf(self, body: bytes, filename: str):
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "application/pdf")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
     def _is_local_client(self) -> bool:
         host = (self.client_address[0] if self.client_address else "") or ""
@@ -3099,6 +3111,17 @@ class RulesHandler(BaseHTTPRequestHandler):
             try:
                 result = _finalise_schedule_to_supabase()
                 self._send_json(200, {"ok": True, "finalised": result})
+            except Exception as e:
+                self._send_json(400, {"error": str(e)})
+            return
+
+        if path == "/api/export-schedule-pdf":
+            try:
+                payload = json.loads(body_raw) if body_raw else {}
+                slots = payload.get("slots") or []
+                week_label = payload.get("week_label") or "Schedule"
+                pdf_bytes = build_schedule_report_pdf_from_slots(slots, week_label)
+                self._send_pdf(pdf_bytes, "schedule_report.pdf")
             except Exception as e:
                 self._send_json(400, {"error": str(e)})
             return

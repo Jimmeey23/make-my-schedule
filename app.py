@@ -22,6 +22,7 @@ from flask import Flask, Response, request
 from agents.ingestor import DataIngestor
 from chat_assistant import build_chat_context, parse_nl_schedule_edit
 from finalise_schedule import finalise_schedule_document
+from report_pdf import build_schedule_report_pdf_from_slots
 from rule_config import build_rules_catalog, load_rules_config, update_rules_config
 
 PROJECT_ROOT = Path(__file__).parent
@@ -969,7 +970,7 @@ def _move_class_in_schedule(payload):
 
 
 def _regenerate_index_from_template(schedule_data=None):
-    from agents.reporter import OPTIMISATION_OPPORTUNITIES, _rules_panel_html
+    from agents.reporter import OPTIMISATION_OPPORTUNITIES
 
     template_path = WEB_DIR / "template.html"
     schedule_path = WEB_DIR / "schedule_data.json"
@@ -995,7 +996,6 @@ def _regenerate_index_from_template(schedule_data=None):
         .replace("/*INJECT_WEEK_LABEL*/", f'"{week_label}"')
         .replace("/*INJECT_OPPORTUNITIES*/", json.dumps(OPTIMISATION_OPPORTUNITIES))
     )
-    html = html.replace("</body>", _rules_panel_html() + "\n</body>", 1)
     (WEB_DIR / "index.html").write_text(html, encoding="utf-8")
 
 
@@ -1800,6 +1800,22 @@ def save_schedule_supabase():
 def finalise_schedule():
     try:
         return _json({"ok": True, "finalised": _finalise_schedule_to_supabase()})
+    except Exception as e:
+        return _json({"error": str(e)}, 400)
+
+
+@app.route("/api/export-schedule-pdf", methods=["POST"])
+def export_schedule_pdf():
+    try:
+        payload = request.get_json(force=True) or {}
+        slots = payload.get("slots") or []
+        week_label = payload.get("week_label") or "Schedule"
+        pdf_bytes = build_schedule_report_pdf_from_slots(slots, week_label)
+        return Response(
+            pdf_bytes,
+            mimetype="application/pdf",
+            headers={"Content-Disposition": 'attachment; filename="schedule_report.pdf"'},
+        )
     except Exception as e:
         return _json({"error": str(e)}, 400)
 

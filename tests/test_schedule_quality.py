@@ -2008,20 +2008,31 @@ def test_web_template_uses_single_control_center_entry_in_main_tabs():
 def test_web_template_control_center_uses_clear_section_labels():
     template = web_ui_source()
 
-    assert "Schedule Setup" in template
-    assert "Trainer Setup" in template
-    assert "Class Mix and Formats" in template
-    assert "Rules and Pinned Classes" in template
-    assert "AI & Generation" in template
+    # Control Center's orbital home shows only these 6 main categories;
+    # everything else is reached by drilling into one of them.
+    assert "Trainers" in template
+    assert "Classes" in template
+    assert "Location" in template
+    assert "Days of the Week" in template
+    assert "Universal Rules" in template
+    assert "AI & General Settings" in template
     assert "Rule Catalog" not in template
+    # Schedule Setup and Rules and Pinned Classes / Scheduling & Rules were
+    # superseded by the 6-category orbital regroup — no single nav entry
+    # bundling unrelated settings under one misleading label anymore.
+    assert "Schedule Setup" not in template
+    assert "Rules and Pinned Classes" not in template
+    assert "Scheduling & Rules" not in template
 
 
 def test_settings_console_has_single_shell_and_generation_status():
     template = web_ui_source()
 
-    assert "Settings Console" in template
+    assert "Settings Console" not in template  # dropped: no separate overview screen
     assert "Applied to every generation" in template
-    assert "control-center-rail" in template
+    assert "control-center-home" in template
+    assert "cc-orbit-canvas" in template
+    assert "control-center-rail" not in template
     assert "control-center-inspector" not in template
     assert "settings-console-layout" in template
     assert "sett-command" not in template
@@ -2115,9 +2126,8 @@ def test_class_cards_use_modern_sleek_card_styles():
 def test_rule_catalog_links_to_guided_custom_rule_builder():
     template = web_ui_source()
 
-    assert "Create Custom Rule" in template
-    assert "function rvOpenCustomRuleBuilder" in template
-    assert "settSetTab(\"customrules\")" in template
+    assert "Pinned & Custom Rules" in template  # Universal Rules bucket entry
+    assert 'action:"customrules"' in template
     assert "CUSTOM_RULE_TEMPLATES" in template
     assert "function settUpdateCustomRuleBuilder" in template
     assert "data-cr-field" in template

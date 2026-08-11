@@ -303,8 +303,8 @@ def _day_target_ranges(location: str) -> Dict[str, Tuple[int, int]]:
                     if hi < lo:
                         hi = lo
                     target_ranges[day] = (lo, hi)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"[ai_planner] warning: could not parse daily targets for {location}: {exc}")
     return target_ranges
 
 
@@ -586,6 +586,7 @@ def _build_day_prompt(location: str, day: str, week_start: str,
         "",
         f"CRITICAL: {day}{(' ' + shift_label + 'slots') if shift else ''} only — do not include other days{' or the other shift' if shift else ''}. Use exact class/trainer names from above. Every slot needs a cover trainer.",
         "HARD RULE: a trainer may appear in AM or PM today, never both. A trainer may not have two overlapping or back-to-back-over-cap classes today.",
+        "HARD CAPS: no trainer may exceed 4h today or 15h this week (Tier 1) / their tier's weekly cap shown above. PowerCycle only at Mumbai studios, never Kenkere. Strength Lab and Pre/Post Natal only at Kwality House, Kemps Corner.",
         "PRIORITY 1 — ATTENDANCE & FILL RATE: prioritize historical attendance/fill rate above all else. Preserve high-draw pairings (>50% fill).",
         "PRIORITY 2 — CLASS & LEVEL MIX: maintain format variety and balanced difficulty progression across today's slots.",
         "LOW-PERFORMER BLOCK: do not schedule proven weak class/trainer/slot histories (below 3 avg check-ins or below 22% fill).",

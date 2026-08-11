@@ -259,7 +259,6 @@ const REC_BLOCK={
   "CONSIDER":   {bg:"#D97706",stripe:"#fde68a"},
   "DROP":       {bg:"#9CA3AF",stripe:"#e5e7eb"},
 };
-function recBlockColor(rec){return(REC_BLOCK[rec]||REC_BLOCK["CONSIDER"]).bg}
 function trainerInitials(name){return(name||"?").split(" ").map(p=>p[0]).join("").slice(0,2).toUpperCase()}
 function recGroup(r){
   if(r==="PINNED")return"PINNED";
@@ -988,7 +987,6 @@ function renderView(){
   else if(_view==="heatmap")  renderHeatmap(area,scopedFiltered);
   else if(_view==="rooms")    renderRoomView(area,filtered);
   else if(_view==="analytics")renderAnalytics(area,slots);
-  else if(_view==="rules")    renderRulesView(area);
   else if(_view==="history")  renderHistoryView(area);
   else if(_view==="settings") renderSettingsView(area);
   applyTrainerThumbnailState(area);
@@ -3687,6 +3685,7 @@ function openScoreModal(s){
 function closeModal(){
   document.getElementById("modal-overlay").classList.remove("open");
   document.getElementById("modal-box").className="modal-box";
+  if(typeof controlCenterStopRotation==="function")controlCenterStopRotation();
 }
 
 function slotIdentity(s){
@@ -4351,45 +4350,50 @@ function pollPipelineStatus(){
 }
 
 // ============================================================
-// CONTROL CENTER MODAL
+// CONTROL CENTER MODAL — orbital home (6 main categories) -> section view
 // ============================================================
-const CONTROL_CENTER_SECTIONS={
-  overview:{label:"Settings Console",icon:"🏠",group:"core",summary:"Status",detail:"Applied to every generation.",panel:"settings",heading:"Settings Console",description:"One source of truth for generated schedules, manual edits, trainer setup, and AI generation.",activate(){settSetTab("overview");}},
-  scheduling:{label:"Schedule Setup",icon:"📅",group:"schedule",summary:"Targets + Mix",detail:"Targets, Class Mix and Formats, and priority.",panel:"settings",heading:"Schedule Setup",description:"Manage daily targets, class mix, and planner count selection before generation.",activate(){settSetTab("rules");settSetSub("rules","targets");}},
-  rules:{label:"Rules and Pinned Classes",icon:"📌",group:"schedule",summary:"Hard rules",detail:"Pinned classes and active safeguards.",panel:"settings",heading:"Rules and Pinned Classes",description:"Review all active custom rules, pinned classes, universal safeguards, and generation controls in one place.",activate(){settSetTab("customrules");}},
-  trainers:{label:"Trainer Setup",icon:"👥",group:"people",summary:"Profiles",detail:"Directory and active status.",panel:"settings",heading:"Trainer Setup",description:"Manage trainer profiles, studio access, tiers, and activation status.",activate(){settSetTab("trainers");}},
-  qualifications:{label:"Certifications",icon:"🏅",group:"people",summary:"Eligible",detail:"Current class-format eligibility.",panel:"settings",heading:"Certifications",description:"Control which trainers are certified to teach each current class format.",activate(){settSetTab("qualifications");}},
-  availability:{label:"Availability",icon:"🗓",group:"people",summary:"Days + Leave",detail:"Assignment days, week offs, and time windows.",panel:"settings",heading:"Availability",description:"Set trainer assignment days, studio-specific availability, historic week offs, leave, and time windows used by generation.",activate(){settSetTab("availability");}},
-  ai:{label:"AI & Generation",icon:"⚙️",group:"system",summary:"Policy",detail:"Model config and generation settings.",panel:"settings",heading:"AI & Generation",description:"Tune AI settings, validation gates, and generation behavior.",activate(){settSetTab("advanced");}}
+const CONTROL_CENTER_BUCKETS={
+  trainers:{label:"Trainers",icon:"👥",description:"Directory, certifications, and priority ranking for every trainer.",
+    entries:[
+      {label:"Directory",action:"trainers"},
+      {label:"Bulk Ops",action:"trainers-bulk"},
+      {label:"Certifications",action:"qualifications"},
+      {label:"Trainer Priority",action:"priority"},
+    ]},
+  classes:{label:"Classes",icon:"🏷️",description:"Weekly class mix floors and ceilings per format.",
+    entries:[{label:"Class Mix",action:"classmix"}]},
+  location:{label:"Location",icon:"📍",description:"Daily and weekly class-count targets per studio.",
+    entries:[{label:"Setup / Targets",action:"targets"}]},
+  days:{label:"Days of the Week",icon:"🗓️",description:"Weekly availability, leave, and off-days per trainer.",
+    entries:[
+      {label:"Weekly Availability",action:"availability"},
+      {label:"Leave & Off Days",action:"leave"},
+    ]},
+  universal:{label:"Universal Rules",icon:"🛡️",description:"Universal safeguards plus saved pins and custom rules.",
+    entries:[
+      {label:"Universal Safeguards",action:"universal"},
+      {label:"Pinned & Custom Rules",action:"customrules"},
+    ]},
+  ai:{label:"AI & General Settings",icon:"⚙️",description:"Model policy, validation gates, and scoring weights.",
+    entries:[
+      {label:"Policy & Options",action:"advanced"},
+      {label:"Scoring & Planner",action:"ai"},
+    ]},
 };
-const CC_GROUPS={
-  core:{label:""},
-  schedule:{label:"Schedule"},
-  people:{label:"People"},
-  system:{label:"System"}
-};
-let _controlCenterSection="overview";
-function controlCenterNavButton(key,section){
-  return `<button class="control-center-nav-btn${_controlCenterSection===key?" active":""}" type="button" data-control-section="${key}" onclick="controlCenterSetSection('${key}')"><span class="cc-nav-icon">${section.icon||"·"}</span><span class="cc-nav-text"><span class="control-center-nav-title">${rvEscapeHtml(section.label)}</span><span class="control-center-nav-desc">${rvEscapeHtml(section.detail)}</span></span><span class="control-center-status">${rvEscapeHtml(section.summary)}</span></button>`;
-}
-function renderControlCenterNav(){
-  const sections=Object.entries(CONTROL_CENTER_SECTIONS);
-  let html='';let lastGroup=null;
-  sections.forEach(([k,v])=>{
-    if(v.group!==lastGroup){
-      const g=CC_GROUPS[v.group]||{};
-      if(g.label) html+=`<div class="cc-nav-group"><div class="cc-nav-group-label">${rvEscapeHtml(g.label)}</div></div>`;
-      lastGroup=v.group;
-    }
-    html+=controlCenterNavButton(k,v);
-  });
-  return html;
-}
-function controlCenterEnsurePanel(panelName){
-  const panelId=panelName==="rules"?"control-center-rules-panel":"control-center-settings-panel";
-  const host=document.getElementById(panelId);
+// Buckets whose only content lives inside ssec-rules' 5 native subtabs
+// (targets/classmix/priority/custom/universal). Used to filter that shared
+// subtab bar down to only the button(s) relevant to the active bucket.
+const CC_RULES_SUBTAB_BUCKET={targets:"location",classmix:"classes",priority:"trainers",custom:"universal",universal:"universal"};
+
+let _ccMode="home";
+let _ccActiveBucket=null;
+let _ccRotation=0;
+let _ccRotationTimer=null;
+
+function controlCenterEnsurePanel(){
+  const host=document.getElementById("control-center-settings-panel");
   if(!host||host.dataset.loaded==="1")return;
-  if(panelName==="rules")renderRulesView(host); else renderSettingsView(host);
+  renderSettingsView(host);
   host.dataset.loaded="1";
 }
 
@@ -4402,7 +4406,7 @@ function renderControlCenterShell(){
         <div class="cc-title-mark">⚙</div>
         <div>
           <div class="cc-title-line">
-            <div class="modal-class-name">Settings Console</div>
+            <div class="modal-class-name">Control Center</div>
             <span class="cc-live-chip">Persistent</span>
           </div>
           <div class="modal-meta">Applied to every generation: targets, trainers, assignment days, off days, class mix, rules, pins, and AI configuration.</div>
@@ -4412,59 +4416,159 @@ function renderControlCenterShell(){
     </div>
 
     <div class="control-center-shell">
-      <aside class="control-center-rail">
-        <div class="cc-rail-header">
-          <div class="cc-rail-title">Control Room</div>
-          <div class="cc-rail-sub">Every section below edits the same generation contract.</div>
-        </div>
-        <div class="cc-rail-nav-wrap">
-          <div class="control-center-nav">${renderControlCenterNav()}</div>
-        </div>
-        <div class="cc-status-strip">
-          <div class="cc-status-tile"><span>Rules source</span><b>Canonical JSON</b></div>
-          <div class="cc-status-tile"><span>Save mode</span><b>Persistent</b></div>
-          <div class="cc-status-tile"><span>Generation</span><b>Standard + AI</b></div>
-          <div class="cc-status-tile"><span>Validation</span><b>Pre-assignment</b></div>
-        </div>
-      </aside>
+      <div class="control-center-home" id="control-center-home"></div>
 
-      <main class="control-center-main">
-        <section class="control-center-intro">
-          <div class="control-center-intro-copy">
-            <div class="control-center-nav-title" id="control-center-heading">Settings Console</div>
-            <div class="control-center-nav-desc" id="control-center-description"></div>
+      <div class="control-center-section" id="control-center-section" hidden>
+        <div class="cc-section-header">
+          <button class="cc-back-btn" onclick="controlCenterShowHome()">&larr; Back to Control Center</button>
+          <div class="cc-section-title-row">
+            <span class="cc-section-icon" id="cc-section-icon"></span>
+            <div>
+              <div class="control-center-nav-title" id="control-center-heading"></div>
+              <div class="control-center-nav-desc" id="control-center-description"></div>
+            </div>
           </div>
-        </section>
-
-        <section class="control-center-panel" id="control-center-settings-panel" hidden></section>
-        <section class="control-center-panel" id="control-center-rules-panel" hidden></section>
-      </main>
+        </div>
+        <div class="cc-meta-tabs" id="cc-meta-tabs" hidden></div>
+        <section class="control-center-panel" id="control-center-settings-panel"></section>
+      </div>
     </div>`;
 }
 
-function controlCenterSetSection(sectionKey){
-  const section=CONTROL_CENTER_SECTIONS[sectionKey]||CONTROL_CENTER_SECTIONS.overview;
-  _controlCenterSection=sectionKey in CONTROL_CENTER_SECTIONS?sectionKey:"overview";
-  const settingsPanel=document.getElementById("control-center-settings-panel");
-  const rulesPanel=document.getElementById("control-center-rules-panel");
+function controlCenterPositionNodes(){
+  const keys=Object.keys(CONTROL_CENTER_BUCKETS);
+  const total=keys.length;
+  keys.forEach((key,i)=>{
+    const el=document.getElementById("cc-orbit-node-"+key);
+    if(!el)return;
+    const angle=((i/total)*360+_ccRotation)%360;
+    const radius=160;
+    const rad=angle*Math.PI/180;
+    const x=radius*Math.cos(rad);
+    const y=radius*Math.sin(rad);
+    const z=Math.round(100+50*Math.cos(rad));
+    const opacity=Math.max(0.45,Math.min(1,0.45+0.55*((1+Math.sin(rad))/2)));
+    el.style.transform=`translate(${x}px, ${y}px)`;
+    el.style.zIndex=z;
+    el.style.opacity=opacity;
+  });
+}
+function controlCenterStartRotation(){
+  controlCenterStopRotation();
+  controlCenterPositionNodes();
+  _ccRotationTimer=setInterval(()=>{
+    _ccRotation=(_ccRotation+0.3)%360;
+    controlCenterPositionNodes();
+  },50);
+}
+function controlCenterStopRotation(){
+  if(_ccRotationTimer){clearInterval(_ccRotationTimer);_ccRotationTimer=null;}
+}
+
+function controlCenterRenderHome(){
+  const host=document.getElementById("control-center-home");
+  if(!host)return;
+  host.innerHTML=`
+    <div class="cc-orbit-canvas">
+      <div class="cc-orbit-hub">
+        <div class="cc-orbit-hub-ring cc-orbit-hub-ring-1"></div>
+        <div class="cc-orbit-hub-ring cc-orbit-hub-ring-2"></div>
+        <div class="cc-orbit-hub-core"></div>
+      </div>
+      <div class="cc-orbit-track"></div>
+      ${Object.entries(CONTROL_CENTER_BUCKETS).map(([key,b])=>`
+        <div class="cc-orbit-node" id="cc-orbit-node-${key}" onclick="controlCenterEnterBucket('${key}')">
+          <div class="cc-orbit-node-dot"><span>${b.icon}</span></div>
+          <div class="cc-orbit-node-label">${rvEscapeHtml(b.label)}</div>
+        </div>`).join("")}
+    </div>`;
+  controlCenterStartRotation();
+}
+
+function controlCenterFilterRulesSubtabs(bucketKey){
+  const bar=document.getElementById("rules-subtabs-bar");
+  if(bar){
+    const buttons=[...bar.querySelectorAll(".sett-subtab")];
+    const visible=buttons.filter(b=>CC_RULES_SUBTAB_BUCKET[b.dataset.subtab]===bucketKey);
+    buttons.forEach(b=>{b.style.display=(CC_RULES_SUBTAB_BUCKET[b.dataset.subtab]===bucketKey)?"":"none";});
+    bar.style.display=visible.length>1?"":"none";
+  }
+  // The Trainers bucket's own meta-tab row already covers Directory/Bulk Ops —
+  // hide ssec-trainers' native subtab bar so the same choice isn't shown twice.
+  const trainersBar=document.getElementById("trainers-subtabs-bar");
+  if(trainersBar)trainersBar.style.display=bucketKey==="trainers"?"none":"";
+}
+
+function controlCenterRunAction(action){
+  if(action==="trainers-bulk"){settSetTab("trainers");settSetSub("trainers","bulk");return;}
+  settSetTab(action);
+}
+
+function controlCenterRenderMetaTabs(bucketKey,entryIndex){
+  const bucket=CONTROL_CENTER_BUCKETS[bucketKey];
+  const host=document.getElementById("cc-meta-tabs");
+  if(!host)return;
+  if(!bucket||bucket.entries.length<2||bucketKey!=="trainers"){
+    host.hidden=true;host.innerHTML="";
+    return;
+  }
+  host.hidden=false;
+  host.innerHTML=bucket.entries.map((e,i)=>
+    `<button class="cc-meta-tab${i===entryIndex?" active":""}" onclick="controlCenterSelectEntry('${bucketKey}',${i})">${rvEscapeHtml(e.label)}</button>`
+  ).join("");
+}
+
+function controlCenterSelectEntry(bucketKey,entryIndex){
+  const bucket=CONTROL_CENTER_BUCKETS[bucketKey];
+  if(!bucket)return;
+  document.querySelectorAll("#cc-meta-tabs .cc-meta-tab").forEach((b,i)=>b.classList.toggle("active",i===entryIndex));
+  controlCenterFilterRulesSubtabs(bucketKey);
+  controlCenterRunAction(bucket.entries[entryIndex].action);
+}
+
+function controlCenterEnterBucket(bucketKey,entryIndex=0){
+  const bucket=CONTROL_CENTER_BUCKETS[bucketKey];
+  if(!bucket)return;
+  _ccMode="section";
+  _ccActiveBucket=bucketKey;
+  controlCenterStopRotation();
+  const home=document.getElementById("control-center-home");
+  const section=document.getElementById("control-center-section");
+  if(home)home.hidden=true;
+  if(section)section.hidden=false;
+  const icon=document.getElementById("cc-section-icon");
   const heading=document.getElementById("control-center-heading");
   const description=document.getElementById("control-center-description");
-  document.querySelectorAll("[data-control-section]").forEach(btn=>btn.classList.toggle("active",btn.dataset.controlSection===_controlCenterSection));
-  if(heading)heading.textContent=section.heading;
-  if(description)description.textContent=section.description;
-  controlCenterEnsurePanel(section.panel);
-  if(settingsPanel)settingsPanel.hidden=section.panel!=="settings";
-  if(rulesPanel)rulesPanel.hidden=section.panel!=="rules";
-  setTimeout(()=>section.activate&&section.activate(),0);
+  if(icon)icon.textContent=bucket.icon;
+  if(heading)heading.textContent=bucket.label;
+  if(description)description.textContent=bucket.description;
+  controlCenterRenderMetaTabs(bucketKey,entryIndex);
+  controlCenterEnsurePanel();
+  controlCenterFilterRulesSubtabs(bucketKey);
+  controlCenterRunAction(bucket.entries[entryIndex].action);
 }
-function openControlCenterModal(sectionKey="overview"){
+
+function controlCenterShowHome(){
+  _ccMode="home";
+  _ccActiveBucket=null;
+  const home=document.getElementById("control-center-home");
+  const section=document.getElementById("control-center-section");
+  if(section)section.hidden=true;
+  if(home){home.hidden=false;controlCenterRenderHome();}
+}
+
+function openControlCenterModal(bucketKey=null){
   renderControlCenterShell();
-  controlCenterSetSection(sectionKey);
+  if(bucketKey&&CONTROL_CENTER_BUCKETS[bucketKey]){
+    controlCenterEnterBucket(bucketKey);
+  } else {
+    controlCenterShowHome();
+  }
   document.getElementById("modal-overlay").classList.add("open");
 }
 
 // ============================================================
-// RULES VIEW
+// SHARED RULES CATALOG — used as fallback data + escaping helpers
 // ============================================================
 const BUILTIN_RULES_CATALOG={
   groups:[
@@ -4545,458 +4649,9 @@ const BUILTIN_RULES_CATALOG={
 };
 
 let _rulesCatalog=null;
-let _rulesScope="all";
 
 function rvEscapeHtml(v){return String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 function rvEscapeAttr(v){return rvEscapeHtml(v).replace(/\n/g,"&#10;");}
-
-// Rule type → visual config
-const RV_TYPE_BADGE={
-  hard:{label:"HARD",bg:"#FEE2E2",fg:"#991B1B",title:"Hard constraint — always enforced"},
-  soft:{label:"SOFT",bg:"#DBEAFE",fg:"#1D4ED8",title:"Soft constraint — penalty if violated"},
-  slot_required:{label:"SLOT",bg:"#D1FAE5",fg:"#065F46",title:"Slot requirement"},
-  trainer_availability:{label:"TRAINER",bg:"#EDE9FE",fg:"#5B21B6",title:"Trainer availability rule"},
-  class_location:{label:"LOC",bg:"#FEF3C7",fg:"#B45309",title:"Location restriction"},
-  mix:{label:"MIX",bg:"#F0FDF4",fg:"#15803D",title:"Class mix target"},
-  never_do:{label:"NEVER",bg:"#FEE2E2",fg:"#7F1D1D",title:"Never-do constraint"},
-  always_do:{label:"ALWAYS",bg:"#D1FAE5",fg:"#14532D",title:"Always-do constraint"},
-};
-// Rule IDs that should be enabled by default
-const RV_DEFAULT_ENABLED=new Set([
-  "UNIV-001","UNIV-002","UNIV-003","UNIV-004","UNIV-005","UNIV-006","UNIV-007",
-  "UNIV-008","UNIV-009","UNIV-010","UNIV-011","UNIV-012","UNIV-013","UNIV-014","UNIV-015","UNIV-016","UNIV-017",
-  "UNIV-018","UNIV-019","UNIV-020","UNIV-021","UNIV-022","UNIV-023","UNIV-024","UNIV-025","UNIV-026",
-  "KW-001","KW-002","KW-003","KW-004","KW-005","KW-006","KW-007","KW-008",
-  "SU-001","SU-002","SU-003","SU-004","SU-005","SU-006","SU-007","SU-008","SU-009","SU-010",
-  "KE-001","KE-002","KE-003","KE-004","KE-007","KE-008",
-  "MIX-001","MIX-002","MIX-003","MIX-004","SLOT-001","SLOT-002",
-]);
-
-function renderRulesView(area){
-  const wrap=document.createElement("div");
-  wrap.className="rules-view command";
-  wrap.innerHTML=`
-    <div class="rv-header command">
-      <div>
-        <div class="rv-title">Rules Command Center</div>
-        <div class="rv-sub">Organize hard constraints, studio guardrails, trainer locks, and class-format policies. Settings remains the source of truth when range targets or class mix controls conflict with older rule text.</div>
-      </div>
-      <div class="rv-actions">
-        <span class="rv-status" id="rv-status"></span>
-        <button class="rv-bulk-btn" onclick="rvValidateRules()">Validate</button>
-        <button class="rv-bulk-btn" onclick="rvApplyDefaults()" title="Enable recommended rules">Apply Defaults</button>
-        <button class="rv-run-btn" id="rv-run-btn" onclick="rvRunPipeline()">&#9654; Validate & Run</button>
-      </div>
-    </div>
-
-    <div class="rv-command-shell">
-      <aside class="rv-rail">
-        <div class="rv-health">
-          <div class="rv-health-title">Rule Health</div>
-          <div class="rv-health-sub" id="rv-health-sub">Loading catalog…</div>
-        </div>
-        <div class="rv-rail-nav" id="rv-rail-nav"></div>
-      </aside>
-
-      <main class="rv-main">
-        <div class="rv-main-toolbar">
-          <div class="rv-bulk-row">
-            <button class="rv-bulk-btn" onclick="rvValidateRules()">Validate Config</button>
-            <button class="rv-bulk-btn" onclick="rvSetScope('overview')">Overview</button>
-            <button class="rv-bulk-btn" onclick="rvOpenCustomRuleBuilder()">Create Custom Rule</button>
-          </div>
-          <div class="rv-bulk-row">
-            <button class="rv-bulk-btn" onclick="rvGlobalBulk(true)">Enable Visible</button>
-            <button class="rv-bulk-btn" onclick="rvGlobalBulk(false)">Disable Visible</button>
-          </div>
-        </div>
-        <div id="rv-kpis" class="rv-kpi-grid"></div>
-        <div class="rv-search-row command">
-          <input class="rv-search" id="rv-search" type="text" placeholder="Search by ID, rule text, impact area, or status…" oninput="rvRenderCatalog(this.value)">
-          <div class="rv-bulk-row">
-            <select id="rv-type-filter" onchange="rvRenderCatalog(document.getElementById('rv-search').value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r6);font-size:11px;background:var(--surface)">
-              <option value="">All Types</option>
-              <option value="never_do">Never Do</option>
-              <option value="always_do">Always Do</option>
-              <option value="slot_required">Slot Required</option>
-              <option value="trainer_availability">Trainer Availability</option>
-              <option value="class_location">Class Location</option>
-              <option value="class_format">Class Format</option>
-            </select>
-            <select id="rv-risk-filter" onchange="rvRenderCatalog(document.getElementById('rv-search').value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:var(--r6);font-size:11px;background:var(--surface)">
-              <option value="">All Risk</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
-        </div>
-        <div id="rv-groups"><div style="padding:20px;color:var(--text-muted);font-size:13px">Loading rules…</div></div>
-      </main>
-
-      <aside class="rv-inspector">
-        <div class="rv-inspector-title">Conflict Preview</div>
-        <div id="rv-conflicts"><div class="rv-conflict-item">Rule validation will appear after load.</div></div>
-        <div class="rv-inspector-title" style="margin-top:14px">Planner Impact</div>
-        <div id="rv-impact" class="rv-inspector-box">Select a group or rule to inspect how it affects generation.</div>
-        <div class="rv-inspector-title" style="margin-top:14px">Precedence</div>
-        <div class="rv-inspector-box">
-          <strong>1.</strong> Settings Command Center<br>
-          <strong>2.</strong> Manual pins and hard custom rules<br>
-          <strong>3.</strong> Rules catalog toggles<br>
-          <strong>4.</strong> Planner defaults
-        </div>
-      </aside>
-    </div>`;
-  area.appendChild(wrap);
-  rvLoadRules();
-}
-
-function rvAllRules(){
-  return (_rulesCatalog?.groups||[]).flatMap(g=>(g.rules||[]).map(r=>({...r,group_id:g.id,group_label:g.label})));
-}
-
-function rvStats(){
-  const rules=rvAllRules();
-  const enabled=rules.filter(r=>r.enabled).length;
-  const disabled=rules.length-enabled;
-  const riskyDisabled=rules.filter(r=>!r.enabled&&["critical","high"].includes(r.risk_level)).length;
-  const formatOff=rules.filter(r=>r.type==="class_format"&&!r.enabled).length;
-  const settingsOverlap=rules.filter(r=>String(r.impact_area||"").includes("Class count")||String(r.impact_area||"").includes("Class format")).length;
-  return {total:rules.length,enabled,disabled,riskyDisabled,formatOff,settingsOverlap};
-}
-
-function rvRenderRail(){
-  const rail=document.getElementById("rv-rail-nav");
-  if(!rail||!_rulesCatalog)return;
-  const groupCount=(scope)=>rvAllRules().filter(r=>rvRuleInScope(r,scope)).length;
-  const items=[
-    ["overview","Overview",rvStats().settingsOverlap],
-    ["all","All Rules",rvStats().total],
-    ["universal","Universal",groupCount("universal")],
-    ["studio","Studio Rules",groupCount("studio")],
-    ["trainer","Trainer Locks",groupCount("trainer")],
-    ["mix","Class Formats",groupCount("mix")],
-    ["slot","Slot Protection",groupCount("slot")],
-  ];
-  rail.innerHTML=`
-    <div class="rv-rail-label">Command</div>
-    ${items.slice(0,2).map(([id,label,count])=>`<button class="rv-rail-btn ${_rulesScope===id?"active":""}" onclick="rvSetScope('${id}')">${label}<span class="rv-rail-count">${count}</span></button>`).join("")}
-    <div class="rv-rail-label">Rule Areas</div>
-    ${items.slice(2).map(([id,label,count])=>`<button class="rv-rail-btn ${_rulesScope===id?"active":""}" onclick="rvSetScope('${id}')">${label}<span class="rv-rail-count">${count}</span></button>`).join("")}`;
-}
-
-function rvRenderKpis(){
-  const host=document.getElementById("rv-kpis");
-  if(!host||!_rulesCatalog)return;
-  const s=rvStats();
-  host.innerHTML=`
-    <div class="rv-kpi"><span>Total Rules</span><b>${s.total}</b><small>${(_rulesCatalog.groups||[]).length} groups in catalog</small></div>
-    <div class="rv-kpi"><span>Enabled</span><b>${s.enabled}</b><small>${s.disabled} disabled</small></div>
-    <div class="rv-kpi"><span>Risk Disabled</span><b>${s.riskyDisabled}</b><small>critical/high disabled rules</small></div>
-    <div class="rv-kpi"><span>Formats Off</span><b>${s.formatOff}</b><small>class-format policy rules</small></div>
-    <div class="rv-kpi"><span>Settings Overlap</span><b>${s.settingsOverlap}</b><small>count and mix policy rules</small></div>`;
-  const health=document.getElementById("rv-health-sub");
-  if(health)health.textContent=s.riskyDisabled?`${s.riskyDisabled} risky disabled rule${s.riskyDisabled===1?"":"s"} need review`:`${s.enabled}/${s.total} rules enabled · no risky disabled rules`;
-}
-
-function rvValidateRules(){
-  if(!_rulesCatalog)return;
-  rvRenderInspector();
-  setRVStatus("Validation complete","ok");
-}
-
-function rvRuleInScope(rule,scope){
-  if(scope==="overview")return ["critical","high"].includes(rule.risk_level)||rule.impact_area==="Class format policy"||rule.impact_area==="Class count range";
-  if(scope==="all")return true;
-  const hay=[rule.group_id,rule.group_label,rule.id,rule.type,rule.impact_area,rule.source_category].map(x=>String(x||"").toLowerCase()).join(" ");
-  if(scope==="universal")return hay.includes("universal")||hay.includes("univ");
-  if(scope==="studio")return /\bkw-|\bsu-|\bke-|kwality|supreme|kenkere|location/.test(hay);
-  if(scope==="trainer")return hay.includes("trainer")||hay.includes("availability");
-  if(scope==="mix")return hay.includes("class_format")||hay.includes("format")||hay.includes("mix");
-  if(scope==="slot")return hay.includes("slot")||hay.includes("protect")||hay.includes("pinned");
-  return true;
-}
-
-function rvRuleMatches(rule,q,typeFilter,riskFilter){
-  if(typeFilter&&rule.type!==typeFilter)return false;
-  if(riskFilter&&rule.risk_level!==riskFilter)return false;
-  if(!rvRuleInScope(rule,_rulesScope))return false;
-  if(!q)return true;
-  return [rule.title,rule.id,rule.description,rule.impact_area,rule.status_tag,rule.group_label]
-    .some(v=>String(v||"").toLowerCase().includes(q));
-}
-
-function rvBadgeHtml(rule){
-  const statusClass=rule.status_tag==="Disabled"?"status-disabled":"";
-  const riskClass=`risk-${rule.risk_level||"low"}`;
-  return `
-    <span class="rv-chip impact">${rvEscapeHtml(rule.impact_area||"Operational guardrail")}</span>
-    <span class="rv-chip ${riskClass}">${rvEscapeHtml(rule.risk_level||"low")} risk</span>
-    <span class="rv-chip ${statusClass}">${rvEscapeHtml(rule.status_tag||"Recommended")}</span>
-    ${rule.type?`<span class="rv-rule-chip">${rvEscapeHtml(rule.type.replace(/_/g," "))}</span>`:""}`;
-}
-
-function rvRuleHeader(rule){
-  return String(rule.title||"").trim() || String(rule.impact_area||"").trim() || "Scheduling Rule";
-}
-
-function rvRenderInspector(selectedRule){
-  const conflicts=document.getElementById("rv-conflicts");
-  const impact=document.getElementById("rv-impact");
-  if(!_rulesCatalog||!conflicts||!impact)return;
-  const rules=rvAllRules();
-  const risky=rules.filter(r=>!r.enabled&&["critical","high"].includes(r.risk_level));
-  const formatOff=rules.filter(r=>r.type==="class_format"&&!r.enabled);
-  const items=[
-    ...risky.slice(0,4).map(r=>({type:"error",text:`${rvRuleHeader(r)} is disabled but marked ${r.risk_level} risk.`})),
-    ...formatOff.slice(0,3).map(r=>({type:"warn",text:`${rvRuleHeader(r)} is off; Settings class mix ranges still remain canonical.`})),
-  ];
-  conflicts.innerHTML=items.length
-    ? items.map(i=>`<div class="rv-conflict-item ${i.type}">${rvEscapeHtml(i.text)}</div>`).join("")
-    : `<div class="rv-conflict-item">No risky disabled rules detected. Settings overrides remain canonical for class count and mix conflicts.</div>`;
-  if(selectedRule){
-    impact.innerHTML=`<strong>${rvEscapeHtml(rvRuleHeader(selectedRule))}</strong><br>${rvEscapeHtml(selectedRule.impact_area||"Operational guardrail")} · ${rvEscapeHtml(selectedRule.risk_level||"low")} risk<br><br>${rvEscapeHtml(selectedRule.description||"")}<br><br><span style="color:#64748B;font-size:11px">Rule code: ${rvEscapeHtml(selectedRule.id||"—")}</span>`;
-  }else{
-    const s=rvStats();
-    impact.innerHTML=`${s.settingsOverlap} rules overlap with Settings-controlled class count or class format policy. Keep Settings as source of truth, and use rules for planner guidance, eligibility, and placement constraints.`;
-  }
-}
-
-function rvSetScope(scope){
-  _rulesScope=scope||"all";
-  rvRenderRail();
-  rvRenderCatalog(document.getElementById("rv-search")?.value||"");
-}
-
-function rvOpenCustomRuleBuilder(){
-  openControlCenterModal("rules");
-  setTimeout(()=>{
-    settSetTab("rules");
-    settSetSub("rules","custom");
-    document.getElementById("cr-type")?.focus();
-    document.getElementById("customrules-builder")?.scrollIntoView({block:"center",behavior:"smooth"});
-  },120);
-}
-
-function rvApplyDefaults(){
-  if(!_rulesCatalog)return;
-  const updates={};
-  (_rulesCatalog.groups||[]).forEach(g=>{
-    (g.rules||[]).forEach(r=>{
-      const shouldEnable=RV_DEFAULT_ENABLED.has(r.id)||r.risk_level==="critical";
-      r.enabled=shouldEnable;
-      updates[r.id]={enabled:shouldEnable};
-    });
-  });
-  rvPostUpdate({rules:updates},"Default rules applied",true);
-}
-
-function setRVStatus(msg,tone){
-  const el=document.getElementById("rv-status");
-  if(!el)return;
-  el.style.color=tone==="ok"?"var(--green)":tone==="error"?"var(--red)":"var(--text-muted)";
-  el.textContent=msg||"";
-}
-
-function rvRunPipeline(){
-  rvValidateRules();
-  const btn=document.getElementById("rv-run-btn");
-  if(btn){btn.disabled=true;btn.textContent="Starting…";}
-  schedulerFetch("/api/run-pipeline",{method:"POST"})
-    .then(r=>r.json())
-    .then(res=>{
-      if(res.ok){
-        setRVStatus("Pipeline started — reload in ~2 min to see results","ok");
-        if(btn){btn.disabled=false;btn.textContent="▶ Validate & Run";}
-        pollPipelineStatus();
-      } else {
-        setRVStatus("Error: "+(res.error||"unknown"),"error");
-        if(btn){btn.disabled=false;btn.textContent="▶ Validate & Run";}
-      }
-    })
-    .catch(()=>{
-      setRVStatus("Server offline","error");
-      if(btn){btn.disabled=false;btn.textContent="▶ Validate & Run";}
-    });
-}
-
-function rvLoadRules(){
-  schedulerFetch("/api/rules-config")
-    .then(r=>r.ok?r.json():Promise.reject("not ok"))
-    .then(data=>{
-      if(data&&Array.isArray(data.groups)&&data.groups.length){
-        _rulesCatalog=data;
-      } else {
-        _rulesCatalog=JSON.parse(JSON.stringify(BUILTIN_RULES_CATALOG));
-      }
-      rvRenderRail();rvRenderKpis();rvRenderCatalog();rvRenderInspector();
-      setRVStatus("Rules loaded","ok");
-    })
-    .catch(()=>{
-      _rulesCatalog=JSON.parse(JSON.stringify(BUILTIN_RULES_CATALOG));
-      rvRenderRail();rvRenderKpis();rvRenderCatalog();rvRenderInspector();
-      setRVStatus("Using built-in rule catalog","ok");
-    });
-}
-
-function rvRenderCatalog(searchTerm){
-  const host=document.getElementById("rv-groups");
-  if(!host)return;
-  if(!_rulesCatalog||!Array.isArray(_rulesCatalog.groups)){
-    host.innerHTML='<div style="padding:20px;color:var(--text-muted)">No rule catalog available.</div>';
-    return;
-  }
-  rvRenderRail();
-  rvRenderKpis();
-  rvRenderInspector();
-  const q=(searchTerm||"").toLowerCase();
-  const typeFilter=document.getElementById("rv-type-filter")?.value||"";
-  const riskFilter=document.getElementById("rv-risk-filter")?.value||"";
-  host.innerHTML="";
-  _rulesCatalog.groups.forEach(group=>{
-    const rules=(group.rules||[]).filter(r=>rvRuleMatches({...r,group_id:group.id,group_label:group.label},q,typeFilter,riskFilter));
-    if(rules.length===0)return;
-    const allGroupRules=(group.rules||[]);
-    const enabled=allGroupRules.filter(r=>r.enabled).length;
-    const total=allGroupRules.length;
-    const gEl=document.createElement("div");
-    gEl.className="rv-group command";
-    gEl.innerHTML=`
-      <div class="rv-group-hdr">
-        <div class="rv-group-left">
-          <div class="rv-group-title">${rvEscapeHtml(group.label)}</div>
-          <div class="rv-group-desc">${rvEscapeHtml(group.description||"")}</div>
-          <span class="rv-count">${enabled}/${total} enabled · ${rules.length} visible</span>
-        </div>
-        <div class="rv-group-bulk">
-          <button class="rv-bulk-btn" onclick="rvBulkToggle('${group.id}',true)">Enable Group</button>
-          <button class="rv-bulk-btn" onclick="rvBulkToggle('${group.id}',false)">Disable Group</button>
-        </div>
-        <label class="rv-toggle" title="${group.enabled?"Disable":"Enable"} category" style="margin-left:8px">
-          <input type="checkbox" ${group.enabled?"checked":""} onchange="rvSaveCategory('${group.id}',this.checked)">
-          <div class="rv-track"></div><div class="rv-knob"></div>
-        </label>
-      </div>
-      <div class="rv-rules-list" id="rv-list-${group.id}"></div>`;
-    const listEl=gEl.querySelector(".rv-rules-list");
-    rules.forEach(rule=>{
-      const rEl=document.createElement("div");
-      rEl.className="rv-rule-card"+(rule.enabled?"":" off");
-      rEl.id="rv-rule-"+rule.id;
-      rEl.innerHTML=`
-        <div class="rv-rule-card-top">
-          <div>
-            <div class="rv-rule-name">${rvEscapeHtml(rvRuleHeader(rule))}</div>
-            <div class="rv-rule-desc">${rvEscapeHtml(rule.description||"")}</div>
-            <div class="rv-chip-row">
-              ${rvBadgeHtml(rule)}
-            </div>
-            <div style="margin-top:4px;font-size:10px;color:#94A3B8;font-weight:700">Rule code: ${rvEscapeHtml(rule.id||"—")}</div>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <button class="rv-btn" onclick="rvToggleEdit('${rule.id}')">Edit</button>
-            <label class="rv-toggle">
-              <input type="checkbox" ${rule.enabled?"checked":""} onchange="rvSaveRule('${rule.id}',this.checked)">
-              <div class="rv-track"></div><div class="rv-knob"></div>
-            </label>
-          </div>
-        </div>
-        <div class="rv-rule-edit">
-          <textarea class="rv-textarea" id="rv-text-${rule.id}" data-default="${rvEscapeAttr(rule.description||"")}">${rvEscapeHtml(rule.description||"")}</textarea>
-          <div class="rv-rule-actions">
-            <span class="rv-hint">Rule text is used by the AI planner prompt and local validation surfaces.</span>
-            <div class="rv-btns">
-              <button class="rv-btn" onclick="rvCopyText('${rule.id}')">Copy</button>
-              <button class="rv-btn" onclick="rvResetText('${rule.id}')">Reset</button>
-              <button class="rv-btn primary" onclick="rvSaveText('${rule.id}')">Save</button>
-            </div>
-          </div>
-        </div>`;
-      rEl.addEventListener("click",e=>{if(!e.target.closest("button,label,textarea,input"))rvRenderInspector({...rule,group_id:group.id,group_label:group.label});});
-      listEl.appendChild(rEl);
-    });
-    host.appendChild(gEl);
-  });
-  if(host.children.length===0){
-    host.innerHTML=`<div style="padding:20px;color:var(--text-muted);font-size:13px">No rules match the current filters.</div>`;
-  }
-}
-
-function rvToggleEdit(id){
-  const el=document.getElementById("rv-rule-"+id);
-  if(el)el.classList.toggle("editing");
-}
-
-/*
-Legacy scope matcher retained for compatibility with old callbacks.
-*/
-function rvGroupMatchesScope(group){
-  if(_rulesScope==="all"||_rulesScope==="overview")return true;
-  const id=String(group.id||"").toLowerCase();
-  const label=String(group.label||"").toLowerCase();
-  const rules=group.rules||[];
-  const hay=[id,label,...rules.map(r=>String(r.id||"").toLowerCase()),...rules.map(r=>String(r.type||"").toLowerCase())].join(" ");
-  if(_rulesScope==="universal")return hay.includes("univ")||hay.includes("universal");
-  if(_rulesScope==="studio")return /\bkw-|\bsu-|\bke-|kwality|supreme|kenkere|location/.test(hay);
-  if(_rulesScope==="trainer")return hay.includes("trainer")||hay.includes("availability");
-  if(_rulesScope==="mix")return hay.includes("mix")||hay.includes("format");
-  if(_rulesScope==="slot")return hay.includes("slot")||hay.includes("protect")||hay.includes("pinned");
-  return true;
-}
-
-function rvBulkToggle(groupId,enable){
-  const group=(_rulesCatalog&&_rulesCatalog.groups||[]).find(g=>g.id===groupId);
-  if(!group)return;
-  const rules={};
-  (group.rules||[]).forEach(r=>{rules[r.id]={enabled:enable}});
-  rvPostUpdate({rules},enable?"All enabled":"All disabled",true);
-}
-
-function rvCopyText(id){
-  const el=document.getElementById("rv-text-"+id);
-  if(!el)return;
-  navigator.clipboard.writeText(el.value).then(()=>showToast("Rule text copied","")).catch(()=>{});
-}
-
-function rvGlobalBulk(enable){
-  if(!_rulesCatalog||!Array.isArray(_rulesCatalog.groups))return;
-  const q=(document.getElementById("rv-search")?.value||"").toLowerCase();
-  const typeFilter=document.getElementById("rv-type-filter")?.value||"";
-  const riskFilter=document.getElementById("rv-risk-filter")?.value||"";
-  const rules={};
-  _rulesCatalog.groups.forEach(g=>(g.rules||[]).forEach(r=>{
-    if(rvRuleMatches({...r,group_id:g.id,group_label:g.label},q,typeFilter,riskFilter))rules[r.id]={enabled:enable};
-  }));
-  rvPostUpdate({rules},enable?"Visible rules enabled":"Visible rules disabled",true);
-}
-
-function rvPostUpdate(payload,successMsg,rerender){
-  schedulerFetch("/api/save-rules",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
-    .then(r=>r.json())
-    .then(res=>{
-      if(!res.ok&&res.error)throw new Error(res.error);
-      if(res.catalog){_rulesCatalog=res.catalog;}
-      if(rerender)rvRenderCatalog();
-      setRVStatus(successMsg||"Saved","ok");
-      showToast(successMsg||"Saved","");
-    })
-    .catch(err=>setRVStatus(err&&err.message?err.message:"Save failed","error"));
-}
-
-function rvSaveCategory(id,enabled){rvPostUpdate({categories:{[id]:{enabled:enabled}}},"Category saved",true);}
-function rvSaveRule(id,enabled){rvPostUpdate({rules:{[id]:{enabled:enabled}}},"Rule saved",true);}
-function rvSaveText(id){
-  const el=document.getElementById("rv-text-"+id);
-  if(!el)return;
-  rvPostUpdate({rules:{[id]:{description:el.value}}},"Rule text saved",false);
-}
-function rvResetText(id){
-  const el=document.getElementById("rv-text-"+id);
-  if(!el)return;
-  el.value=el.dataset.default||"";
-}
 
 // ============================================================
 // HISTORY VIEW — Historical slot baseline from scored data
@@ -5625,22 +5280,6 @@ function settValidateAndRender(){
     ];
     list.innerHTML=items.map(i=>`<div class="sett-conflict-item ${i.type}">${rvEscapeHtml(i.text)}</div>`).join("")||`<div class="sett-conflict-item">No conflicts found.</div>`;
   }
-  const fullList=document.getElementById("sett-conflict-full-list");
-  if(fullList){
-    const items=[
-      ..._settLastValidation.errors.map(x=>({type:"error",text:x,label:"Blocking Issue"})),
-      ..._settLastValidation.warnings.map(x=>({type:"warn",text:x,label:"Constraint Warning"})),
-    ];
-    fullList.innerHTML=items.map(i=>`
-      <div class="sett-conflict-card ${i.type}">
-        <div class="sett-conflict-card-type">${i.label}</div>
-        <div class="sett-conflict-card-msg">${rvEscapeHtml(i.text)}</div>
-        <div class="sett-conflict-ai-explain">
-          <button class="sett-mini-btn" onclick="settExplainConflict(this,'${rvEscapeAttr(i.text)}')">✨ AI Explain & Fix</button>
-        </div>
-      </div>`).join("")||`<div class="sett-inspector-box">No active conflicts found. Your configuration is valid.</div>`;
-  }
-  settRenderOverview();
   return _settLastValidation.errors.length===0;
 }
 
@@ -5652,8 +5291,7 @@ function settSaveCanonicalConfig(statusId="settings",successMsg="Canonical setti
   const errors=(_settLastValidation||{}).errors||[];
   const blockOnError=_settSchedConfig?.settings_options?.block_hard_conflict_saves!==false;
   if(blockOnError&&errors.length){
-    showToast(`Cannot save — ${errors.length} blocking conflict${errors.length>1?"s":""} detected. Fix in Conflict Resolver.`,"error");
-    settSetTab("overview");
+    showToast(`Cannot save — ${errors.length} blocking conflict${errors.length>1?"s":""} detected. Fix in AI & General Settings → Validation Health.`,"error");
     return Promise.resolve({ok:false});
   }
   return schedulerFetch("/api/save-schedule-config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(_settSchedConfig)})
@@ -5676,15 +5314,26 @@ function settExportConfig(){
 }
 
 function renderSettingsView(area){
-  // Delegate to advanced configurator if available
-  if(typeof renderConfigurator==="function"){
-    renderConfigurator(area);
-    return;
-  }
   const wrap=document.createElement("div");
   wrap.className="sett-view";
   wrap.innerHTML=`
     <div class="settings-console-layout">
+      <aside class="settings-console-rail">
+        <div class="sett-source-card">
+          <div class="sett-source-title">Control Center</div>
+          <div class="sett-source-sub">Canonical settings, routing, and planner intelligence.</div>
+        </div>
+        <nav class="sett-nav">
+          <div class="sett-nav-group-label">Core</div>
+          <button class="sett-nav-btn active" data-target="ssec-trainers" onclick="settJumpToSection(this)">Trainers <span class="sett-nav-count">Directory</span></button>
+          <button class="sett-nav-btn" data-target="ssec-qualifications" onclick="settJumpToSection(this)">Eligibility <span class="sett-nav-count">Matrix</span></button>
+          <button class="sett-nav-btn" data-target="ssec-availability" onclick="settJumpToSection(this)">Availability <span class="sett-nav-count">Leave</span></button>
+          <div class="sett-nav-group-label">Rules</div>
+          <button class="sett-nav-btn" data-target="ssec-rules" onclick="settJumpToSection(this)">Targets <span class="sett-nav-count">Mix</span></button>
+          <div class="sett-nav-group-label">Intelligence</div>
+          <button class="sett-nav-btn" data-target="ssec-advanced" onclick="settJumpToSection(this)">AI &amp; Planning <span class="sett-nav-count">Policy</span></button>
+        </nav>
+      </aside>
       <main class="sett-main">
         <div class="sett-main-actions">
           <div class="sett-action-group">
@@ -5692,26 +5341,6 @@ function renderSettingsView(area){
             <button class="sett-ghost-btn" onclick="settResetMatrixSelection()">Clear Selections</button>
           </div>
           <button class="sett-ghost-btn primary" onclick="settSaveCanonicalConfig()">Save & Apply Changes</button>
-        </div>
-
-        <div class="sett-section active" id="ssec-overview">
-          <div class="sett-section-head">
-            <div>
-              <div class="sett-section-kicker">Status</div>
-              <div class="sett-section-label">Settings Overview</div>
-              <div class="sett-section-desc">Health metrics and studio target summary.</div>
-            </div>
-          </div>
-          <div id="sett-overview-wrap"></div>
-          <div class="sett-config-panel" style="margin-top:14px">
-            <div class="sett-section-head">
-              <div>
-                <div class="sett-card-title">Validation Health</div>
-                <div class="sett-card-copy">Blocking conflicts and constraint warnings across every saved section.</div>
-              </div>
-            </div>
-            <div id="sett-conflict-list" class="sett-conflict-list"><div class="sett-conflict-item">Loading validation...</div></div>
-          </div>
         </div>
 
         <div class="sett-section" id="ssec-trainers">
@@ -5722,7 +5351,7 @@ function renderSettingsView(area){
               <div class="sett-section-desc">Manage trainer profiles, studio access, and activation status.</div>
             </div>
           </div>
-          <div class="sett-subtabs">
+          <div class="sett-subtabs" id="trainers-subtabs-bar">
             <button class="sett-subtab active" data-section="trainers" data-subtab="directory" onclick="settSetSub('trainers','directory')">Directory</button>
             <button class="sett-subtab" data-section="trainers" data-subtab="bulk" onclick="settSetSub('trainers','bulk')">Bulk Ops</button>
           </div>
@@ -5815,14 +5444,7 @@ function renderSettingsView(area){
         </div>
 
         <div class="sett-section" id="ssec-rules">
-          <div class="sett-section-head">
-            <div>
-              <div class="sett-section-kicker">Logic</div>
-              <div class="sett-section-label">Scheduling Rules</div>
-              <div class="sett-section-desc">Setup targets, Class Mix and Formats, trainer priority, pinned classes, custom rules, and universal safeguards.</div>
-            </div>
-          </div>
-          <div class="sett-subtabs">
+          <div class="sett-subtabs" id="rules-subtabs-bar">
             <button class="sett-subtab active" data-section="rules" data-subtab="targets" onclick="settSetSub('rules','targets')">Setup / Targets</button>
             <button class="sett-subtab" data-section="rules" data-subtab="classmix" onclick="settSetSub('rules','classmix')">Class Mix</button>
             <button class="sett-subtab" data-section="rules" data-subtab="priority" onclick="settSetSub('rules','priority')">Trainer Priority</button>
@@ -5844,11 +5466,6 @@ function renderSettingsView(area){
           </div>
         </div>
 
-        <div class="sett-section" id="ssec-conflicts">
-          <div class="sett-section-head"><div><div class="sett-section-label">Conflict Resolver</div></div></div>
-          <div id="sett-conflict-full-list" class="sett-conflict-full-list"></div>
-        </div>
-
         <div class="sett-section" id="ssec-advanced">
           <div class="sett-section-head">
             <div>
@@ -5862,6 +5479,15 @@ function renderSettingsView(area){
             <button class="sett-subtab" data-section="advanced" data-subtab="scoring" onclick="settSetSub('advanced','scoring')">Scoring &amp; Planner</button>
           </div>
           <div class="sett-subpanel active" data-section="advanced" data-subpanel="policy">
+            <div class="sett-config-panel">
+              <div class="sett-section-head">
+                <div>
+                  <div class="sett-card-title">Validation Health</div>
+                  <div class="sett-card-copy">Blocking conflicts and constraint warnings across every saved section.</div>
+                </div>
+              </div>
+              <div id="sett-conflict-list" class="sett-conflict-list"><div class="sett-conflict-item">Loading validation...</div></div>
+            </div>
             <div id="advanced-options-wrap"></div>
             <div class="sett-save-bar"><button class="sett-save-btn" onclick="settSaveAdvancedOptions()">Save Policy</button></div>
           </div>
@@ -5875,6 +5501,14 @@ function renderSettingsView(area){
   `;
   area.appendChild(wrap);
   settLoadData();
+}
+
+function settJumpToSection(btn){
+  const target=btn?.dataset?.target;
+  if(!target)return;
+  document.querySelectorAll(".sett-nav-btn").forEach(b=>b.classList.toggle("active",b===btn));
+  const section=document.getElementById(target);
+  section?.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 function settSetTab(tab){
@@ -5901,9 +5535,7 @@ function settSetTab(tab){
       settSetSub("rules", "targets");
     }
   }
-  if(mainTab==="conflicts")settValidateAndRender();
   settResetMatrixSelection(false);
-  if(mainTab==="overview")settRenderOverview();
   if(mainTab==="advanced"){
     settRenderAdvancedOptions();
     settRenderAISettings();
@@ -5911,36 +5543,6 @@ function settSetTab(tab){
   }
   if(mainTab==="availability"&&tab==="leave")settSetSub("availability","leave");
   settValidateAndRender();
-}
-
-function settExplainConflict(btn,text){
-  const original=btn.innerHTML;
-  btn.innerHTML="✨ Thinking...";
-  btn.disabled=true;
-  schedulerFetch("/api/chat",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      message:`Please explain this schedule conflict and suggest how to fix it in the settings: "${text}"`,
-      history:[{role:"system",content:"You are a schedule optimization expert. Keep your explanation concise (max 3 sentences)."}],
-      dashboard_context:chatDashboardContext()
-    })
-  }).then(r=>r.json()).then(d=>{
-    const reply=d.reply||"Could not generate explanation.";
-    const card=btn.closest(".sett-conflict-card");
-    let explain=card.querySelector(".sett-conflict-ai-text");
-    if(!explain){
-      explain=document.createElement("div");
-      explain.className="sett-conflict-ai-text";
-      explain.style="margin-top:10px;font-size:11px;color:#1E40AF;background:#EFF6FF;padding:10px;border-radius:8px;line-height:1.4;border:1px solid #BFDBFE";
-      card.appendChild(explain);
-    }
-    explain.textContent=reply;
-    btn.innerHTML="✨ Explained";
-  }).catch(()=>{
-    btn.innerHTML="Error";
-    btn.disabled=false;
-  });
 }
 
 function settSetSub(section,sub){
@@ -5956,89 +5558,6 @@ function settWeeklyTargetStats(cfg,loc){
     acc.max+=Number(row.max||0);
     return acc;
   },{target:0,max:0});
-}
-
-function settRenderOverview(){
-  const wrap=document.getElementById("sett-overview-wrap");
-  if(!wrap||!_settSchedConfig)return;
-  const cfg=settNormalizeConfig(_settSchedConfig);
-  const profiles=_settTrainerProfiles||[];
-  const active=profiles.filter(trainerIsActive).length;
-  const inactive=Math.max(0,profiles.length-active);
-  const targetCells=LOCS_ALL.length*DAYS_ALL.length;
-  const mixCells=Object.values(cfg.class_mix||{}).reduce((n,m)=>n+Object.keys(m||{}).length,0);
-  const issueCount=(_settLastValidation.errors||[]).length+(_settLastValidation.warnings||[]).length;
-  const optionCount=Object.keys(cfg.settings_options||{}).length;
-  const policy=(cfg.settings_options?.conflict_policy||"").replaceAll("_"," ");
-  wrap.innerHTML=`
-    <div class="sett-overview-grid">
-      <div class="sett-kpi-card">
-        <div class="sett-kpi-label">Config Health</div>
-        <div class="sett-kpi-value">${issueCount||"OK"}</div>
-        <div class="sett-kpi-note">${_settLastValidation.errors.length} blocking · ${_settLastValidation.warnings.length} warnings</div>
-      </div>
-      <div class="sett-kpi-card">
-        <div class="sett-kpi-label">Trainer Control</div>
-        <div class="sett-kpi-value">${active}</div>
-        <div class="sett-kpi-note">${inactive} inactive · ${profiles.length} total profiles</div>
-      </div>
-      <div class="sett-kpi-card">
-        <div class="sett-kpi-label">Schedule Surface</div>
-        <div class="sett-kpi-value">${targetCells}</div>
-        <div class="sett-kpi-note">daily target cells · ${mixCells} class mix controls</div>
-      </div>
-      <div class="sett-kpi-card">
-        <div class="sett-kpi-label">Advanced Options</div>
-        <div class="sett-kpi-value">${optionCount}</div>
-        <div class="sett-kpi-note">${rvEscapeHtml(policy)} policy</div>
-      </div>
-    </div>
-    <div class="sett-config-panel">
-      <div class="sett-section-head">
-        <div>
-          <div class="sett-card-title">Weekly Load By Studio</div>
-          <div class="sett-card-copy">Daily targets and max caps are centralized here before the pipeline sees them.</div>
-        </div>
-        <button class="sett-ghost-btn" onclick="settSetTab('targets')">Edit Targets</button>
-      </div>
-      <div class="sett-location-summary">
-        ${LOCS_ALL.map(loc=>{
-          const stats=settWeeklyTargetStats(cfg,loc);
-          return `<div class="sett-location-card">
-            <strong>${rvEscapeHtml(LOC_SHORT[loc]||loc)}</strong>
-            <div class="sett-location-line"><span>Weekly min</span><b>${stats.target}</b></div>
-            <div class="sett-location-line"><span>Weekly max</span><b>${stats.max}</b></div>
-            <div class="sett-location-line"><span>Repair room</span><b>${Math.max(0,stats.max-stats.target)}</b></div>
-          </div>`;
-        }).join("")}
-      </div>
-    </div>
-    <div class="sett-config-panel">
-      <div class="sett-section-head">
-        <div>
-          <div class="sett-card-title">Fast Routes</div>
-          <div class="sett-card-copy">Use the focused editors for people data, schedule targets, class mix, rules, and system policy.</div>
-        </div>
-      </div>
-      <div class="sett-option-grid">
-        <button class="sett-option-card" onclick="settSetTab('qualifications')" style="text-align:left;cursor:pointer">
-          <div class="sett-option-title">Trainer eligibility matrix</div>
-          <div class="sett-option-desc">Control which instructors can teach each format before replacements or generated slots are assigned.</div>
-        </button>
-        <button class="sett-option-card" onclick="settSetTab('classmix')" style="text-align:left;cursor:pointer">
-          <div class="sett-option-title">Class mix floors and ceilings</div>
-          <div class="sett-option-desc">Set weekly min/max format targets with bulk row and column operators.</div>
-        </button>
-        <button class="sett-option-card" onclick="settSetTab('customrules')" style="text-align:left;cursor:pointer">
-          <div class="sett-option-title">Rules and manual pins</div>
-          <div class="sett-option-desc">Keep intentional overrides visible and resolve superseded daily-target rules.</div>
-        </button>
-        <button class="sett-option-card" onclick="settSetTab('advanced')" style="text-align:left;cursor:pointer">
-          <div class="sett-option-title">Advanced guardrails</div>
-          <div class="sett-option-desc">Tune conflict behavior, repair buffer, validation gates, and planner policy metadata.</div>
-        </button>
-      </div>
-    </div>`;
 }
 
 function settAdvancedOptionCard(kind,key,title,desc,controlHtml){
@@ -6296,7 +5815,6 @@ function settLoadData(){
     return _settSchedConfig;
   }).catch(()=>{_settSchedConfig=settNormalizeConfig(settDefaultConfig());return _settSchedConfig;});
   Promise.all([p1,p2]).then(()=>{
-    settRenderOverview();
     settRenderTrainerManager();settRenderQualifications();settRenderAvailability();settRenderTargets();
     settRenderLeave();settRenderClassMix();settRenderPriority();settRenderCustomRules();settRenderAdvancedOptions();settRenderAISettings();
     settPopulateLeaveTrainerList();
@@ -7148,44 +6666,131 @@ function settSaveLeave(){
 }
 
 // ---------- Class Mix Rules ----------
+const CMIX_FAMILY_LABELS={
+  barre:"Barre & Signature Formats",powercycle:"PowerCycle",strength_lab:"Strength Lab",
+  mat_57:"Mat 57",recovery:"Recovery",foundations:"Foundations",hiit:"HIIT",default:"Other Formats"
+};
+// Universal band mirrors the saved Universal Rules "MIX-001" entry (Barre 57
+// family 45-55% of weekly classes). Per-location PowerCycle bands mirror
+// "MIX-002". Shown here as a live health check, not a new hard rule.
+const CMIX_UNIVERSAL_BAND={family:"barre",label:"Barre & Signature family",min:45,max:55};
+const CMIX_LOCATION_BANDS={
+  "Kwality House, Kemps Corner":{family:"powercycle",label:"PowerCycle",min:8,max:10},
+  "Supreme HQ, Bandra":{family:"powercycle",label:"PowerCycle",min:25,max:28},
+  "Kenkere House":{family:"powercycle",label:"PowerCycle",min:0,max:0},
+};
+let _cmixActiveLoc=null;
+
+function settClassMixLocClasses(loc,cfg){
+  const supported=Object.keys(CLASS_MIX_TARGETS[loc]||{});
+  const cfgLoc=cfg[loc]||{};
+  // Settings normalization backfills every known class name onto every
+  // location as a harmless {min:0,max:0} placeholder. Only surface a saved
+  // key here if it's actually relevant to this location (in its supported
+  // list) or genuinely configured (non-zero) — otherwise every location's
+  // card view would show every other location's classes at 0/0.
+  const custom=Object.keys(cfgLoc).filter(cls=>{
+    if(supported.includes(cls))return false;
+    const v=cfgLoc[cls]||{};
+    return Number(v.min||0)>0||Number(v.max||0)>0;
+  });
+  return [...new Set([...supported,...custom])];
+}
+function settClassMixLocWeeklyMin(loc,cfg){
+  const cfgLoc=cfg[loc]||{};
+  return settClassMixLocClasses(loc,cfg).reduce((sum,cls)=>{
+    const cur=cfgLoc[cls]||(CLASS_MIX_TARGETS[loc]||{})[cls]||{min:0};
+    return sum+Number(cur.min||0);
+  },0);
+}
+function settClassMixFamilyMin(loc,cfg,family){
+  const cfgLoc=cfg[loc]||{};
+  return settClassMixLocClasses(loc,cfg).filter(cls=>getFamily(cls)===family).reduce((sum,cls)=>{
+    const cur=cfgLoc[cls]||(CLASS_MIX_TARGETS[loc]||{})[cls]||{min:0};
+    return sum+Number(cur.min||0);
+  },0);
+}
+function settClassMixHealthChip(label,pct,min,max){
+  const status=pct<min?"low":pct>max?"high":"ok";
+  const color=status==="ok"?"#15803D":status==="low"?"#D97706":"#DC2626";
+  const bg=status==="ok"?"#F0FDF4":status==="low"?"#FFFBEB":"#FEF2F2";
+  const note=status==="ok"?"On target":status==="low"?"Below target":"Above target";
+  return `<div class="cmix-health-chip" style="border-color:${color}44;background:${bg}">
+    <div class="cmix-health-chip-top"><span>${rvEscapeHtml(label)}</span><b style="color:${color}">${pct.toFixed(0)}%</b></div>
+    <div class="cmix-health-chip-bar"><div style="width:${Math.min(100,pct)}%;background:${color}"></div></div>
+    <div class="cmix-health-chip-note" style="color:${color}">${note} · target ${min}-${max}%</div>
+  </div>`;
+}
+function settRenderClassMixHealth(loc){
+  const host=document.getElementById("cmix-health-strip");
+  if(!host)return;
+  const cfg=_settSchedConfig?.class_mix||{};
+  const total=settClassMixLocWeeklyMin(loc,cfg);
+  if(!total){host.innerHTML=`<div class="cmix-health-empty">Set class minimums below to see live mix-health checks.</div>`;return;}
+  const chips=[];
+  const uMin=settClassMixFamilyMin(loc,cfg,CMIX_UNIVERSAL_BAND.family);
+  chips.push(settClassMixHealthChip(CMIX_UNIVERSAL_BAND.label,(uMin/total)*100,CMIX_UNIVERSAL_BAND.min,CMIX_UNIVERSAL_BAND.max));
+  const locBand=CMIX_LOCATION_BANDS[loc];
+  if(locBand){
+    const bMin=settClassMixFamilyMin(loc,cfg,locBand.family);
+    chips.push(settClassMixHealthChip(`${locBand.label} (this studio)`,(bMin/total)*100,locBand.min,locBand.max));
+  }
+  host.innerHTML=`<div class="cmix-health-total">${total} classes/week planned</div><div class="cmix-health-chips">${chips.join("")}</div>`;
+}
+
+function settClassMixCardHtml(loc,cls,cfg){
+  const supported=(CLASS_MIX_TARGETS[loc]||{})[cls];
+  const cur=(cfg[loc]||{})[cls]||supported||{min:0,max:0};
+  const invalid=Number(cur.min||0)>Number(cur.max||0);
+  const color=classColor(cls);
+  return `<div class="cmix-card sett-matrix-cell ${invalid?"invalid":""}" data-matrix="classmix" data-loc="${rvEscapeAttr(loc)}" data-key="${rvEscapeAttr(cls)}" onclick="settToggleMatrixCell(event,this)" style="--cmix-accent:${color}">
+    <div class="cmix-card-name">${rvEscapeHtml(displayClass(cls))}</div>
+    <div class="cmix-card-fields">
+      <label class="cmix-field"><span>Min / week</span><input type="number" min="0" max="40" data-loc="${rvEscapeAttr(loc)}" data-cls="${rvEscapeAttr(cls)}" data-field="min" value="${Number(cur.min||0)}" class="classmix-inp" onclick="event.stopPropagation()" oninput="settClassMixChanged()"></label>
+      <label class="cmix-field"><span>Max / week</span><input type="number" min="0" max="40" data-loc="${rvEscapeAttr(loc)}" data-cls="${rvEscapeAttr(cls)}" data-field="max" value="${Number(cur.max||0)}" class="classmix-inp" onclick="event.stopPropagation()" oninput="settClassMixChanged()"></label>
+    </div>
+    <div class="cmix-card-warn">Min exceeds max</div>
+  </div>`;
+}
+
+function settClassMixLocationGroupsHtml(loc,cfg){
+  const classes=settClassMixLocClasses(loc,cfg);
+  const byFamily={};
+  classes.forEach(cls=>{(byFamily[getFamily(cls)]=byFamily[getFamily(cls)]||[]).push(cls);});
+  const order=["barre","powercycle","strength_lab","mat_57","recovery","foundations","hiit","default"];
+  return order.filter(f=>byFamily[f]?.length).map(family=>`
+    <div class="cmix-family-group">
+      <div class="cmix-family-head"><span class="cmix-family-dot" style="background:${FAM_COLOR[family]||FAM_COLOR.default}"></span>${rvEscapeHtml(CMIX_FAMILY_LABELS[family]||family)}</div>
+      <div class="cmix-card-grid">${byFamily[family].map(cls=>settClassMixCardHtml(loc,cls,cfg)).join("")}</div>
+    </div>`).join("")||`<div class="cmix-health-empty">No class formats configured for this studio yet.</div>`;
+}
+
+function settSetClassMixLocation(loc){
+  _cmixActiveLoc=loc;
+  document.querySelectorAll(".cmix-loc-tab").forEach(b=>b.classList.toggle("active",b.dataset.loc===loc));
+  document.querySelectorAll(".cmix-loc-groups").forEach(el=>{el.hidden=el.dataset.cmixLoc!==loc;});
+  settRenderClassMixHealth(loc);
+}
+
 function settRenderClassMix(){
   const wrap=document.getElementById("classmix-wrap");
   if(!wrap)return;
   _settSchedConfig=settNormalizeConfig(_settSchedConfig||{});
   const cfg=_settSchedConfig.class_mix||{};
-  const classes=[...new Set(LOCS_ALL.flatMap(loc=>Object.keys(CLASS_MIX_TARGETS[loc]||{})))];
+  if(!_cmixActiveLoc||!LOCS_ALL.includes(_cmixActiveLoc))_cmixActiveLoc=LOCS_ALL[0];
+  const allClasses=[...new Set(LOCS_ALL.flatMap(loc=>settClassMixLocClasses(loc,cfg)))];
   wrap.innerHTML=`
+    <div class="cmix-loc-tabs">
+      ${LOCS_ALL.map(loc=>`<button class="cmix-loc-tab${loc===_cmixActiveLoc?" active":""}" data-loc="${rvEscapeAttr(loc)}" onclick="settSetClassMixLocation('${rvEscapeAttr(loc)}')">${rvEscapeHtml(LOC_SHORT[loc]||loc)}</button>`).join("")}
+    </div>
+    <div class="cmix-health-strip" id="cmix-health-strip"></div>
     <div class="sett-toolbar-stack">
       ${settBulkToolbarHtml("classmix","Class Mix Operations")}
-      ${settClassMixAdvancedBulkHtml(classes)}
+      ${settClassMixAdvancedBulkHtml(allClasses)}
     </div>
-    <div class="sett-matrix-wrap">
-      <table class="sett-matrix" id="classmix-matrix">
-        <thead><tr>
-          <th>Studio / Format</th>
-          ${classes.map(cls=>`<th><button class="sett-mini-btn" onclick="settSelectMatrixColumn('classmix','${rvEscapeAttr(cls)}')" title="${rvEscapeAttr(displayClass(cls))}">${rvEscapeHtml(displayClass(cls).slice(0,10))}${displayClass(cls).length>10?"…":""}</button></th>`).join("")}
-        </tr></thead>
-        <tbody>
-          ${LOCS_ALL.map(loc=>`<tr>
-            <td class="sett-matrix-rowhead"><button class="sett-mini-btn" onclick="settSelectMatrixRow('classmix','${rvEscapeAttr(loc)}')">${LOC_SHORT[loc]||loc}</button></td>
-            ${classes.map(cls=>{
-              const supported=(CLASS_MIX_TARGETS[loc]||{})[cls];
-              const cur=(cfg[loc]||{})[cls]||supported||{min:0,max:0};
-              const invalid=Number(cur.min||0)>Number(cur.max||0);
-              return`<td>
-                <div class="sett-matrix-cell ${invalid?"invalid":""}" data-matrix="classmix" data-loc="${rvEscapeAttr(loc)}" data-key="${rvEscapeAttr(cls)}" onclick="settToggleMatrixCell(event,this)" style="${supported?"":"opacity:.35;pointer-events:none"}">
-                  <div style="font-size:9px;font-weight:900;color:${classColor(cls)};margin-bottom:6px;letter-spacing:0.02em" title="${rvEscapeAttr(displayClass(cls))}">${rvEscapeHtml(displayClass(cls))}</div>
-                  <div class="sett-matrix-pair">
-                    <label class="sett-matrix-mini"><span>Min</span><input type="number" min="0" max="40" data-loc="${rvEscapeAttr(loc)}" data-cls="${rvEscapeAttr(cls)}" data-field="min" value="${Number(cur.min||0)}" class="classmix-inp" onclick="event.stopPropagation()" oninput="settClassMixChanged()"></label>
-                    <label class="sett-matrix-mini"><span>Max</span><input type="number" min="0" max="40" data-loc="${rvEscapeAttr(loc)}" data-cls="${rvEscapeAttr(cls)}" data-field="max" value="${Number(cur.max||0)}" class="classmix-inp" onclick="event.stopPropagation()" oninput="settClassMixChanged()"></label>
-                  </div>
-                </div>
-              </td>`;
-            }).join("")}
-          </tr>`).join("")}
-        </tbody>
-      </table>
-    </div>`;
+    ${LOCS_ALL.map(loc=>`<div class="cmix-loc-groups" data-cmix-loc="${rvEscapeAttr(loc)}" ${loc===_cmixActiveLoc?"":"hidden"}>${settClassMixLocationGroupsHtml(loc,cfg)}</div>`).join("")}
+    <div class="sett-save-bar"><button class="sett-save-btn" onclick="settSaveClassMix()">Save Class Mix</button></div>`;
+  settRenderClassMixHealth(_cmixActiveLoc);
   settValidateAndRender();
 }
 
@@ -7217,6 +6822,7 @@ function settClassMixChanged(){
     const cur=_settSchedConfig.class_mix?.[loc]?.[cls]||{};
     cell.classList.toggle("invalid",Number(cur.min||0)>Number(cur.max||0));
   });
+  if(_cmixActiveLoc)settRenderClassMixHealth(_cmixActiveLoc);
   settValidateAndRender();
 }
 
@@ -8767,85 +8373,22 @@ function exportSchedulePDF(){
   const slots = getActiveScheduleExportSlots();
   if(!slots.length){ if(typeof showToast==='function') showToast("No slots found to export", "warn"); return; }
   const weekStr = document.getElementById("week-badge")?.innerText || "Schedule";
-  const printWin = window.open("", "_blank");
-  printWin.document.write(`<!DOCTYPE html>
-<html>
-<head>
-<title>Athena Schedule — ${rvEscapeHtml(weekStr)}</title>
-<style>
-  @media print {
-    @page { size: landscape; margin: 12mm; }
-  }
-  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111827; padding: 20px; }
-  .hdr { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1E40AF; padding-bottom: 12px; margin-bottom: 20px; }
-  h1 { font-size: 22px; margin: 0; color: #1E40AF; text-transform: uppercase; letter-spacing: 0.05em; }
-  .sub { font-size: 12px; color: #6B7280; font-weight: 600; }
-  table { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px; }
-  th { background: #F1F5F9; color: #334155; font-weight: 800; text-transform: uppercase; font-size: 8.5px; padding: 6px 8px; border: 1px solid #CBD5E1; text-align: left; }
-  td { padding: 6px 8px; border: 1px solid #E2E8F0; vertical-align: middle; }
-  tr:nth-child(even) td { background: #F8FAFC; }
-  .cls-name { font-weight: 800; color: #0F172A; }
-  .fill-pill { padding: 2px 6px; border-radius: 999px; background: #DBEAFE; color: #1E40AF; font-size: 9.5px; font-weight: 800; }
-  .reason { font-size: 9.5px; color: #64748B; font-style: italic; }
-</style>
-</head>
-<body>
-  <div class="hdr">
-    <div>
-      <h1>Athena Studio Schedule</h1>
-      <div class="sub">AI-Powered Class Schedule Intelligence</div>
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:14px;font-weight:800">${rvEscapeHtml(weekStr)}</div>
-      <div style="font-size:11px;color:#6B7280">${slots.length} Classes Scheduled</div>
-    </div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Day</th>
-        <th>Time</th>
-        <th>Location</th>
-        <th>Class Format</th>
-        <th>Trainer</th>
-        <th>Room</th>
-        <th>Fill %</th>
-        <th>Attendance</th>
-        <th>Hist Sessions</th>
-        <th>Class Avg</th>
-        <th>Best Trainer</th>
-        <th>Selection Reason</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${slots.map(s => {
-        const attendance = Math.round((s.predicted_fill_rate || s.historical_avg_fill || 0) * (s.capacity || 20));
-        const histSessions = s.historical_session_count || s.metric_session_count || s.trainer_slot_session_count || 0;
-        const classAvg = Math.round((s.historical_avg_checkin || s.metric_avg_checkin || 0) * 10) / 10;
-        const bestTrainer = (Array.isArray(s.slot_top_trainers) && s.slot_top_trainers[0]?.trainer) || s.best_trainer_name || s.top_trainer_name || s.trainer_1 || "—";
-        return `<tr>
-          <td><strong>${rvEscapeHtml(s.day_of_week||'')}</strong></td>
-          <td>${rvEscapeHtml(s.time||'')}</td>
-          <td>${rvEscapeHtml(s.location||'')}</td>
-          <td class="cls-name">${rvEscapeHtml(typeof displayClass==='function'?displayClass(s.class_name):s.class_name)}</td>
-          <td>${rvEscapeHtml(s.trainer_1||'')}</td>
-          <td>${rvEscapeHtml(s.room||'—')}</td>
-          <td><span class="fill-pill">${typeof pct==='function'?pct(s.predicted_fill_rate || s.historical_avg_fill || 0):'0%'}</span></td>
-          <td>${attendance}</td>
-          <td>${histSessions}</td>
-          <td>${classAvg}</td>
-          <td>${rvEscapeHtml(bestTrainer)}</td>
-          <td class="reason">${rvEscapeHtml(getCanonicalSelectionReason(s))}</td>
-        </tr>`;
-      }).join("")}
-    </tbody>
-  </table>
-  <script>
-    window.onload = function() {
-      setTimeout(function() { window.print(); }, 300);
-    };
-  </script>
-</body>
-</html>`);
-  printWin.document.close();
+  if(typeof showToast==='function') showToast("Generating PDF…", "");
+  schedulerFetch("/api/export-schedule-pdf", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({slots, week_label: weekStr})
+  })
+    .then(r => { if(!r.ok) throw new Error("PDF generation failed"); return r.blob(); })
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `schedule_report_${weekStr.replace(/[^\w-]+/g,"_")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    })
+    .catch(() => { if(typeof showToast==='function') showToast("Could not generate PDF", "error"); });
 }
