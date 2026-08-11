@@ -809,7 +809,7 @@ def _compliant_trainer_candidates(data, iteration, target_slot):
 
 def _expand_global_trainer_replacement(result, iteration):
     """Turn a scoped global replacement into one confirmable edit per live class."""
-    if result.get("intent") != "global_replace_trainer" or result.get("edits"):
+    if result.get("intent") != "global_replace_trainer":
         return result
     path = WEB_DIR / "schedule_data.json"
     if not path.exists():
@@ -824,6 +824,9 @@ def _expand_global_trainer_replacement(result, iteration):
         return not expected or str(value or "").strip().lower() == str(expected).strip().lower()
 
     data = json.loads(path.read_text())
+    # A global absence request is cover-only. Discard model-proposed swaps so
+    # the unavailable trainer can never be moved to another slot or class.
+    result["edits"] = []
     matched = [
         slot for slot in _iteration_schedule_rows(data, iteration)
         if matches(slot.get("trainer_1"), trainer)
@@ -1665,16 +1668,34 @@ def _build_schedule_optimizer_prompt(payload):
     location = payload.get("location", "")
     schedule = _latest_schedule_payload()
     loc_slots = schedule.get("locations", {}).get(location, []) if location else []
+    scope = payload.get("nl_scope") or {}
+    scope_day = scope.get("day") or ""
+    time_from = scope.get("time_from") or ""
+    time_to = scope.get("time_to") or ""
+    scoped_slots = [
+        slot for slot in loc_slots
+        if (not scope_day or slot.get("day_of_week") == scope_day)
+        and (not time_from or str(slot.get("time") or "") >= time_from)
+        and (not time_to or str(slot.get("time") or "") <= time_to)
+    ]
+    schedule_config = load_json_file(_schedule_config_path(), {})
+    class_mix = (schedule_config.get("class_mix") or {}).get(location, {})
     return (
-        "You are a studio schedule optimizer. Review this schedule and suggest specific improvements. "
-        f"Location: {location}\n\n"
-        f"Schedule:\n{json.dumps(loc_slots, indent=2)}\n\n"
+        "You are a conservative studio schedule optimizer. Review only the requested scope and return changes only when the schedule evidence supports them. "
+        "For class-mix balancing, compare the entire week before changing a class in the requested slot. "
+        "Never move an instructor, change a class, or add a class merely to create variety. Use exact existing class and trainer names only. "
+        "Do not recommend a class outside the location's configured class mix. The backend will reject any rule violation. "
+        f"Location: {location}\n"
+        f"Requested scope: day={scope_day or 'all days'}, time={time_from or 'all'}-{time_to or time_from or 'all'}\n\n"
+        f"REQUESTED SLOT(S):\n{json.dumps(scoped_slots, indent=2)}\n\n"
+        f"FULL LOCATION WEEK (for class-mix comparison):\n{json.dumps(loc_slots, indent=2)}\n\n"
+        f"CONFIGURED CLASS MIX:\n{json.dumps(class_mix, indent=2)}\n\n"
         "Return JSON only with this exact structure:\n"
         '{"summary": "brief summary", "operations": [...]}\n\n'
         "Supported operation types: swap_trainer, remove_class, move_class, add_class, change_class\n\n"
         "Every operation will be server-validated before being applied. "
         "Each operation must include a 'slot' object identifying the target slot, "
-        "and 'reason' explaining the change."
+        "and 'reason' explaining the evidence. Return an empty operations list when no safe improvement is supported."
     )
 
 
@@ -1959,6 +1980,13 @@ def nl_edit():
             _trainer_profiles_path(),
         )
         iteration = context.get("iteration") or "Main"
+        if result.get("intent") in {"slot_optimize", "day_optimize"}:
+            scope = result.setdefault("scope", {})
+            scope.setdefault("location", context.get("location") or "")
+            result["edits"] = []
+            result["route_to_optimizer"] = True
+            result["optimizer_scope"] = scope
+            return _json(result)
         result = _expand_global_trainer_replacement(result, iteration)
         result = _enrich_nl_edit_compliance(result, iteration)
         return _json(result)

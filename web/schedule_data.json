@@ -264061,6 +264061,17 @@
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
         "slot_empty_sessions": null
+      },
+      {
+        "location": "Kenkere House",
+        "day_of_week": "Thursday",
+        "time": "09:00",
+        "class_name": "Studio Barre 57",
+        "trainer_1": "Pushyank Nahar",
+        "room": "Room 1",
+        "recommendation": "MANUAL",
+        "manual_added": true,
+        "scheduling_reason": "Manual class added from assistant"
       }
     ]
   },
