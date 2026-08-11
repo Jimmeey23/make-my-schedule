@@ -7647,7 +7647,11 @@ function nlEditRequest(instruction) {
     body: JSON.stringify({
       instruction,
       schedule_snapshot: scheduleSnapshot,
-      context: {location: ctx.location || "", week: scheduleSnapshot.generated_for_week},
+      context: {
+        location: ctx.location || "",
+        iteration: ctx.iteration || "Main",
+        week: scheduleSnapshot.generated_for_week
+      },
     }),
   })
   .then(r => r.json())
@@ -7722,15 +7726,15 @@ function nlEditRender(result, instruction) {
       let bestFitHtml = "";
       if (trCandidates.length > 0) {
         bestFitHtml += `<div class="nle-bestfit-wrap">
-          <div class="nle-bestfit-label">${pendingConfirmation ? "⚠ Choose a trainer to confirm this edit" : "✨ Best-fit trainer"} — AI-ranked by fill rate, check-in & availability</div>
+          <div class="nle-bestfit-label">${pendingConfirmation ? "⚠ Choose a compliant trainer to confirm this edit" : "✨ Rule-compliant trainer"} — validated against live availability, qualifications, clashes, shifts, locations and workload</div>
           <select class="nle-bestfit-select" id="nle-tr-select-${editIdx}" onchange="nlEditSelectTrainer(${editIdx}, this.value)">
             <option value="" ${pendingConfirmation ? "selected" : ""} disabled>Select a trainer…</option>
-            ${trCandidates.map((c,i) => `<option value="${rvEscapeHtml(c.name)}" ${(!pendingConfirmation && edit.new_trainer===c.name)?"selected":""}>${rvEscapeHtml(c.name)} — ${c.avg_fill_rate}% fill · ${c.avg_checkin} avg · Tier ${c.tier}${c.available?"":" ⚠"}</option>`).join("")}
+            ${trCandidates.map((c,i) => `<option value="${rvEscapeHtml(c.name)}" ${(!pendingConfirmation && edit.new_trainer===c.name)?"selected":""}>${rvEscapeHtml(c.name)} — compliant · ${c.avg_fill_rate}% fill · ${c.avg_checkin} avg · Tier ${c.tier}</option>`).join("")}
           </select>
           <div class="nle-bestfit-cards">${trCandidates.map((c,i) => `
             <div class="nle-cand-card ${(!pendingConfirmation && edit.new_trainer===c.name)?"selected":""}" id="nle-tr-cand-${editIdx}-${i}" onclick="nlEditPickTrainer(${editIdx},${i})">
               <div class="nle-cand-name">${rvEscapeHtml(c.name)}</div>
-              <div class="nle-cand-meta">${c.avg_fill_rate}% fill · ${c.avg_checkin} check-in · ${c.session_count} sessions · Tier ${c.tier}${c.available?" ✓":" ⚠ avail?"}</div>
+              <div class="nle-cand-meta">${c.compliant ? "✓ rule-compliant · " : ""}${c.avg_fill_rate}% fill · ${c.avg_checkin} check-in · ${c.session_count} sessions · Tier ${c.tier}</div>
               ${c.reason ? `<div class="nle-cand-reason">${rvEscapeHtml(c.reason)}</div>` : ""}
             </div>`).join("")}
           </div>
@@ -7758,7 +7762,7 @@ function nlEditRender(result, instruction) {
       // or a permanently-stuck confirmation state.
       const unresolvedBestFit = nlEditIsUnresolved(edit);
       if (unresolvedBestFit) {
-        bestFitHtml += `<div class="nle-warning"><span>⚠</span><span>No historic candidates found for this slot — please name a trainer/class explicitly in your instruction.</span></div>`;
+        bestFitHtml += `<div class="nle-warning"><span>⚠</span><span>No rule-compliant candidate is available for this slot. Adjust the timing, location, class or coverage plan.</span></div>`;
       }
 
       html += `<div class="nle-edit-card ${edit.action}${hasBestFit?" has-bestfit":""}${pendingConfirmation?" pending-confirmation":""}">

@@ -1123,6 +1123,7 @@ NAME RULES:
 - Use exact trainer names from the schedule
 - morning = 07:00–09:59, midday = 10:00–12:59, afternoon = 13:00–16:59, evening = 17:00–20:30
 - BEST_FIT sentinel: use when user says "find best trainer", "best available", "who fits", "best cover", "sub", "substitute"
+- For an instructor absence covering multiple matching classes, emit one modify edit per affected live schedule slot and use BEST_FIT for each uncovered trainer. Do not collapse multiple classes into one edit.
 - If ambiguous, pick most likely and add warning
 - Never invent names not in the schedule (except BEST_FIT)
 - confidence < 0.6 → set intent="unclear" and explain in warnings"""

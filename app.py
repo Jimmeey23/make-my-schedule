@@ -711,9 +711,138 @@ def _validate_manual_slot(data, iteration, slot, original_slot=None, additional_
     location_shift_error = _violates_location_shift_lock(slot, trainer_rows)
     if location_shift_error:
         raise ValueError(location_shift_error)
+    daily_minutes = sum(_slot_duration(r) for r in trainer_rows if r.get("day_of_week") == day)
+    if daily_minutes + _slot_duration(slot) > 4 * 60:
+        raise ValueError(f"{trainer} would exceed the 4h daily teaching cap on {day}")
     weekly_minutes = sum(_slot_duration(r) for r in trainer_rows)
     if weekly_minutes + _slot_duration(slot) > 15 * 60:
         raise ValueError(f"{trainer} would exceed the 15h weekly cap")
+
+
+def _iteration_schedule_rows(data, iteration):
+    source = data.get("locations") or {} if iteration == "Main" else (data.get("iterations") or {}).get(iteration) or {}
+    return [row for rows in source.values() for row in (rows or [])]
+
+
+def _find_live_slot(data, iteration, spec):
+    """Find an edit target from its stable, user-visible schedule fields."""
+    required = ("location", "day_of_week", "time", "class_name", "trainer_1")
+    if any(not spec.get(key) for key in required):
+        return None
+    return next((
+        row for row in _iteration_schedule_rows(data, iteration)
+        if all((row.get(key) or "") == (spec.get(key) or "") for key in required)
+    ), None)
+
+
+def _candidate_history_score(trainer, slot, metrics):
+    """Prefer proven performance, without letting it bypass a hard rule."""
+    day = _DAY_TO_INT.get(str(slot.get("day_of_week") or "").lower(), -1)
+    best = None
+    for row in (metrics.get("class_trainer_slot_metrics") or []):
+        if row.get("trainer") != trainer or row.get("class") != slot.get("class_name"):
+            continue
+        specificity = sum((
+            row.get("location") == slot.get("location"),
+            day >= 0 and row.get("day") == day,
+            row.get("time") == slot.get("time"),
+        ))
+        fill = float(row.get("avg_fill_rate") or 0)
+        checkin = float(row.get("avg_checkin") or 0)
+        sessions = int(row.get("session_count") or 0)
+        score = specificity * 25 + fill * 40 + min(checkin, 12) * 3 + min(sessions, 30) / 3
+        if best is None or score > best[0]:
+            best = (score, fill, checkin, sessions)
+    return best or (0.0, 0.0, 0.0, 0)
+
+
+def _compliant_trainer_candidates(data, iteration, target_slot):
+    """Return only trainers that pass the same validation used when saving edits."""
+    try:
+        profiles = json.loads(_trainer_profiles_path().read_text())
+    except Exception:
+        profiles = []
+    try:
+        metrics = json.loads(METRICS_PATH.read_text())
+    except Exception:
+        metrics = {}
+
+    candidates = []
+    for profile in profiles:
+        trainer = str(profile.get("name") or "").strip()
+        if not trainer or profile.get("active") is False:
+            continue
+        if trainer.lower() == str(target_slot.get("trainer_1") or "").strip().lower():
+            continue
+        proposed = dict(target_slot)
+        proposed["trainer_1"] = trainer
+        try:
+            _validate_manual_slot(data, iteration, proposed, original_slot=target_slot)
+        except ValueError:
+            continue
+        if _quality_gate_warning(proposed, metrics):
+            continue
+        history_score, fill, checkin, sessions = _candidate_history_score(trainer, proposed, metrics)
+        tier = int(profile.get("tier") or 3)
+        weekly_minutes = sum(
+            _slot_duration(row) for row in _iteration_schedule_rows(data, iteration)
+            if (row.get("trainer_1") or "").strip().lower() == trainer.lower()
+            and not _same_schedule_slot(row, target_slot)
+        ) + _slot_duration(proposed)
+        score = history_score + max(0, 4 - tier) * 8 + max(0, 15 - weekly_minutes / 60)
+        candidates.append({
+            "name": trainer,
+            "score": round(score, 1),
+            "avg_fill_rate": round(fill * 100, 1),
+            "avg_checkin": round(checkin, 1),
+            "session_count": sessions,
+            "tier": tier,
+            "available": True,
+            "compliant": True,
+            "reason": (
+                f"Compliant with availability, qualification, clash, shift, location, room and workload rules. "
+                f"{fill * 100:.0f}% fill, {checkin:.1f} avg check-in, {sessions} sessions"
+            ),
+        })
+    return sorted(candidates, key=lambda item: (-item["score"], item["tier"], item["name"]))[:6]
+
+
+def _enrich_nl_edit_compliance(result, iteration):
+    """Replace model/history-only candidate lists with live rule-compliant options."""
+    path = WEB_DIR / "schedule_data.json"
+    if not path.exists():
+        return result
+    data = json.loads(path.read_text())
+    warnings = result.setdefault("warnings", [])
+    checks = result.setdefault("constraint_checks", [])
+
+    for edit in result.get("edits") or []:
+        if edit.get("action") != "modify" or edit.get("new_trainer") != "BEST_FIT":
+            continue
+        source = _find_live_slot(data, iteration, {
+            "location": edit.get("location"), "day_of_week": edit.get("day"),
+            "time": edit.get("time"), "class_name": edit.get("class_name"),
+            "trainer_1": edit.get("trainer_1"),
+        })
+        if not source:
+            warnings.append("Could not verify a requested replacement because its source class was not found in the live schedule.")
+            edit["best_fit_trainer_candidates"] = []
+            edit["needs_confirmation"] = False
+            continue
+        candidates = _compliant_trainer_candidates(data, iteration, source)
+        edit["best_fit_trainer_candidates"] = candidates
+        edit["needs_confirmation"] = bool(candidates)
+        if candidates:
+            checks.append(
+                f"{len(candidates)} rule-compliant replacement trainer(s) found for "
+                f"{source.get('day_of_week')} {source.get('time')} at {source.get('location')}."
+            )
+        else:
+            warnings.append(
+                f"No rule-compliant replacement trainer is available for {source.get('class_name')} on "
+                f"{source.get('day_of_week')} {source.get('time')} at {source.get('location')}."
+            )
+    return result
 
 
 _DAY_TO_INT = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
@@ -1666,6 +1795,7 @@ def nl_edit():
             METRICS_PATH,
             _trainer_profiles_path(),
         )
+        result = _enrich_nl_edit_compliance(result, context.get("iteration") or "Main")
         return _json(result)
     except Exception as exc:
         return _json({"error": str(exc)}, 500)
