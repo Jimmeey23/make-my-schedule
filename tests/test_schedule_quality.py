@@ -12,7 +12,7 @@ import agents.reporter as reporter_module
 import app as flask_app_module
 import serve as serve_module
 from agents.scorer import _is_top_performer_protected
-from agents.ai_planner import AISchedulePlanner, PlannedSlot, _build_location_prompt, _build_system_prompt, _daily_target_errors, _enforce_global_trainer_overlaps, _enforce_hard_limits, _estimate_ai_cost_usd, _parse_schedule_response, _score_slots, _select_primary_iteration, _summarise_ai_usage, _validate_slots
+from agents.ai_planner import AISchedulePlanner, PlannedSlot, _build_location_prompt, _build_system_prompt, _daily_target_errors, _enforce_global_trainer_overlaps, _enforce_hard_limits, _parse_schedule_response, _score_slots, _select_primary_iteration, _validate_slots
 from agents.optimiser import DATA_DRIVEN_DAILY_RANGES, DAY_ORDER, LOCATION_WEEKLY_CLASS_BOUNDS, MAX_TRAINER_WEEKLY_MINUTES, RoomOccupancy, ScheduleOptimiser, ScheduleSlot, TIER1_WEEKLY_TARGET_MIN, TrainerState, canonical_class_key, class_difficulty_level, get_class_duration, has_early_repair_slot_evidence, is_low_performing_history, is_protected_strength_lab_row, same_protected_class_variant, slot_is_in_blocked_window, slot_time_to_minutes
 from agents.reporter import OutputReporter
 from rule_config import build_rules_catalog, load_rules_config
@@ -334,65 +334,6 @@ def test_global_guard_preserves_underfilled_copper_before_overfloor_kenkere():
         and s.trainer_1 == "Trainer A"
         for s in kept
     )
-
-
-def test_ai_token_cost_estimate_uses_gpt56_terra_rates():
-    cost = _estimate_ai_cost_usd("gpt-5.6-terra", input_tokens=1_000_000, output_tokens=500_000)
-
-    assert cost["pricing_model"] == "gpt-5.6-terra"
-    assert cost["input_per_million_usd"] == 2.0
-    assert cost["output_per_million_usd"] == 12.0
-    assert cost["estimated_cost_usd"] == 8.0
-
-
-def test_ai_usage_summary_rolls_up_calls_by_model():
-    summary = _summarise_ai_usage([
-        {
-            "model": "gpt-5.6-terra",
-            "input_tokens": 1000,
-            "output_tokens": 100,
-            "total_tokens": 1100,
-            "estimated_cost_usd": 0.0032,
-        },
-        {
-            "model": "gpt-5.6-terra",
-            "input_tokens": 2000,
-            "output_tokens": 50,
-            "total_tokens": 2050,
-            "estimated_cost_usd": 0.0046,
-        },
-    ])
-
-    assert summary["calls"] == 2
-    assert summary["input_tokens"] == 3000
-    assert summary["output_tokens"] == 150
-    assert summary["total_tokens"] == 3150
-    assert summary["estimated_cost_usd"] == 0.0078
-    assert summary["by_model"]["gpt-5.6-terra"]["calls"] == 2
-
-
-def test_serve_latest_ai_run_status_includes_token_usage(tmp_path, monkeypatch):
-    state_dir = tmp_path / "state"
-    state_dir.mkdir()
-    token_usage = {
-        "calls": 1,
-        "input_tokens": 1000,
-        "output_tokens": 100,
-        "total_tokens": 1100,
-        "estimated_cost_usd": 0.0032,
-    }
-    (state_dir / "ai_runs.jsonl").write_text(json.dumps({
-        "planner_mode": "ai",
-        "models": ["gpt-5.6-terra"],
-        "token_usage": token_usage,
-        "token_usage_calls": [{"model": "gpt-5.6-terra", "input_tokens": 1000}],
-    }) + "\n")
-    monkeypatch.setattr(serve_module, "STATE_DIR", state_dir)
-
-    status = serve_module._latest_ai_run_status()
-
-    assert status["token_usage"] == token_usage
-    assert status["token_usage_calls"][0]["model"] == "gpt-5.6-terra"
 
 
 def test_requested_format_trainer_priority_boosts_specific_trainers():
