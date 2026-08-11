@@ -1120,17 +1120,17 @@ function makeClassCardMini(s, locOverride){
     </div>
     <div class="cc-trainer" style="margin-bottom:6px">
       <button class="cc-avatar cc-avatar-btn" type="button" title="Toggle trainer filter" data-trainer="${rvEscapeAttr(s.trainer_1||"")}" style="width:24px;height:24px;overflow:hidden;flex-shrink:0">${avatar?`<img src="${avatar}" alt="${rvEscapeAttr(s.trainer_1||"Trainer")}" style="width:24px;height:24px;object-fit:cover;display:block">`:initials}</button>
-      <span class="cc-tr-name" style="font-size:10px;color:#475569">${rvEscapeHtml(s.trainer_1||"—")}</span>
+      <span class="cc-tr-name" style="font-size:10px;color:var(--text-2)">${rvEscapeHtml(s.trainer_1||"—")}</span>
     </div>
     ${scheduleReasonBadges(s)}
-    <div class="cc-bottom" style="padding:6px 8px;gap:12px;background:rgba(248,250,252,0.8);border-top:1px solid #E2E8F0;margin:-8px -8px -8px -8px;margin-top:4px">
+    <div class="cc-bottom" style="padding:6px 8px;gap:12px;background:var(--surface2);border-top:1px solid var(--border);margin:-8px -8px -8px -8px;margin-top:4px">
       <div style="flex:1">
-        <div style="display:flex;justify-content:space-between;font-size:8px;font-weight:800;color:#64748B;text-transform:uppercase;margin-bottom:3px"><span>Fill</span><span style="color:${fc}">${pct(fill)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:8px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin-bottom:3px"><span>Fill</span><span style="color:${fc}">${pct(fill)}</span></div>
         <div class="cc-bar-bg" style="height:3px"><div class="cc-bar-fill" style="width:${Math.round(fill*100)}%;background:${fc}"></div></div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:8px;font-weight:800;color:#64748B;text-transform:uppercase;margin-bottom:1px">Avg</div>
-        <div style="font-size:11px;font-weight:800;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;line-height:1">${round1(avg)}</div>
+        <div style="font-size:8px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin-bottom:1px">Avg</div>
+        <div style="font-size:11px;font-weight:800;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;line-height:1">${round1(avg)}</div>
       </div>
     </div>`;
   const scoreBtn=div.querySelector(".score-click");
@@ -1181,12 +1181,12 @@ function makeClassCard(s){
     ${scheduleReasonBadges(s)}
     <div class="cc-bottom">
       <div class="cc-fill-main">
-        <div class="cc-fill-head"><span style="font-size:8px;font-weight:800;color:#64748B;text-transform:uppercase">Fill</span><span style="font-size:9px;font-weight:900;color:${fc}">${pct(fill)}</span></div>
+        <div class="cc-fill-head"><span style="font-size:8px;font-weight:800;color:var(--text-muted);text-transform:uppercase">Fill</span><span style="font-size:9px;font-weight:900;color:${fc}">${pct(fill)}</span></div>
         <div class="cc-bar-bg" style="height:4px"><div class="cc-bar-fill" style="width:${Math.round(fill*100)}%;background:${fc}"></div></div>
       </div>
-      <div style="text-align:right;flex-shrink:0;padding-left:4px;border-left:1px solid rgba(226,232,240,.8);margin-left:4px">
-        <div style="font-size:7.5px;font-weight:800;color:#64748B;text-transform:uppercase;margin-bottom:2px">Avg</div>
-        <div style="font-size:12px;font-weight:900;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif;line-height:1">${round1(avg)}</div>
+      <div style="text-align:right;flex-shrink:0;padding-left:4px;border-left:1px solid var(--border);margin-left:4px">
+        <div style="font-size:7.5px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin-bottom:2px">Avg</div>
+        <div style="font-size:12px;font-weight:900;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;line-height:1">${round1(avg)}</div>
       </div>
     </div>
     <div class="cc-hover-body">
@@ -1257,7 +1257,7 @@ function renderTimeline(area,filtered){
   legendItems.forEach(([label,col])=>{
     legEl.insertAdjacentHTML("beforeend",`<div class="tl-leg-chip" style="background:${col}"><span class="tl-leg-dot"></span><span>${label}</span></div>`);
   });
-  if(manualCount)legEl.insertAdjacentHTML("beforeend",`<div class="tl-leg-chip" style="background:#64748B"><span class="tl-leg-dot"></span><span>${manualCount} Manual edits</span></div>`);
+  if(manualCount)legEl.insertAdjacentHTML("beforeend",`<div class="tl-leg-chip" style="background:var(--text-muted)"><span class="tl-leg-dot"></span><span>${manualCount} Manual edits</span></div>`);
   outerWrap.appendChild(legEl);
 
   const innerWrap=document.createElement("div");
@@ -1352,7 +1352,7 @@ function renderHeatmap(area,filtered){
   });
   const times=[...new Set(filtered.map(s=>s.time||"00:00"))].sort();
   const html=`<div class="view-surface">
-    <div class="view-surface-head"><div class="view-surface-title">Schedule Heatmap</div><div style="font-size:11px;color:#64748B;font-weight:800">Fill intensity by day and slot</div></div>
+    <div class="view-surface-head"><div class="view-surface-title">Schedule Heatmap</div><div style="font-size:11px;color:var(--text-muted);font-weight:800">Fill intensity by day and slot</div></div>
     <div class="heatmap-grid">
       <div></div>
       ${DAY_ORDER.map(d=>`<div class="heatmap-head">${d.slice(0,3)}</div>`).join("")}
@@ -1397,16 +1397,16 @@ function renderRoomView(area,filtered){
   wrap.innerHTML = `
     <div class="view-surface-head">
       <div class="view-surface-title">Room Utilization Timeline</div>
-      <div style="font-size:11px;color:#64748B;font-weight:800">${rvEscapeHtml(activeLocation||"Current location")} only · precision space management view</div>
+      <div style="font-size:11px;color:var(--text-muted);font-weight:800">${rvEscapeHtml(activeLocation||"Current location")} only · precision space management view</div>
     </div>
     <div class="room-timeline-outer">
       <div class="room-timeline-container" style="display:flex;position:relative;height:700px;overflow-y:auto">
         <!-- Time Bar -->
-        <div class="time-axis" style="width:64px;background:#F8FAFC;border-right:1px solid #DCE3EB;position:sticky;left:0;z-index:20">
-          <div style="height:48px;background:#F1F5F9;border-bottom:1px solid #DCE3EB"></div>
+        <div class="time-axis" style="width:64px;background:var(--surface2);border-right:1px solid var(--border);position:sticky;left:0;z-index:20">
+          <div style="height:48px;background:var(--surface2);border-bottom:1px solid var(--border)"></div>
           ${Array.from({length: 16}).map((_, i) => {
             const hour = 7 + i;
-            return `<div style="height:${60 * pixelsPerMinute}px;border-bottom:1px dashed #E2E8F0;font-size:9px;color:#94A3B8;padding:4px;font-weight:900;display:flex;justify-content:flex-end;align-items:flex-start">${hour}:00</div>`;
+            return `<div style="height:${60 * pixelsPerMinute}px;border-bottom:1px dashed var(--border);font-size:9px;color:var(--text-light);padding:4px;font-weight:900;display:flex;justify-content:flex-end;align-items:flex-start">${hour}:00</div>`;
           }).join("")}
         </div>
         
@@ -1416,10 +1416,10 @@ function renderRoomView(area,filtered){
             const utilizedMinutes=rows.reduce((sum,s)=>sum+Number(getDuration(s.class_name)||s.duration_min||57),0);
             const utilizationPct=Math.max(0,Math.min(100,Math.round((utilizedMinutes/totalMinutes)*100)));
             return `
-              <div class="room-column" style="min-width:200px;flex:1;border-right:1px solid #E2E8F0;position:relative;background:repeating-linear-gradient(180deg, transparent, transparent ${60*pixelsPerMinute-1}px, rgba(226,232,240,0.5) ${60*pixelsPerMinute-1}px, rgba(226,232,240,0.5) ${60*pixelsPerMinute}px)">
-                <div style="height:48px;background:#F1F5F9;border-bottom:1px solid #DCE3EB;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:12px;font-weight:900;color:#0F172A;position:sticky;top:0;z-index:15;box-shadow:0 2px 4px rgba(0,0,0,0.02)">
+              <div class="room-column" style="min-width:200px;flex:1;border-right:1px solid var(--border);position:relative;background:repeating-linear-gradient(180deg, transparent, transparent ${60*pixelsPerMinute-1}px, color-mix(in srgb, var(--border) 55%, transparent) ${60*pixelsPerMinute-1}px, color-mix(in srgb, var(--border) 55%, transparent) ${60*pixelsPerMinute}px)">
+                <div style="height:48px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;font-size:12px;font-weight:900;color:var(--text);position:sticky;top:0;z-index:15;box-shadow:0 2px 4px rgba(0,0,0,0.02)">
                   <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${rvEscapeHtml(room)}</span>
-                  <span style="font-size:10px;font-weight:900;color:${utilizationPct>=70?'#15803D':utilizationPct>=45?'#D97706':'#64748B'}">${utilizationPct}% util</span>
+                  <span style="font-size:10px;font-weight:900;color:${utilizationPct>=70?'var(--green)':utilizationPct>=45?'var(--prime)':'var(--text-muted)'}">${utilizationPct}% util</span>
                 </div>
                 <div style="height:${totalMinutes * pixelsPerMinute}px;position:relative;padding:0 4px">
                   ${rows.map(s => {
@@ -1438,9 +1438,9 @@ function renderRoomView(area,filtered){
                            <span style="font-size:9px;font-weight:900;color:rgba(255,255,255,0.9)">${s.time}</span>
                            <span style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.7);background:rgba(0,0,0,0.1);padding:1px 4px;border-radius:4px">${s.day_of_week.slice(0,3)}</span>
                         </div>
-                        <div style="font-size:11px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${displayClass(s.class_name)}</div>
+                        <div style="font-size:11px;font-weight:900;color:var(--bg);line-height:1.2;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${displayClass(s.class_name)}</div>
                         <div style="display:flex;align-items:center;gap:6px">
-                           <span class="trainer-mgr-avatar" style="width:18px;height:18px;font-size:7px;background:rgba(255,255,255,0.2);color:#fff;border:none">${trainerInitials(s.trainer_1||"")}</span>
+                           <span class="trainer-mgr-avatar" style="width:18px;height:18px;font-size:7px;background:rgba(255,255,255,0.2);color:var(--bg);border:none">${trainerInitials(s.trainer_1||"")}</span>
                            <span style="font-size:9px;color:rgba(255,255,255,0.9);font-weight:800">${rvEscapeHtml((s.trainer_1||"—").split(" ")[0])}</span>
                         </div>
                       </div>
@@ -1861,7 +1861,7 @@ function renderCrossLocation(area, locOverride=null, title="Multi-Location Sched
             const col=FAM_COLOR[getFamily(cls)]||"#6B7280";
             return`<div class="ml-day-fmt-item" style="background:${bg}">
               <span style="font-size:10px;color:#334155;font-weight:600">${displayClass(cls)}</span>
-              <span class="ml-day-fmt-count" style="background:${col};color:#fff">${cnt}</span>
+              <span class="ml-day-fmt-count" style="background:${col};color:var(--bg)">${cnt}</span>
             </div>`;
           }).join("");
         fmtEl.classList.add("open");
@@ -2049,7 +2049,7 @@ function renderIntraCity(area){
           const col=FAM_COLOR[getFamily(cls)]||"#6B7280";
           return`<div class="ml-day-fmt-item" style="background:${bg}">
             <span style="font-size:10px;color:#334155;font-weight:600">${displayClass(cls)}</span>
-            <span class="ml-day-fmt-count" style="background:${col};color:#fff">${cnt}</span>
+            <span class="ml-day-fmt-count" style="background:${col};color:var(--bg)">${cnt}</span>
           </div>`;
         }).join("");
       fmtEl.classList.add("open");
@@ -2619,21 +2619,21 @@ function openSlotList(slots){
   const backdrop=document.createElement("div");
   backdrop.style.cssText="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.6);z-index:10000;backdrop-filter:blur(4px)";
   const el=document.createElement("div");
-  el.style.cssText="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10001;background:#fff;box-shadow:0 24px 64px rgba(0,0,0,0.4);border-radius:24px;min-width:320px;padding:24px;border:1px solid rgba(0,0,0,0.05)";
+  el.style.cssText="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10001;background:var(--surface);box-shadow:0 24px 64px rgba(0,0,0,0.4);border-radius:24px;min-width:320px;padding:24px;border:1px solid var(--border)";
   el.innerHTML=`
-    <h2 style="font-size:16px;font-weight:900;margin-bottom:16px;color:#0F172A;display:flex;justify-content:space-between;align-items:center">
+    <h2 style="font-size:16px;font-weight:900;margin-bottom:16px;color:var(--text);display:flex;justify-content:space-between;align-items:center">
        <span>Slot Selection</span>
-       <span style="font-size:10px;color:#64748B;background:#F1F5F9;padding:2px 8px;border-radius:999px">${slots.length} Classes</span>
+       <span style="font-size:10px;color:var(--text-muted);background:var(--surface2);padding:2px 8px;border-radius:999px">${slots.length} Classes</span>
     </h2>
     <div style="display:flex;flex-direction:column;gap:10px">
       ${slots.map(s=>`
-        <div style="padding:14px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all 0.2s" 
-             onmouseover="this.style.borderColor='#3B82F6';this.style.background='#fff'" 
-             onmouseout="this.style.borderColor='#E2E8F0';this.style.background='#F8FAFC'"
+        <div style="padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:all 0.2s" 
+             onmouseover="this.style.borderColor='var(--primary)';this.style.background='var(--surface)'" 
+             onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface2)'"
              onclick='backdrop.click();openModal(${rvEscapeAttr(JSON.stringify(s))})'>
           <div>
-            <div style="font-size:13px;font-weight:800;color:#0F172A">${displayClass(s.class_name)}</div>
-            <div style="font-size:10px;color:#64748B;font-weight:700;margin-top:2px">${s.location.split(",")[0]} <span style="color:#CBD5E1;margin:0 4px">•</span> ${s.trainer}</div>
+            <div style="font-size:13px;font-weight:800;color:var(--text)">${displayClass(s.class_name)}</div>
+            <div style="font-size:10px;color:var(--text-muted);font-weight:700;margin-top:2px">${s.location.split(",")[0]} <span style="color:var(--text-light);margin:0 4px">•</span> ${s.trainer}</div>
           </div>
           <div style="color:#3B82F6;font-size:18px;font-weight:300">→</div>
         </div>
@@ -2715,8 +2715,8 @@ function openModal(s){
           <div class="drill-rail-kpi"><span>Sessions</span><strong>${m.sessions}</strong></div>
           <div class="drill-rail-kpi"><span>Avg Check-In</span><strong>${n1(m.avgAttend)}</strong></div>
           <div class="drill-rail-kpi"><span>Fill Rate</span><strong>${pct(m.fill,1)}</strong></div>
-          <div class="drill-rail-kpi"><span>Cancel Rate</span><strong style="color:${m.cancelRate>.12?"#FCA5A5":"#F8FAFC"}">${pct(m.cancelRate,1)}</strong></div>
-          <div class="drill-rail-kpi wide"><span>Total Revenue</span><strong style="color:#86EFAC">${inrShort(m.revenue)}</strong></div>
+          <div class="drill-rail-kpi"><span>Cancel Rate</span><strong style="color:${m.cancelRate>.12?"#FCA5A5":"var(--text)"}">${pct(m.cancelRate,1)}</strong></div>
+          <div class="drill-rail-kpi wide"><span>Total Revenue</span><strong style="color:var(--green)">${inrShort(m.revenue)}</strong></div>
         </div>
         <div class="drill-side-card">
           <h3>Class Details</h3>
@@ -2741,7 +2741,7 @@ function openModal(s){
             <span class="drill-pill ${statusCls}">${statusLabel}</span>
             ${isPrime(s.time)?`<span class="drill-pill warn">Prime Slot</span>`:""}
             ${s.above_studio_avg?`<span class="drill-pill good">Above Studio Avg</span>`:""}
-            ${s.trainer_1?`<button id="drill-trainer-toggle" style="padding:4px 10px;border-radius:999px;border:1px solid #CBD5E1;background:#F8FAFC;color:#475569;font-size:10px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer" onclick="drillToggleTrainer(${JSON.stringify(s).replace(/"/g,'&quot;')})" title="Toggle between all historical data and data for ${rvEscapeAttr(s.trainer_1)} only">All data</button>`:""}
+            ${s.trainer_1?`<button id="drill-trainer-toggle" style="padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface2);color:var(--text-2);font-size:10px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer" onclick="drillToggleTrainer(${JSON.stringify(s).replace(/"/g,'&quot;')})" title="Toggle between all historical data and data for ${rvEscapeAttr(s.trainer_1)} only">All data</button>`:""}
           </div>
         </div>
         <section style="background:var(--surface2);border:1px solid var(--border-strong);border-radius:14px;padding:14px 18px;margin-bottom:14px">
@@ -3162,21 +3162,21 @@ async function openAddClassModal(ctx){
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:12px;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#64748B;margin-bottom:10px">Schedule Fresh Class</div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:10px">Schedule Fresh Class</div>
         <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px">
-          <label style="font-size:10px;font-weight:800;color:#64748B">Class<select class="sett-select" id="manual-class" style="width:100%;margin-top:4px">${classes.map(c=>`<option value="${rvEscapeAttr(c)}" ${c===defaultClass?"selected":""}>${rvEscapeHtml(displayClass(c))}</option>`).join("")}</select></label>
-          <label style="font-size:10px;font-weight:800;color:#64748B">Trainer<select class="sett-select" id="manual-trainer" style="width:100%;margin-top:4px"></select></label>
-          <label style="font-size:10px;font-weight:800;color:#64748B">Room<select class="sett-select" id="manual-room" style="width:100%;margin-top:4px">${rooms.map(r=>`<option value="${rvEscapeAttr(r)}">${rvEscapeHtml(r)}</option>`).join("")}</select></label>
-          <label style="font-size:10px;font-weight:800;color:#64748B">Capacity<input class="sett-input" id="manual-capacity" type="number" value="22" min="1" style="width:100%;margin-top:4px"></label>
-          <label style="font-size:10px;font-weight:800;color:#64748B">Duration<input class="sett-input" id="manual-duration" type="number" value="${classDefaultDuration(defaultClass)}" min="15" style="width:100%;margin-top:4px"></label>
+          <label style="font-size:10px;font-weight:800;color:var(--text-muted)">Class<select class="sett-select" id="manual-class" style="width:100%;margin-top:4px">${classes.map(c=>`<option value="${rvEscapeAttr(c)}" ${c===defaultClass?"selected":""}>${rvEscapeHtml(displayClass(c))}</option>`).join("")}</select></label>
+          <label style="font-size:10px;font-weight:800;color:var(--text-muted)">Trainer<select class="sett-select" id="manual-trainer" style="width:100%;margin-top:4px"></select></label>
+          <label style="font-size:10px;font-weight:800;color:var(--text-muted)">Room<select class="sett-select" id="manual-room" style="width:100%;margin-top:4px">${rooms.map(r=>`<option value="${rvEscapeAttr(r)}">${rvEscapeHtml(r)}</option>`).join("")}</select></label>
+          <label style="font-size:10px;font-weight:800;color:var(--text-muted)">Capacity<input class="sett-input" id="manual-capacity" type="number" value="22" min="1" style="width:100%;margin-top:4px"></label>
+          <label style="font-size:10px;font-weight:800;color:var(--text-muted)">Duration<input class="sett-input" id="manual-duration" type="number" value="${classDefaultDuration(defaultClass)}" min="15" style="width:100%;margin-top:4px"></label>
         </div>
-        <div id="manual-trainer-help" style="font-size:10px;color:#64748B;margin-top:8px"></div>
-        <label style="display:block;font-size:10px;font-weight:800;color:#64748B;margin-top:10px">Custom Class Name<input class="sett-input" id="manual-custom-class" placeholder="Optional: enter a custom class name" style="width:100%;margin-top:4px"></label>
-        <div style="font-size:10px;color:#64748B;margin-top:6px">If custom class name is filled, it overrides the class dropdown and is saved into the schedule.</div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid #E2E8F0">
-          <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:900;color:#475569"><input type="checkbox" id="manual-private-session">Private session</label>
-          <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:900;color:#475569"><input type="checkbox" id="manual-recurring-session">Recurring</label>
+        <div id="manual-trainer-help" style="font-size:10px;color:var(--text-muted);margin-top:8px"></div>
+        <label style="display:block;font-size:10px;font-weight:800;color:var(--text-muted);margin-top:10px">Custom Class Name<input class="sett-input" id="manual-custom-class" placeholder="Optional: enter a custom class name" style="width:100%;margin-top:4px"></label>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:6px">If custom class name is filled, it overrides the class dropdown and is saved into the schedule.</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:900;color:var(--text-2)"><input type="checkbox" id="manual-private-session">Private session</label>
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:900;color:var(--text-2)"><input type="checkbox" id="manual-recurring-session">Recurring</label>
           <div id="manual-repeat-days" style="display:none;gap:8px;align-items:center;flex-wrap:wrap">${repeatHtml}</div>
         </div>
         <button class="sett-save-btn" style="margin-top:12px" id="manual-add-fresh">Add Fresh Class</button>
@@ -3186,11 +3186,11 @@ async function openAddClassModal(ctx){
         ${exact.length?exact.map((r,i)=>{
           const fc=fillColor(r.blended_fill||r.avg_fill_rate||0);
           const payload=manualSlotTemplate(ctx,r.class,r.trainer,r);
-          return`<div style="border:1px solid ${i===0?"#86EFAC":"#E2E8F0"};background:${i===0?"#F0FDF4":"#fff"};border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center">
+          return`<div style="border:1px solid ${i===0?"#86EFAC":"var(--border)"};background:${i===0?"#F0FDF4":"var(--surface)"};border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center">
             <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:900;color:#0F172A;font-family:'Plus Jakarta Sans',sans-serif">${rvEscapeHtml(displayClass(r.class))}</div>
-              <div style="font-size:11px;color:#475569;margin-top:2px">${rvEscapeHtml(r.trainer||"—")}</div>
-              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:11px;color:#64748B">
+              <div style="font-size:13px;font-weight:900;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif">${rvEscapeHtml(displayClass(r.class))}</div>
+              <div style="font-size:11px;color:var(--text-2);margin-top:2px">${rvEscapeHtml(r.trainer||"—")}</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:11px;color:var(--text-muted)">
                 <strong style="color:${fc}">${pct(r.blended_fill||r.avg_fill_rate,1)} fill</strong>
                 <span>${round1(r.avg_checkin||r.avg_attendance||0)} avg check-in</span>
                 <span>${r.session_count||0} sessions</span>
@@ -3198,9 +3198,9 @@ async function openAddClassModal(ctx){
                 ${r.avg_revenue?`<span>₹${Math.round(r.avg_revenue).toLocaleString("en-IN")} avg revenue</span>`:""}
               </div>
             </div>
-            <button type="button" data-add-class="${rvEscapeAttr(JSON.stringify(payload))}" style="border:0;background:#0F172A;color:#fff;border-radius:10px;padding:9px 12px;font-size:11px;font-weight:900;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;white-space:nowrap">Add</button>
+            <button type="button" data-add-class="${rvEscapeAttr(JSON.stringify(payload))}" style="border:0;background:var(--text);color:var(--bg);border-radius:10px;padding:9px 12px;font-size:11px;font-weight:900;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;white-space:nowrap">Add</button>
           </div>`;
-        }).join(""):`<div style="padding:18px;border:1px dashed #CBD5E1;border-radius:12px;color:#64748B;text-align:center;font-size:12px">No exact historic class/trainer options found for this slot. Use the fresh class form above.</div>`}
+        }).join(""):`<div style="padding:18px;border:1px dashed var(--border-strong);border-radius:12px;color:var(--text-muted);text-align:center;font-size:12px">No exact historic class/trainer options found for this slot. Use the fresh class form above.</div>`}
       </div>
     </div>`;
   const refreshManualControls=()=>{
@@ -3501,7 +3501,7 @@ async function openReplaceTrainerModal(s){
         ${candidates.map((c,i)=>{
           const fc=fillColor(c.slot_avg_fill||c.avg_fill||0);
           const borderCol=i===0?"#86EFAC":"var(--border)";
-          const bgCol=i===0?"#F0FDF4":"#fff";
+          const bgCol=i===0?"#F0FDF4":"var(--surface)";
           const img=trainerImage(c.trainer);
           const initials=trainerInitials(c.trainer);
           const badgeTxt=i===0?"★ Best Fit":i===1?"2nd Choice":"Eligible";
@@ -3531,7 +3531,7 @@ async function openReplaceTrainerModal(s){
                 ${c.reasons.map(r=>`<div style="font-size:11px;color:var(--text-2)">✓ ${rvEscapeHtml(r)}</div>`).join("")}
               </div>
             </div>
-            <button type="button" data-replace-payload="${rvEscapeAttr(JSON.stringify(replacementPayload))}" style="border:0;background:#0F172A;color:#fff;border-radius:10px;padding:9px 12px;font-size:11px;font-weight:900;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;white-space:nowrap;box-shadow:0 8px 18px rgba(15,23,42,.18)">Replace</button>
+            <button type="button" data-replace-payload="${rvEscapeAttr(JSON.stringify(replacementPayload))}" style="border:0;background:var(--text);color:var(--bg);border-radius:10px;padding:9px 12px;font-size:11px;font-weight:900;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;white-space:nowrap;box-shadow:0 8px 18px rgba(15,23,42,.18)">Replace</button>
           </div>`;
         }).join("")}
       </div>`}
@@ -4206,13 +4206,13 @@ function optSumShow(json) {
     const validation = Array.isArray(item.validation) ? item.validation : [];
     const evidence = Array.isArray(item.evidence) ? item.evidence : [];
     const detailHtml = [...validation, ...evidence].slice(0, 5).map(line =>
-      `<div class="opt-sum-change-reason" style="color:#64748B">${rvEscapeHtml(line)}</div>`
+      `<div class="opt-sum-change-reason" style="color:var(--text-muted)">${rvEscapeHtml(line)}</div>`
     ).join("");
     return `<div class="opt-sum-change ${type}">
       <div class="opt-sum-change-icon">${opIcon(opType)}</div>
       <div class="opt-sum-change-body">
         <div class="opt-sum-change-title">${rvEscapeHtml(typeLabels[opType]||opType)}</div>
-        <div class="opt-sum-change-meta">${changeDesc}${meta?`<span style="color:#CBD5E1;margin:0 5px">·</span><span style="color:#94A3B8;font-size:9px">${rvEscapeHtml(meta)}</span>`:""}
+        <div class="opt-sum-change-meta">${changeDesc}${meta?`<span style="color:var(--text-light);margin:0 5px">·</span><span style="color:var(--text-muted);font-size:9px">${rvEscapeHtml(meta)}</span>`:""}
         </div>
         ${item.reason ? `<div class="opt-sum-change-reason">${rvEscapeHtml(item.reason)}</div>` : ""}
         ${detailHtml}
@@ -4235,14 +4235,14 @@ function optSumShow(json) {
       html += `<div class="opt-sum-change rejected"><div class="opt-sum-change-icon">✗</div><div class="opt-sum-change-body">
         <div class="opt-sum-change-title">${rvEscapeHtml(typeLabels[item.type||""]||item.type||"?")} — ${rvEscapeHtml(item.message||"")}</div>
         ${item.reason ? `<div class="opt-sum-change-reason">AI attempted: ${rvEscapeHtml(item.reason)}</div>` : ""}
-        ${Array.isArray(item.validation) ? item.validation.slice(0, 4).map(line => `<div class="opt-sum-change-reason" style="color:#64748B">${rvEscapeHtml(line)}</div>`).join("") : ""}
+        ${Array.isArray(item.validation) ? item.validation.slice(0, 4).map(line => `<div class="opt-sum-change-reason" style="color:var(--text-muted)">${rvEscapeHtml(line)}</div>`).join("") : ""}
       </div></div>`;
     });
     html += "</div>";
   }
 
   if (!applied.length && !rejected.length) {
-    html = `<div style="padding:24px 0;text-align:center;color:#64748B;font-size:13px">No changes were produced. The schedule may already be optimised for the active filters.</div>`;
+    html = `<div style="padding:24px 0;text-align:center;color:var(--text-muted);font-size:13px">No changes were produced. The schedule may already be optimised for the active filters.</div>`;
   }
 
   body.innerHTML = html;
@@ -5644,20 +5644,20 @@ function settRenderAISettings(){
     return `
     <div style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span style="font-size:12px;font-weight:800;color:#0F172A">${label}</span>
-        <span id="sw-${id}-val" style="font-size:13px;font-weight:900;color:#1E40AF;min-width:36px;text-align:right">${val}${step<1?"×":"%"}</span>
+        <span style="font-size:12px;font-weight:800;color:var(--text)">${label}</span>
+        <span id="sw-${id}-val" style="font-size:13px;font-weight:900;color:var(--primary);min-width:36px;text-align:right">${val}${step<1?"×":"%"}</span>
       </div>
       <input type="range" id="sw-${id}" min="${min}" max="${max}" step="${step}" value="${val}"
-        style="width:100%;accent-color:#1E40AF"
+        style="width:100%;accent-color:var(--primary)"
         oninput="document.getElementById('sw-${id}-val').textContent=this.value+'${step<1?"×":"%"}';${updateCall}">
-      <div style="font-size:10px;color:#64748B;margin-top:3px">${desc}</div>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:3px">${desc}</div>
     </div>`;
   };
   wrap.innerHTML=`
     <div class="sett-config-panel" style="margin-bottom:12px">
       <div class="sett-section-kicker">Scoring Weights</div>
-      <div style="font-size:12px;color:#64748B;margin-bottom:14px;line-height:1.5">Controls how the optimiser ranks class × trainer × slot combos. Weights must sum to 100.</div>
-      <div id="sw-sum-badge" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:800;margin-bottom:16px;background:#D1FAE5;color:#065F46">Sum: ${Object.values(sw).reduce((a,b)=>a+Number(b),0)}% ✓</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5">Controls how the optimiser ranks class × trainer × slot combos. Weights must sum to 100.</div>
+      <div id="sw-sum-badge" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:800;margin-bottom:16px;background:var(--green-light);color:var(--green)">Sum: ${Object.values(sw).reduce((a,b)=>a+Number(b),0)}% ✓</div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0 24px">
         ${sliderRow("fill_rate","Fill Rate",sw.fill_rate,0,60,1,"% of seats filled — primary quality signal")}
         ${sliderRow("revenue","Revenue",sw.revenue,0,50,1,"Normalised revenue per session within location")}
@@ -5673,25 +5673,25 @@ function settRenderAISettings(){
 
     <div class="sett-config-panel" style="margin-bottom:12px">
       <div class="sett-section-kicker">AM / PM Time-Band Multipliers</div>
-      <div style="font-size:12px;color:#64748B;margin-bottom:14px;line-height:1.5">Multiplies the composite score for slots in each time band. 1.0 = neutral. Above 1.0 = prefer this band. Below 1.0 = deprioritise.</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5">Multiplies the composite score for slots in each time band. 1.0 = neutral. Above 1.0 = prefer this band. Below 1.0 = deprioritise.</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0 24px">
         ${sliderRow("tb_morning","Morning (07:00–09:59)",tb.morning,0.5,2.0,0.05,"Early-bird classes — higher if your AM crowd is loyal")}
         ${sliderRow("tb_midday","Midday (10:00–12:59)",tb.midday,0.5,2.0,0.05,"Peak studio window — usually highest traffic")}
         ${sliderRow("tb_evening","Evening (17:00–20:30)",tb.evening,0.5,2.0,0.05,"After-work crowd — strong at most locations")}
       </div>
       <div style="margin-top:8px">
-        <label style="font-size:11px;font-weight:800;color:#0F172A;display:flex;align-items:center;gap:8px">
+        <label style="font-size:11px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">
           <input type="checkbox" ${ap.enforce_split?"checked":""} onchange="settSetAMPMOption('enforce_split',this.checked)">
           Enforce AM / PM split cap
         </label>
         <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
-          <label style="font-size:11px;color:#64748B">Morning classes cap (% of day)</label>
-          <input type="number" min="20" max="80" value="${ap.morning_cap_pct||50}" style="width:70px;height:30px;border:1px solid #CBD5E1;border-radius:6px;padding:0 8px;font-size:12px;font-weight:700" oninput="settSetAMPMOption('morning_cap_pct',+this.value)">
-          <span style="font-size:11px;color:#64748B">%</span>
+          <label style="font-size:11px;color:var(--text-muted)">Morning classes cap (% of day)</label>
+          <input type="number" min="20" max="80" value="${ap.morning_cap_pct||50}" style="width:70px;height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:12px;font-weight:700;background:var(--surface);color:var(--text)" oninput="settSetAMPMOption('morning_cap_pct',+this.value)">
+          <span style="font-size:11px;color:var(--text-muted)">%</span>
         </div>
       </div>
       <div style="margin-top:14px">
-        <div style="font-size:10px;font-weight:900;text-transform:uppercase;color:#64748B;letter-spacing:.06em;margin-bottom:8px">Peak Priority Slots</div>
+        <div style="font-size:10px;font-weight:900;text-transform:uppercase;color:var(--text-muted);letter-spacing:.06em;margin-bottom:8px">Peak Priority Slots</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap" id="peak-slots-row">
           ${["07:00","07:15","07:30","08:00","08:30","09:00","09:15","09:30","10:00","10:15","10:30","11:00","11:30","17:30","17:45","18:00","18:30","19:00","19:15","19:30","20:00"].map(t=>{
             const on=(ap.peak_slots||[]).includes(t);
@@ -5708,19 +5708,19 @@ function settRenderAISettings(){
       <div class="sett-section-kicker">Planner Intelligence</div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
         <div class="sett-option-card">
-          <div class="sett-option-top"><span class="sett-option-title">Score Floor</span><input type="number" min="0" max="50" value="${cfg.score_floor||25}" style="width:56px;height:28px;border:1px solid #CBD5E1;border-radius:6px;padding:0 6px;font-size:12px" onchange="settSetPlannerOption('score_floor',+this.value)"></div>
+          <div class="sett-option-top"><span class="sett-option-title">Score Floor</span><input type="number" min="0" max="50" value="${cfg.score_floor||25}" style="width:56px;height:28px;border:1px solid var(--border);border-radius:6px;padding:0 6px;font-size:12px;background:var(--surface);color:var(--text)" onchange="settSetPlannerOption('score_floor',+this.value)"></div>
           <div class="sett-option-desc">Classes scoring below this threshold are marked DROP and excluded unless forced by mix rules.</div>
         </div>
         <div class="sett-option-card">
-          <div class="sett-option-top"><span class="sett-option-title">PROTECT Threshold</span><input type="number" min="50" max="100" value="${cfg.protect_threshold||70}" style="width:56px;height:28px;border:1px solid #CBD5E1;border-radius:6px;padding:0 6px;font-size:12px" onchange="settSetPlannerOption('protect_threshold',+this.value)"></div>
+          <div class="sett-option-top"><span class="sett-option-title">PROTECT Threshold</span><input type="number" min="50" max="100" value="${cfg.protect_threshold||70}" style="width:56px;height:28px;border:1px solid var(--border);border-radius:6px;padding:0 6px;font-size:12px;background:var(--surface);color:var(--text)" onchange="settSetPlannerOption('protect_threshold',+this.value)"></div>
           <div class="sett-option-desc">Slots scoring at or above this are PROTECT — always included in the optimised schedule.</div>
         </div>
         <div class="sett-option-card">
-          <div class="sett-option-top"><span class="sett-option-title">Backtrack Depth</span><input type="number" min="1" max="10" value="${cfg.backtrack_depth||3}" style="width:56px;height:28px;border:1px solid #CBD5E1;border-radius:6px;padding:0 6px;font-size:12px" onchange="settSetPlannerOption('backtrack_depth',+this.value)"></div>
+          <div class="sett-option-top"><span class="sett-option-title">Backtrack Depth</span><input type="number" min="1" max="10" value="${cfg.backtrack_depth||3}" style="width:56px;height:28px;border:1px solid var(--border);border-radius:6px;padding:0 6px;font-size:12px;background:var(--surface);color:var(--text)" onchange="settSetPlannerOption('backtrack_depth',+this.value)"></div>
           <div class="sett-option-desc">Max retries per slot when hard constraints block the top candidate. Higher = slower but more complete.</div>
         </div>
         <div class="sett-option-card">
-          <div class="sett-option-top"><span class="sett-option-title">Trend Window</span><input type="number" min="4" max="26" value="${cfg.trend_window_weeks||12}" style="width:56px;height:28px;border:1px solid #CBD5E1;border-radius:6px;padding:0 6px;font-size:12px" onchange="settSetPlannerOption('trend_window_weeks',+this.value)"><span style="font-size:10px;color:#64748B;margin-left:4px">wks</span></div>
+          <div class="sett-option-top"><span class="sett-option-title">Trend Window</span><input type="number" min="4" max="26" value="${cfg.trend_window_weeks||12}" style="width:56px;height:28px;border:1px solid var(--border);border-radius:6px;padding:0 6px;font-size:12px;background:var(--surface);color:var(--text)" onchange="settSetPlannerOption('trend_window_weeks',+this.value)"><span style="font-size:10px;color:var(--text-muted);margin-left:4px">wks</span></div>
           <div class="sett-option-desc">Number of calendar weeks used to calculate fill-rate trend (positive slope gets scoring bonus).</div>
         </div>
       </div>
@@ -5857,7 +5857,7 @@ function settRenderTrainerManager(){
             const weekOffs=settHistoricWeekOffDays(t);
             return`<div class="trainer-mgr-loc${enabled?" expanded":""}" data-loc="${rvEscapeAttr(loc)}">
               <div class="trainer-mgr-loc-head" onclick="settToggleTrainerLoc(this)">
-                <label style="display:flex;gap:5px;align-items:center;text-transform:none;letter-spacing:0;font-size:11px;color:#334155" onclick="event.stopPropagation()"><input type="checkbox" class="trainer-mgr-loc-enabled" ${enabled?"checked":""} onchange="settToggleTrainerLoc(this.closest('.trainer-mgr-loc-head'),this.checked)"> ${rvEscapeHtml(loc.split(",")[0])}</label>
+                <label style="display:flex;gap:5px;align-items:center;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-2)" onclick="event.stopPropagation()"><input type="checkbox" class="trainer-mgr-loc-enabled" ${enabled?"checked":""} onchange="settToggleTrainerLoc(this.closest('.trainer-mgr-loc-head'),this.checked)"> ${rvEscapeHtml(loc.split(",")[0])}</label>
                 <span class="sett-badge" style="min-width:64px">${ld.session_count||0} cls</span>
                 <span class="trainer-mgr-loc-chevron">▾</span>
               </div>
@@ -5865,7 +5865,7 @@ function settRenderTrainerManager(){
                 <div class="avail-days">
                   ${DAYS_ALL.map(day=>`<span class="avail-day-chip${activeDays.has(day)?" on":""}" data-day="${day}" onclick="settToggleDay(this)">${day.slice(0,3)}</span>`).join("")}
                 </div>
-                ${weekOffs.length?`<div style="font-size:10px;color:#64748B;margin:0 0 7px">Historic off: <b>${weekOffs.map(d=>d.slice(0,3)).join(", ")}</b></div>`:""}
+                ${weekOffs.length?`<div style="font-size:10px;color:var(--text-muted);margin:0 0 7px">Historic off: <b>${weekOffs.map(d=>d.slice(0,3)).join(", ")}</b></div>`:""}
                 <div class="trainer-mgr-loc-grid">
                   <input class="sett-input trainer-mgr-start" type="time" value="${tw.start||"06:00"}" style="min-width:0">
                   <input class="sett-input trainer-mgr-end" type="time" value="${tw.end||"22:00"}" style="min-width:0">
@@ -7558,9 +7558,9 @@ function drillToggleTrainer(s){
   const btn=document.getElementById("drill-trainer-toggle");
   if(btn){
     btn.textContent=_drillTrainerOnly?`${s.trainer_1||"Trainer"} only`:"All data";
-    btn.style.background=_drillTrainerOnly?"#DBEAFE":"#F8FAFC";
-    btn.style.color=_drillTrainerOnly?"#1E40AF":"#475569";
-    btn.style.borderColor=_drillTrainerOnly?"#93C5FD":"#CBD5E1";
+    btn.style.background=_drillTrainerOnly?"var(--primary-mid)":"var(--surface2)";
+    btn.style.color=_drillTrainerOnly?"var(--primary)":"var(--text-2)";
+    btn.style.borderColor=_drillTrainerOnly?"var(--primary-mid)":"var(--border)";
   }
   const kpiGrid=document.querySelector(".drill-kpi-grid");
   if(!kpiGrid)return;
