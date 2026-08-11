@@ -41,7 +41,7 @@ MUMBAI_LOCATIONS = {"Kwality House, Kemps Corner", "Supreme HQ, Bandra", "Courts
 BENGALURU_LOCATIONS = {"Kenkere House", "Copper & Cloves"}
 MAIN_STUDIOS = {"Kwality House, Kemps Corner", "Supreme HQ, Bandra", "Kenkere House"}
 DERIVED_STUDIOS = {"Courtside", "Copper & Cloves"}
-DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
+DEFAULT_OPENAI_MODEL = "gpt-5.6-terra"
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
@@ -943,31 +943,58 @@ def _run_optimize_with_ai(payload: dict) -> dict:
     except ImportError:
         return {"ok": False, "error": "httpx not installed on server"}
 
-    url = f"{base_url}/chat/completions"
+    use_responses = "api.openai.com" in base_url and os.environ.get("OPENAI_USE_CHAT_COMPLETIONS") != "1"
+    url = f"{base_url}/responses" if use_responses else f"{base_url}/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    body = {
-        "model": model,
-        "temperature": 0,
-        "max_completion_tokens": int(settings_options.get("ai_optimize_max_tokens") or 4000),
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    }
+    max_tokens = int(settings_options.get("ai_optimize_max_tokens") or 6000)
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+    if use_responses:
+        body = {
+            "model": model,
+            "input": messages,
+            "max_output_tokens": max_tokens,
+            "reasoning": {
+                "effort": os.environ.get("OPENAI_REASONING_EFFORT", "medium"),
+            },
+            "text": {"format": {"type": "json_object"}},
+        }
+        reasoning_mode = os.environ.get("OPENAI_REASONING_MODE")
+        if reasoning_mode:
+            body["reasoning"]["mode"] = reasoning_mode
+    else:
+        body = {
+            "model": model,
+            "temperature": 0,
+            "max_completion_tokens": max_tokens,
+            "response_format": {"type": "json_object"},
+            "messages": messages,
+        }
     try:
-        with httpx.Client(timeout=httpx.Timeout(60.0, connect=10.0)) as http:
+        with httpx.Client(timeout=httpx.Timeout(90.0, connect=10.0)) as http:
             resp = http.post(url, headers=headers, json=body)
             if resp.status_code >= 400:
                 return {"ok": False, "error": f"AI provider {resp.status_code}: {resp.text[:300]}"}
             data = resp.json()
     except httpx.TimeoutException:
-        return {"ok": False, "error": "Optimize AI request timed out after 60s. Try again or shorten scope."}
+        return {"ok": False, "error": "Optimize AI request timed out after 90s. Try again or shorten scope."}
     except Exception as exc:
         return {"ok": False, "error": f"Optimize call failed: {exc}"}
 
     try:
-        content = (data.get("choices") or [{}])[0].get("message", {}).get("content") or "{}"
+        if use_responses:
+            content = data.get("output_text") or ""
+            if not content:
+                parts = []
+                for item in data.get("output") or []:
+                    for block in item.get("content") or []:
+                        if block.get("type") in {"output_text", "text"}:
+                            parts.append(block.get("text") or "")
+                content = "".join(parts)
+        else:
+            content = (data.get("choices") or [{}])[0].get("message", {}).get("content") or "{}"
         parsed = _parse_optimizer_ai_json(content)
     except Exception as exc:
         return {"ok": False, "error": f"Could not parse AI response: {exc}"}

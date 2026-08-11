@@ -34,7 +34,7 @@ function cfgRenderAI(container) {
           </div>
           <div class="cfg-form-field">
             <label>Model ID</label>
-            <input class="cfg-input" id="cfg-ai-model" value="gpt-5.4-mini" disabled>
+            <input class="cfg-input" id="cfg-ai-model" value="gpt-5.6-terra" disabled>
           </div>
           <div class="cfg-form-field">
             <label>API Key</label>
@@ -100,7 +100,7 @@ async function cfgSaveAI() {
   if (!_cfgDraft.settings_options) _cfgDraft.settings_options = {};
   const o = _cfgDraft.settings_options;
   o.ai_provider = 'openai';
-  o.ai_model = 'gpt-5.4-mini';
+  o.ai_model = 'gpt-5.6-terra';
   o.ai_backup_model = '';
   o.ai_base_url = 'https://api.openai.com/v1';
   o.deepseek_model = '';

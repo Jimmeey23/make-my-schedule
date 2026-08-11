@@ -363,7 +363,7 @@ def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_invalid(tmp
     with pytest.raises(RuntimeError, match="could not produce a valid AI plan"):
         planner.run()
 
-    assert calls and set(calls) == {"gpt-5.4-mini"}
+    assert calls and set(calls) == {"gpt-5.6-terra"}
 
 
 def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_partial(tmp_path, monkeypatch):
@@ -444,7 +444,7 @@ def test_ai_planner_does_not_retry_backup_model_when_primary_plan_is_partial(tmp
     with pytest.raises(RuntimeError, match="could not produce a valid AI plan"):
         planner.run()
 
-    assert calls and set(calls) == {"gpt-5.4-mini"}
+    assert calls and set(calls) == {"gpt-5.6-terra"}
 
 
 def test_ai_planner_selects_best_valid_variant_when_enabled(tmp_path, monkeypatch):
@@ -593,7 +593,7 @@ def test_ai_location_token_budget_scales_with_target(monkeypatch):
 
     monkeypatch.setattr(ai_planner_module, "_target_count_for_location", lambda loc: 4 if loc == "small" else 70)
 
-    assert ai_planner_module._max_tokens_for_location("small") == 1800
+    assert ai_planner_module._max_tokens_for_location("small") == 4000
     assert ai_planner_module._max_tokens_for_location("large") == ai_planner_module.MAX_TOKENS
 
 
@@ -2169,7 +2169,7 @@ def test_pipeline_request_uses_saved_ai_key_when_ai_generation_requested(tmp_pat
     assert options["week"] == "2026-05-11"
     assert options["use_ai"] is True
     assert options["child_env"]["OPENAI_API_KEY"] == "saved-test-key"
-    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.6-terra"
     assert options["child_env"]["SCHEDULER_FORCE_AI_ONLY"] == "1"
     assert "SCHEDULER_FORCE_GREEDY" not in options["child_env"]
 
@@ -2227,7 +2227,7 @@ def test_serve_pipeline_request_uses_saved_ai_key_when_ai_generation_requested(t
     assert options["week"] == "2026-05-11"
     assert options["use_ai"] is True
     assert options["child_env"]["OPENAI_API_KEY"] == "saved-test-key"
-    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.6-terra"
     assert options["child_env"]["SCHEDULER_FORCE_AI_ONLY"] == "1"
     assert "SCHEDULER_FORCE_GREEDY" not in options["child_env"]
 
@@ -2294,7 +2294,7 @@ def test_serve_pipeline_request_forces_openai_gpt54mini_only(tmp_path, monkeypat
 
     child_env = options["child_env"]
     assert child_env["OPENAI_API_KEY"] == "payload-openai-key"
-    assert child_env["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert child_env["OPENAI_MODEL"] == "gpt-5.6-terra"
     assert child_env["OPENAI_BASE_URL"] == "https://api.openai.com/v1"
     assert child_env["SCHEDULER_FORCE_AI_ONLY"] == "1"
     assert "OPENROUTER_API_KEY" not in child_env
@@ -2327,7 +2327,7 @@ def test_pipeline_request_coerces_old_provider_config_to_openai_only(tmp_path, m
     })
 
     assert options["child_env"]["OPENAI_API_KEY"] == "saved-openrouter-key"
-    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.6-terra"
     assert options["child_env"]["OPENAI_BASE_URL"] == "https://api.openai.com/v1"
     assert "DEEPSEEK_API_KEY" not in options["child_env"]
     assert "OPENROUTER_API_KEY" not in options["child_env"]
@@ -2384,7 +2384,7 @@ def test_serve_pipeline_request_coerces_old_provider_config_to_openai_only(tmp_p
     }, "2026-05-04")
 
     assert options["child_env"]["OPENAI_API_KEY"] == "saved-openrouter-key"
-    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.4-mini"
+    assert options["child_env"]["OPENAI_MODEL"] == "gpt-5.6-terra"
     assert options["child_env"]["OPENAI_BASE_URL"] == "https://api.openai.com/v1"
     assert "DEEPSEEK_API_KEY" not in options["child_env"]
     assert "OPENROUTER_API_KEY" not in options["child_env"]
@@ -2550,9 +2550,12 @@ def test_serve_optimize_schedule_prefers_env_key_over_control_center_key(tmp_pat
     result = serve_module._run_optimize_with_ai({"location": "Supreme HQ, Bandra"})
 
     assert result["ok"] is True
-    assert captured["url"] == "https://api.openai.com/v1/chat/completions"
+    assert captured["url"] == "https://api.openai.com/v1/responses"
     assert captured["headers"]["Authorization"] == "Bearer saved-optimize-key"
-    assert captured["body"]["model"] == "gpt-5.4-mini"
+    assert captured["body"]["model"] == "gpt-5.6-terra"
+    assert captured["body"]["max_output_tokens"] == 6000
+    assert captured["body"]["text"] == {"format": {"type": "json_object"}}
+    assert "input" in captured["body"]
     assert "thinking" not in captured["body"]
 
 
@@ -5863,7 +5866,7 @@ def test_openai_structural_underfill_repairs_without_backup_model(tmp_path, monk
     monkeypatch.setattr(ai_planner_module, "OPENAI_AVAILABLE", True)
     monkeypatch.setattr(ai_planner_module, "create_ai_client", lambda: (object(), {
         "provider": "openai",
-        "model": "gpt-5.4-mini",
+        "model": "gpt-5.6-terra",
         "base_url": "https://api.openai.com/v1",
     }))
 
@@ -5886,7 +5889,7 @@ def test_openai_structural_underfill_repairs_without_backup_model(tmp_path, monk
     planner = AISchedulePlanner(target_week_start="2026-05-04", locations=["Kenkere House"])
     output = planner.run()
 
-    assert calls and set(calls) == {"gpt-5.4-mini"}
+    assert calls and set(calls) == {"gpt-5.6-terra"}
     assert output["schedule"][0]["rationale"] == "greedy_fallback"
 
 

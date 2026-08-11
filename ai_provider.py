@@ -6,13 +6,13 @@ from typing import Optional, Tuple
 
 PROJECT_ROOT = Path(__file__).parent
 ENV_PATH = PROJECT_ROOT / ".env"
-OPENAI_ONLY_MODEL = "gpt-5.4-mini"
+OPENAI_ONLY_MODEL = "gpt-5.6-terra"
 DEFAULT_MODEL = OPENAI_ONLY_MODEL
 DEFAULT_BACKUP_MODEL = ""
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_OPENAI_MODEL = OPENAI_ONLY_MODEL
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
-DEFAULT_TIMEOUT_SECONDS = 45
+DEFAULT_TIMEOUT_SECONDS = 90
 PLACEHOLDER_VALUES = {
     "your_openrouter_api_key_here",
     "your_openai_api_key_here",
@@ -74,7 +74,7 @@ def get_ai_settings() -> Optional[dict]:
 
     openai_key = _clean_key(os.environ.get("OPENAI_API_KEY"))
     if openai_key:
-        model = OPENAI_ONLY_MODEL
+        model = os.environ.get("OPENAI_MODEL") or os.environ.get("SCHEDULER_AI_MODEL") or OPENAI_ONLY_MODEL
         base_url = os.environ.get("OPENAI_BASE_URL") or DEFAULT_OPENAI_BASE_URL
         return _settings(
             provider="openai",
@@ -133,26 +133,59 @@ def create_chat_completion(
         {"role": "user", "content": user_prompt},
     ]
 
+    def _as_chat_shape(content: str, usage_data: dict | None = None):
+        usage_data = usage_data or {}
+        usage = types.SimpleNamespace(
+            prompt_tokens=usage_data.get("prompt_tokens", usage_data.get("input_tokens", 0)),
+            completion_tokens=usage_data.get("completion_tokens", usage_data.get("output_tokens", 0)),
+            total_tokens=usage_data.get("total_tokens", 0),
+        )
+        return types.SimpleNamespace(
+            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=content or ""))],
+            usage=usage,
+        )
+
     # Use direct HTTP for schedule generation. The OpenAI SDK can keep large
     # OpenRouter requests alive longer than expected; explicit httpx timeouts
     # make Generate with AI fail or fall back instead of hanging indefinitely.
     if httpx is not None:
         if settings:
             base_url = str(settings.get("base_url") or DEFAULT_BASE_URL).rstrip("/")
-            url = f"{base_url}/chat/completions"
+            provider = str(settings.get("provider") or "").lower()
+            use_responses = (
+                provider == "openai"
+                and "api.openai.com" in base_url
+                and os.environ.get("OPENAI_USE_CHAT_COMPLETIONS") != "1"
+            )
+            url = f"{base_url}/responses" if use_responses else f"{base_url}/chat/completions"
             headers = {
                 "Authorization": f"Bearer {settings['api_key']}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://studio-scheduler.local",
                 "X-Title": "Studio Scheduler",
             }
-            payload = {
-                "model": model,
-                "temperature": 0,
-                "max_completion_tokens": max_tokens,
-                "messages": messages,
-            }
-            if str(settings.get("provider") or "").lower() == "deepseek":
+            if use_responses:
+                payload = {
+                    "model": model,
+                    "input": messages,
+                    "max_output_tokens": max_tokens,
+                    "reasoning": {
+                        "effort": os.environ.get("OPENAI_REASONING_EFFORT", "medium"),
+                    },
+                }
+                reasoning_mode = os.environ.get("OPENAI_REASONING_MODE")
+                if reasoning_mode:
+                    payload["reasoning"]["mode"] = reasoning_mode
+                if os.environ.get("OPENAI_RESPONSE_FORMAT_JSON", "1") != "0":
+                    payload["text"] = {"format": {"type": "json_object"}}
+            else:
+                payload = {
+                    "model": model,
+                    "temperature": 0,
+                    "max_completion_tokens": max_tokens,
+                    "messages": messages,
+                }
+            if provider == "deepseek":
                 payload["thinking"] = {"type": "disabled"}
                 payload["response_format"] = {"type": "json_object"}
             http_timeout = httpx.Timeout(timeout, connect=min(10.0, timeout), read=timeout, write=min(20.0, timeout), pool=10.0)
@@ -175,17 +208,25 @@ def create_chat_completion(
                         raise
                     data = resp.json()
                     break
+            if use_responses:
+                if data.get("status") == "incomplete":
+                    reason = (data.get("incomplete_details") or {}).get("reason", "unknown")
+                    raise RuntimeError(f"Responses API incomplete: {reason}")
+                content = data.get("output_text") or ""
+                if not content:
+                    parts = []
+                    for item in data.get("output") or []:
+                        for block in item.get("content") or []:
+                            if block.get("type") in {"output_text", "text"}:
+                                parts.append(block.get("text") or "")
+                    content = "".join(parts)
+                return _as_chat_shape(content, data.get("usage") or {})
+
             choices = []
             for choice in data.get("choices") or []:
                 msg = choice.get("message") or {}
                 choices.append(types.SimpleNamespace(message=types.SimpleNamespace(content=msg.get("content") or "")))
-            usage_data = data.get("usage") or {}
-            usage = types.SimpleNamespace(
-                prompt_tokens=usage_data.get("prompt_tokens", 0),
-                completion_tokens=usage_data.get("completion_tokens", 0),
-                total_tokens=usage_data.get("total_tokens", 0),
-            )
-            return types.SimpleNamespace(choices=choices, usage=usage)
+            return _as_chat_shape(choices[0].message.content if choices else "", data.get("usage") or {})
 
     return client.chat.completions.create(
         model=model,

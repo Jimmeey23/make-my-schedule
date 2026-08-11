@@ -457,7 +457,7 @@ def _build_location_prompt(location: str, week_start: str,
 
 def _max_tokens_for_day(day_target_hi: int) -> int:
     target = max(1, int(day_target_hi or 7))
-    return max(900, min(3000, int(target * 110) + 500))
+    return max(1600, min(6000, int(target * 180) + 900))
 
 
 def _build_day_prompt(location: str, day: str, week_start: str,
@@ -1227,7 +1227,7 @@ def _max_tokens_for_location(location: str) -> int:
     target = _target_count_for_location(location)
     # Ask for enough JSON for the location target, but avoid giving small studios
     # a huge completion budget that slows free models down.
-    return max(1800, min(MAX_TOKENS, int(target * 105) + 1200))
+    return max(4000, min(MAX_TOKENS, int(target * 160) + 2400))
 
 
 def _location_parallelism(model_sequence: List[str], location_count: int) -> int:
@@ -1249,7 +1249,12 @@ def _ai_attempt_settings(primary_settings: dict) -> List[dict]:
         return []
     next_settings = dict(primary_settings)
     next_settings["provider"] = "openai"
-    next_settings["model"] = "gpt-5.4-mini"
+    next_settings["model"] = (
+        os.environ.get("OPENAI_MODEL")
+        or os.environ.get("SCHEDULER_AI_MODEL")
+        or primary_settings.get("model")
+        or "gpt-5.6-terra"
+    )
     next_settings["backup_model"] = ""
     next_settings["base_url"] = "https://api.openai.com/v1"
     return [next_settings]

@@ -4096,7 +4096,7 @@ function runPipelineFromHeader(useAi=false){
   if(useAi){
     if(apiKey) payload.api_key = apiKey;
     payload.ai_provider = "openai";
-    payload.ai_model = "gpt-5.4-mini";
+    payload.ai_model = "gpt-5.6-terra";
     payload.ai_backup_model = "";
     payload.ai_base_url = "https://api.openai.com/v1";
   }
@@ -5068,11 +5068,11 @@ function settDefaultConfig(){
       deepseek_base_url:"",
       ai_api_key:"",
       ai_provider:"openai",
-      ai_model:"gpt-5.4-mini",
+      ai_model:"gpt-5.6-terra",
       ai_backup_model:"",
       ai_base_url:"https://api.openai.com/v1",
       ai_optimize_api_key:"",
-      ai_optimize_model:"gpt-5.4-mini",
+      ai_optimize_model:"gpt-5.6-terra",
       ai_optimize_base_url:"https://api.openai.com/v1",
     },
     source_of_truth:{
@@ -5109,11 +5109,11 @@ function settNormalizeConfig(config){
   next.settings_options.deepseek_base_url="";
   next.settings_options.ai_api_key=String(next.settings_options.ai_api_key||"");
   next.settings_options.ai_provider="openai";
-  next.settings_options.ai_model="gpt-5.4-mini";
+  next.settings_options.ai_model="gpt-5.6-terra";
   next.settings_options.ai_backup_model="";
   next.settings_options.ai_base_url="https://api.openai.com/v1";
   next.settings_options.ai_optimize_api_key=String(next.settings_options.ai_optimize_api_key||"");
-  next.settings_options.ai_optimize_model="gpt-5.4-mini";
+  next.settings_options.ai_optimize_model="gpt-5.6-terra";
   next.settings_options.ai_optimize_base_url="https://api.openai.com/v1";
   next.manual_protected=Array.isArray(next.manual_protected)?next.manual_protected:[];
   next.manual_excluded=Array.isArray(next.manual_excluded)?next.manual_excluded:[];
@@ -5568,14 +5568,14 @@ function settRenderAdvancedOptions(){
       <div class="sett-option-grid">
         ${settAdvancedOptionCard("field","ai_provider","AI Provider","All AI-powered generation uses OpenAI only.",`<input type="text" value="OpenAI" disabled>`)}
         ${settAdvancedOptionCard("field","ai_api_key","OpenAI API Key","Used for all AI generation and assistant features.",`<input type="password" value="${rvEscapeAttr(o.ai_api_key||"")}" placeholder="Paste OpenAI key" autocomplete="off" onchange="settSetAdvancedOption('ai_api_key',this.value,'string')">`)}
-        ${settAdvancedOptionCard("field","ai_model","OpenAI Model","Locked model for every AI function.",`<input type="text" value="gpt-5.4-mini" disabled>`)}
+        ${settAdvancedOptionCard("field","ai_model","OpenAI Model","Locked model for every AI function.",`<input type="text" value="gpt-5.6-terra" disabled>`)}
         ${settAdvancedOptionCard("field","ai_base_url","OpenAI Base URL","Locked OpenAI API endpoint.",`<input type="text" value="https://api.openai.com/v1" disabled>`)}
       </div>
     </div>
     <div class="sett-config-panel">
       <div class="sett-section-kicker">AI Optimisation (Optimize with AI)</div>
       <div class="sett-option-grid">
-        ${settAdvancedOptionCard("field","ai_optimize_model","Optimize Model","Locked model used by Optimize with AI.",`<input type="text" value="gpt-5.4-mini" disabled>`)}
+        ${settAdvancedOptionCard("field","ai_optimize_model","Optimize Model","Locked model used by Optimize with AI.",`<input type="text" value="gpt-5.6-terra" disabled>`)}
         ${settAdvancedOptionCard("field","ai_optimize_base_url","Optimize Base URL","Locked OpenAI API endpoint.",`<input type="text" value="https://api.openai.com/v1" disabled>`)}
         ${settAdvancedOptionCard("field","ai_optimize_api_key","Optimize API Key","Optional separate OpenAI key for Optimize with AI.",`<input type="password" value="${rvEscapeAttr(o.ai_optimize_api_key||"")}" placeholder="Paste OpenAI key" autocomplete="off" onchange="settSetAdvancedOption('ai_optimize_api_key',this.value,'string')">`)}
       </div>
