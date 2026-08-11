@@ -45,7 +45,17 @@
     <p class="collaboration-eyebrow">Athena Scheduler</p>
     <h1 id="collaboration-login-title">Schedule together, in real time.</h1>
     <p id="collaboration-login-hint">Sign in to collaborate on live schedules.</p>
-    <button id="collaboration-google-signin" class="collaboration-google-button" type="button" onclick="collaborationSignIn()">Continue with Google</button>
+    <form class="collaboration-auth-form" onsubmit="collaborationEmailSignIn(event)">
+      <label for="collaboration-email">Email</label>
+      <input id="collaboration-email" type="email" autocomplete="email" required>
+      <label for="collaboration-password">Password</label>
+      <input id="collaboration-password" type="password" autocomplete="current-password" minlength="6" required>
+      <button class="collaboration-google-button collaboration-auth-action" type="submit">Sign in with email</button>
+      <button class="collaboration-secondary-button collaboration-auth-action" type="button" onclick="collaborationEmailSignUp()">Create account</button>
+    </form>
+    <div class="collaboration-auth-divider"><span>or</span></div>
+    <button id="collaboration-google-signin" class="collaboration-google-button collaboration-auth-action" type="button" onclick="collaborationSignIn()">Continue with Google</button>
+    <p id="collaboration-auth-feedback" class="collaboration-auth-feedback" role="status" aria-live="polite"></p>
   </div>
 </section>
 

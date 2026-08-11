@@ -1,6 +1,7 @@
 let collaborationClient = null;
 let collaborationSessionId = "main";
 let collaborationUser = null;
+let collaborationChannelStarted = false;
 
 async function collaborationAuthToken() {
   const session = (await collaborationClient?.auth.getSession())?.data?.session;
@@ -23,6 +24,17 @@ function collaborationSetGate(open, message = "Sign in to collaborate on live sc
   gate.hidden = !open;
   const hint = document.getElementById("collaboration-login-hint");
   if (hint) hint.textContent = message;
+}
+
+function collaborationSetAuthFeedback(message = "", type = "") {
+  const feedback = document.getElementById("collaboration-auth-feedback");
+  if (!feedback) return;
+  feedback.textContent = message;
+  feedback.className = `collaboration-auth-feedback ${type}`;
+}
+
+function collaborationSetAuthBusy(busy) {
+  document.querySelectorAll(".collaboration-auth-action").forEach(button => { button.disabled = busy; });
 }
 
 function collaborationRenderPresence(state) {
@@ -64,7 +76,8 @@ async function collaborationLoadSharedSchedule() {
 }
 
 function collaborationStartRealtime() {
-  if (!collaborationClient || !collaborationUser) return;
+  if (!collaborationClient || !collaborationUser || collaborationChannelStarted) return;
+  collaborationChannelStarted = true;
   collaborationLoadSharedSchedule();
   const channel = collaborationClient.channel(`schedule:${collaborationSessionId}`, {
     config: { presence: { key: collaborationUser.id } }
@@ -85,16 +98,44 @@ function collaborationStartRealtime() {
 }
 
 async function collaborationSignIn() {
-  const button = document.getElementById("collaboration-google-signin");
-  if (button) button.disabled = true;
+  collaborationSetAuthBusy(true);
   const { error } = await collaborationClient.auth.signInWithOAuth({
     provider: "google",
     options: { redirectTo: `${window.location.origin}${window.location.pathname}` }
   });
   if (error) {
-    collaborationSetGate(true, error.message);
-    if (button) button.disabled = false;
+    collaborationSetAuthFeedback(error.message, "error");
+    collaborationSetAuthBusy(false);
   }
+}
+
+async function collaborationEmailSignIn(event) {
+  event.preventDefault();
+  const email = document.getElementById("collaboration-email")?.value.trim();
+  const password = document.getElementById("collaboration-password")?.value;
+  if (!email || !password) return collaborationSetAuthFeedback("Enter your email and password.", "error");
+  collaborationSetAuthBusy(true);
+  const { error } = await collaborationClient.auth.signInWithPassword({ email, password });
+  collaborationSetAuthBusy(false);
+  if (error) collaborationSetAuthFeedback(error.message, "error");
+}
+
+async function collaborationEmailSignUp() {
+  const email = document.getElementById("collaboration-email")?.value.trim();
+  const password = document.getElementById("collaboration-password")?.value;
+  if (!email || !password) return collaborationSetAuthFeedback("Enter your email and password to create an account.", "error");
+  collaborationSetAuthBusy(true);
+  const { data, error } = await collaborationClient.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}` }
+  });
+  collaborationSetAuthBusy(false);
+  if (error) return collaborationSetAuthFeedback(error.message, "error");
+  collaborationSetAuthFeedback(
+    data.session ? "Account created and signed in." : "Check your email to confirm your account, then return here to sign in.",
+    "success"
+  );
 }
 
 async function collaborationRequireAuth() {
@@ -107,22 +148,20 @@ async function collaborationRequireAuth() {
   collaborationClient = window.supabase.createClient(config.url, config.anon_key, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
-  const { data } = await collaborationClient.auth.getUser();
-  collaborationUser = data.user;
-  if (!collaborationUser) {
+  collaborationClient.auth.onAuthStateChange((_event, session) => {
+    if (!session?.user) return;
+    collaborationUser = session.user;
+    collaborationSetGate(false);
+    collaborationStartRealtime();
+  });
+  const { data } = await collaborationClient.auth.getSession();
+  collaborationUser = data.session?.user || null;
+  if (collaborationUser) {
+    collaborationSetGate(false);
+    collaborationStartRealtime();
+  } else {
     collaborationSetGate(true);
-    return new Promise(resolve => {
-      collaborationClient.auth.onAuthStateChange((_event, session) => {
-        if (!session?.user) return;
-        collaborationUser = session.user;
-        collaborationSetGate(false);
-        collaborationStartRealtime();
-        resolve();
-      });
-    });
   }
-  collaborationSetGate(false);
-  collaborationStartRealtime();
 }
 
 async function collaborationSignOut() {
