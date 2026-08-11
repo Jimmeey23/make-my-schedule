@@ -7407,6 +7407,26 @@ function chatToggle(){
   chatSetOpen(!_chatOpen);
 }
 
+function chatEmptyStateHtml(){
+  return `<div class="chat-empty"><strong>Ask with dashboard context.</strong>The assistant sees the active studio, iteration, filters, schedule rows, scorecard, and trainer constraints. Use it for trainer swaps, low-fill fixes, class mix gaps, and peak slot opportunities.</div>`;
+}
+
+function chatStartFresh(){
+  _chatHistory=[];
+  _chatWaiting=false;
+  chatRemoveTyping();
+  const messages=document.getElementById("chat-msgs");
+  if(messages)messages.innerHTML=chatEmptyStateHtml();
+  const suggestions=document.getElementById("chat-suggestions");
+  if(suggestions)suggestions.style.display="";
+  const input=document.getElementById("chat-input");
+  if(input){
+    input.value="";
+    input.focus();
+  }
+  chatSetMode("Ask");
+}
+
 function chatSetOpen(open){
   _chatOpen=!!open;
   const drawer=document.getElementById("chat-drawer");
