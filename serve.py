@@ -975,7 +975,7 @@ def _run_optimize_with_ai(payload: dict) -> dict:
             "input": messages,
             "max_output_tokens": max_tokens,
             "reasoning": {
-                "effort": os.environ.get("OPENAI_REASONING_EFFORT", "medium"),
+                "effort": os.environ.get("OPENAI_REASONING_EFFORT", "low"),
             },
             "text": {"format": {"type": "json_object"}},
         }
@@ -1165,6 +1165,8 @@ def _latest_ai_run_status() -> dict:
         "created_at": None,
         "ai_fraction": None,
         "location_yield": {},
+        "token_usage": {},
+        "token_usage_calls": [],
     }
     runs_path = STATE_DIR / "ai_runs.jsonl"
     if runs_path.exists():
@@ -1178,6 +1180,8 @@ def _latest_ai_run_status() -> dict:
                 result["created_at"] = last.get("created_at")
                 result["ai_fraction"] = last.get("ai_fraction")
                 result["location_yield"] = last.get("location_yield") or {}
+                result["token_usage"] = last.get("token_usage") or {}
+                result["token_usage_calls"] = last.get("token_usage_calls") or []
         except Exception:
             pass
     draft_path = STATE_DIR / "05_draft_schedule.json"
@@ -1194,6 +1198,10 @@ def _latest_ai_run_status() -> dict:
                 result["location_yield"] = ai_run.get("location_yield")
             if ai_run.get("ai_fraction") is not None and result["ai_fraction"] is None:
                 result["ai_fraction"] = ai_run.get("ai_fraction")
+            if ai_run.get("token_usage") and not result["token_usage"]:
+                result["token_usage"] = ai_run.get("token_usage")
+            if ai_run.get("token_usage_calls") and not result["token_usage_calls"]:
+                result["token_usage_calls"] = ai_run.get("token_usage_calls")
         except Exception:
             pass
     return result
@@ -1269,7 +1277,8 @@ def _resolve_pipeline_request_options(payload: dict | None, default_week: str) -
         runtime = _saved_ai_runtime_settings()
         child_env.pop("SCHEDULER_FORCE_GREEDY", None)
         child_env["SCHEDULER_FORCE_AI_ONLY"] = "1"
-        child_env.setdefault("SCHEDULER_AI_VARIANTS_PER_LOCATION", "2")
+        child_env.setdefault("SCHEDULER_AI_VARIANTS_PER_LOCATION", "1")
+        child_env.setdefault("OPENAI_REASONING_EFFORT", "low")
         _inject_ai_key_env(child_env, api_key)
         _inject_ai_runtime_env(child_env, runtime)
     else:

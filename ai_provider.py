@@ -170,7 +170,7 @@ def create_chat_completion(
                     "input": messages,
                     "max_output_tokens": max_tokens,
                     "reasoning": {
-                        "effort": os.environ.get("OPENAI_REASONING_EFFORT", "medium"),
+                        "effort": os.environ.get("OPENAI_REASONING_EFFORT", "low"),
                     },
                 }
                 reasoning_mode = os.environ.get("OPENAI_REASONING_MODE")

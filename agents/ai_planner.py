@@ -28,6 +28,7 @@ from agents.optimiser import (
     get_class_format,
     get_class_duration,
     is_low_performing_history,
+    LOCATION_WEEKLY_CLASS_BOUNDS,
     slot_time_to_minutes,
     time_windows_overlap,
 )
@@ -1285,6 +1286,104 @@ def _ai_run_metadata(
     }
 
 
+AI_PRICE_PER_MILLION_TOKENS = {
+    "gpt-5.6-sol": {"input": 5.0, "output": 30.0},
+    "gpt-5.6": {"input": 5.0, "output": 30.0},
+    "gpt-5.6-terra": {"input": 2.0, "output": 12.0},
+    "gpt-5.6-luna": {"input": 0.20, "output": 1.20},
+}
+
+
+def _normalise_price_model(model_name: str) -> str:
+    model = str(model_name or "").strip().lower()
+    if model.startswith("openai/"):
+        model = model.split("/", 1)[1]
+    for key in sorted(AI_PRICE_PER_MILLION_TOKENS, key=len, reverse=True):
+        if model == key or model.startswith(f"{key}-"):
+            return key
+    return model
+
+
+def _token_prices_for_model(model_name: str) -> dict:
+    model_key = _normalise_price_model(model_name)
+    prices = dict(AI_PRICE_PER_MILLION_TOKENS.get(model_key) or {})
+    env_key = model_key.upper().replace("-", "_").replace(".", "_")
+    try:
+        input_override = os.environ.get(f"OPENAI_TOKEN_PRICE_{env_key}_INPUT_PER_M")
+        output_override = os.environ.get(f"OPENAI_TOKEN_PRICE_{env_key}_OUTPUT_PER_M")
+        if input_override is not None:
+            prices["input"] = float(input_override)
+        if output_override is not None:
+            prices["output"] = float(output_override)
+    except ValueError:
+        pass
+    return prices
+
+
+def _estimate_ai_cost_usd(model_name: str, input_tokens: int, output_tokens: int) -> dict:
+    prices = _token_prices_for_model(model_name)
+    input_price = prices.get("input")
+    output_price = prices.get("output")
+    if input_price is None or output_price is None:
+        return {
+            "estimated_cost_usd": None,
+            "pricing_model": _normalise_price_model(model_name),
+            "input_per_million_usd": input_price,
+            "output_per_million_usd": output_price,
+        }
+    input_cost = max(0, int(input_tokens or 0)) / 1_000_000.0 * float(input_price)
+    output_cost = max(0, int(output_tokens or 0)) / 1_000_000.0 * float(output_price)
+    return {
+        "estimated_cost_usd": round(input_cost + output_cost, 6),
+        "input_cost_usd": round(input_cost, 6),
+        "output_cost_usd": round(output_cost, 6),
+        "pricing_model": _normalise_price_model(model_name),
+        "input_per_million_usd": float(input_price),
+        "output_per_million_usd": float(output_price),
+    }
+
+
+def _summarise_ai_usage(calls: List[dict]) -> dict:
+    summary = {
+        "calls": len(calls or []),
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "estimated_cost_usd": 0.0,
+        "has_unpriced_calls": False,
+        "by_model": {},
+    }
+    for call in calls or []:
+        model = call.get("model") or "unknown"
+        by_model = summary["by_model"].setdefault(model, {
+            "calls": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "estimated_cost_usd": 0.0,
+        })
+        input_tokens = int(call.get("input_tokens") or 0)
+        output_tokens = int(call.get("output_tokens") or 0)
+        total_tokens = int(call.get("total_tokens") or (input_tokens + output_tokens))
+        summary["input_tokens"] += input_tokens
+        summary["output_tokens"] += output_tokens
+        summary["total_tokens"] += total_tokens
+        by_model["calls"] += 1
+        by_model["input_tokens"] += input_tokens
+        by_model["output_tokens"] += output_tokens
+        by_model["total_tokens"] += total_tokens
+        cost = call.get("estimated_cost_usd")
+        if cost is None:
+            summary["has_unpriced_calls"] = True
+        else:
+            summary["estimated_cost_usd"] += float(cost)
+            by_model["estimated_cost_usd"] += float(cost)
+    summary["estimated_cost_usd"] = round(summary["estimated_cost_usd"], 6)
+    for item in summary["by_model"].values():
+        item["estimated_cost_usd"] = round(item["estimated_cost_usd"], 6)
+    return summary
+
+
 def _append_ai_run_metadata(metadata: dict) -> None:
     if not metadata:
         return
@@ -1344,8 +1443,27 @@ def _enforce_global_trainer_overlaps(slots: List[PlannedSlot], profiles: dict) -
     kept: List[PlannedSlot] = []
     trainer_day_slots: Dict[Tuple[str, str], List[PlannedSlot]] = defaultdict(list)
     trainer_minutes: Dict[str, int] = defaultdict(int)
+    location_counts: Dict[str, int] = defaultdict(int)
+    for slot in slots:
+        location_counts[slot.location] += 1
 
-    for slot in sorted(slots, key=lambda s: (DAY_NAMES.index(s.day_of_week), s.time, s.location, s.class_name)):
+    def _global_keep_priority(slot: PlannedSlot) -> tuple:
+        bounds = LOCATION_WEEKLY_CLASS_BOUNDS.get(slot.location) or {}
+        floor = int(bounds.get("min") or _minimum_ai_slot_count_for_location(slot.location) or 0)
+        is_under_floor = floor > 0 and location_counts.get(slot.location, 0) < floor
+        is_derived = slot.location in {"Courtside", "Copper & Cloves"}
+        return (
+            0 if is_under_floor else 1,
+            0 if is_derived else 1,
+            floor or 999,
+            DAY_NAMES.index(slot.day_of_week),
+            slot.time,
+            slot.location,
+            -float(slot.score or 0.0),
+            slot.class_name,
+        )
+
+    for slot in sorted(slots, key=_global_keep_priority):
         trainer_key = normalize_trainer_name(slot.trainer_1)
         duration = int(slot.duration_min or get_class_duration(slot.class_name))
         profile = profiles.get(slot.trainer_1) or profiles.get(trainer_key) or {}
@@ -1436,6 +1554,7 @@ class AISchedulePlanner:
         self.output_suffix = output_suffix
         self._ai_call_errors: Dict[Tuple[str, str], str] = {}
         self._ai_settings_by_model: Dict[str, dict] = {}
+        self._ai_usage_calls: List[dict] = []
 
     def _write_draft_output(self, output: dict) -> None:
         STATE_DIR.mkdir(exist_ok=True)
@@ -1705,6 +1824,8 @@ class AISchedulePlanner:
         )
         ai_run["location_yield"] = location_yield
         ai_run["ai_fraction"] = round(total_ai_slots / total_yield_slots, 3) if total_yield_slots else None
+        ai_run["token_usage"] = _summarise_ai_usage(self._ai_usage_calls)
+        ai_run["token_usage_calls"] = self._ai_usage_calls[-200:]
         output = {
             "target_week_start": self.target_week_start,
             "schedule": [asdict(s) for s in all_slots],
@@ -1720,6 +1841,15 @@ class AISchedulePlanner:
         _append_ai_run_metadata(ai_run)
         self._write_draft_output(output)
 
+        usage_summary = ai_run["token_usage"]
+        print(
+            "[Agent 5] AI usage — "
+            f"{usage_summary['calls']} calls | "
+            f"{usage_summary['input_tokens']} input tokens | "
+            f"{usage_summary['output_tokens']} output tokens | "
+            f"est. ${usage_summary['estimated_cost_usd']:.4f}",
+            flush=True,
+        )
         print(f"[Agent 5] AI Planner complete — {len(all_slots)} total slots across {len(self.locations)} locations")
         return output
 
@@ -1743,6 +1873,18 @@ class AISchedulePlanner:
             return None
 
         usage = getattr(response, "usage", None)
+        input_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+        output_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+        total_tokens = int(getattr(usage, "total_tokens", 0) or (input_tokens + output_tokens))
+        cost_info = _estimate_ai_cost_usd(model_name, input_tokens, output_tokens)
+        self._ai_usage_calls.append({
+            "location": location,
+            "model": model_name,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+            **cost_info,
+        })
         message = response.choices[0].message if getattr(response, "choices", None) else None
         content = (message.content if message and message.content else "") or None
         if not content:
@@ -1752,7 +1894,12 @@ class AISchedulePlanner:
             return None
         print(
             f"  [Agent 5] {location.split(',')[0]} {model_name} "
-            f"{getattr(usage, 'prompt_tokens', 0)}in/{getattr(usage, 'completion_tokens', 0)}out",
+            f"{input_tokens}in/{output_tokens}out"
+            + (
+                f" ≈${cost_info['estimated_cost_usd']:.4f}"
+                if cost_info.get("estimated_cost_usd") is not None
+                else " cost=n/a"
+            ),
             flush=True,
         )
         return content
@@ -1815,6 +1962,8 @@ class AISchedulePlanner:
             variant_count=len(iterations),
             selected_iteration_name=primary_iteration.get("iteration_name") or "",
         )
+        ai_run["token_usage"] = _summarise_ai_usage([])
+        ai_run["token_usage_calls"] = []
         output = {
             "target_week_start": self.target_week_start,
             "schedule": primary_iteration["schedule"],
