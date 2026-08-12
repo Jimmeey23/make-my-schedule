@@ -986,7 +986,6 @@ def _run_optimize_with_ai(payload: dict) -> dict:
     else:
         body = {
             "model": model,
-            "temperature": 0,
             "max_completion_tokens": max_tokens,
             "response_format": {"type": "json_object"},
             "messages": messages,
@@ -1543,7 +1542,7 @@ def _validate_manual_slot(data, iteration, slot, original_slot=None, additional_
     if location_shift_error:
         raise ValueError(location_shift_error)
     weekly_minutes = sum(_slot_duration(r) for r in trainer_rows)
-    if weekly_minutes + _slot_duration(slot) > 15 * 60:
+    if loc not in DERIVED_STUDIOS and weekly_minutes + _slot_duration(slot) > 15 * 60:
         raise ValueError(f"{trainer} would exceed the 15h weekly cap")
 
 
@@ -2086,7 +2085,6 @@ def _nl_edit_plan(payload: dict) -> dict:
 
         resp = client.chat.completions.create(
             model=(settings or {}).get("model") or DEFAULT_OPENAI_MODEL,
-            temperature=0.1,
             max_completion_tokens=1500,
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -3322,7 +3320,6 @@ class RulesHandler(BaseHTTPRequestHandler):
 
                     resp = client.chat.completions.create(
                         model=settings.get("model") or DEFAULT_OPENAI_MODEL,
-                        temperature=0.4,
                         max_completion_tokens=800,
                         messages=messages,
                     )

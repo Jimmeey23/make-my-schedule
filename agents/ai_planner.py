@@ -1370,7 +1370,7 @@ def _enforce_global_trainer_overlaps(slots: List[PlannedSlot], profiles: dict) -
         profile = profiles.get(slot.trainer_1) or profiles.get(trainer_key) or {}
         tier = profile.get("tier", 3)
         max_mins = _MAX_T1() if tier == 1 else (_MAX_T2() if tier == 2 else _MAX_T3())
-        if trainer_minutes[trainer_key] + duration > max_mins:
+        if slot.location not in {"Courtside", "Copper & Cloves"} and trainer_minutes[trainer_key] + duration > max_mins:
             continue
         day_key = (trainer_key, slot.day_of_week)
         start_min = slot_time_to_minutes(slot.time)

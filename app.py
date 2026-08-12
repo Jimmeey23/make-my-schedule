@@ -347,7 +347,6 @@ def _build_chat_reply(payload: dict) -> str:
     try:
         response = client.chat.completions.create(
             model=(settings or {}).get("model") or DEFAULT_OPENAI_MODEL,
-            temperature=0.2 if intent == "schedule" else 0.5,
             max_completion_tokens=900 if intent == "schedule" else 1200,
             messages=messages,
         )
@@ -732,7 +731,7 @@ def _validate_manual_slot(data, iteration, slot, original_slot=None, additional_
     if daily_minutes + _slot_duration(slot) > 4 * 60:
         raise ValueError(f"{trainer} would exceed the 4h daily teaching cap on {day}")
     weekly_minutes = sum(_slot_duration(r) for r in trainer_rows)
-    if weekly_minutes + _slot_duration(slot) > 15 * 60:
+    if loc not in DERIVED_STUDIOS and weekly_minutes + _slot_duration(slot) > 15 * 60:
         raise ValueError(f"{trainer} would exceed the 15h weekly cap")
 
 

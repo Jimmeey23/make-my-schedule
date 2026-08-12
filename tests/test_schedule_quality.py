@@ -284,6 +284,8 @@ def test_location_weekly_class_bounds_include_requested_floors():
     assert LOCATION_WEEKLY_CLASS_BOUNDS["Kwality House, Kemps Corner"]["min"] == 70
     assert LOCATION_WEEKLY_CLASS_BOUNDS["Supreme HQ, Bandra"]["min"] == 65
     assert LOCATION_WEEKLY_CLASS_BOUNDS["Kenkere House"]["min"] == 55
+    assert LOCATION_WEEKLY_CLASS_BOUNDS["Courtside"] == {"min": 4, "max": 6}
+    assert LOCATION_WEEKLY_CLASS_BOUNDS["Copper & Cloves"] == {"min": 10, "max": 12}
 
 
 def test_global_guard_preserves_underfilled_copper_before_overfloor_kenkere():
@@ -650,7 +652,7 @@ def test_ai_location_token_budget_scales_with_target(monkeypatch):
 def test_ai_small_studio_target_accepts_exact_sized_plan(monkeypatch):
     import agents.ai_planner as ai_planner_module
 
-    monkeypatch.setattr(ai_planner_module, "_target_count_for_location", lambda loc: 9 if loc == "Copper & Cloves" else 70)
+    monkeypatch.setattr(ai_planner_module, "_target_count_for_location", lambda loc: 10 if loc == "Copper & Cloves" else 70)
 
     small_slots = [
         PlannedSlot(
@@ -668,7 +670,7 @@ def test_ai_small_studio_target_accepts_exact_sized_plan(monkeypatch):
             score=80,
             constraint_violations=[],
         )
-        for idx in range(9)
+        for idx in range(10)
     ]
     large_slots = [
         PlannedSlot(

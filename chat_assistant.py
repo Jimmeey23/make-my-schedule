@@ -1180,7 +1180,6 @@ def parse_nl_schedule_edit(
 
     response = client.chat.completions.create(
         model=model,
-        temperature=0.1,
         max_completion_tokens=1500,
         messages=[
             {"role": "system", "content": _NL_EDIT_SYSTEM},

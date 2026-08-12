@@ -1,10 +1,8 @@
 ,4-May,,,,,,,,,,5-May,,,,,,,,,,6-May,,,,,,,,,,7-May,,,,,,,,,,8-May,,,,,,,,,,9-May,,,,,,,,,,10-May,,,,,,,,,
 ,Monday,,,,,,,,,,Tuesday,,,,,,,,,,Wednesday,,,,,,,,,,Thursday,,,,,,,,,,Friday,,,,,,,,,,Saturday,,,,,,,,,,Sunday,,,,,,,,,
 Time,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,
-08:45,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Anmol Sharma,Studio 1,14,33%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 10:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Cardio Barre,Atulan Purohit,Studio 1,14,34%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
-11:00,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Vivaran Dhasmana,Studio 1,14,36%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-12:00,Studio FIT,Atulan Purohit,Studio 1,14,20%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Anisha Shah,Studio 1,14,20%,0,0%,0.0,,,Studio Mat 57 Express,Cauveri Vikrant,Studio 1,14,100%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Vivaran Dhasmana,Studio 1,14,20%,0,0%,0.0,,,Studio FIT,Karanvir Bhatia,Studio 1,14,20%,0,0%,0.0,,
+12:00,Studio FIT,Atulan Purohit,Studio 1,14,20%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Anisha Shah,Studio 1,14,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Vivaran Dhasmana,Studio 1,14,20%,0,0%,0.0,,,Studio FIT,Karanvir Bhatia,Studio 1,14,20%,0,0%,0.0,,
 20:00,,,,,,,,,,,Studio Barre 57,Raunak Khemuka,Studio 1,14,26%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
 
@@ -13,24 +11,19 @@ Time,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Clas
 TRAINER ALLOCATION
 Trainer,Total Classes,Total Hours,Avg Fill%,Primary Classes
 Anisha Shah,1,0.9,20%,Studio FIT
-Anmol Sharma,1,0.9,33%,Studio Barre 57
 Atulan Purohit,2,1.9,27%,Studio FIT
-Cauveri Vikrant,1,0.5,100%,Studio Mat 57 Express
 Karanvir Bhatia,1,0.9,20%,Studio FIT
 Raunak Khemuka,1,0.9,26%,Studio Barre 57
-Vivaran Dhasmana,2,1.9,28%,Studio FIT
+Vivaran Dhasmana,1,0.9,20%,Studio FIT
 
 CLASS FORMAT ALLOCATION
 Class Format,Total Classes,Avg Fill%,Days Scheduled
-Studio Barre 57,2,30%,2
+Studio Barre 57,1,26%,1
 Studio Cardio Barre,1,34%,1
-Studio FIT,5,23%,5
-Studio Mat 57 Express,1,100%,1
+Studio FIT,4,20%,4
 
 TIMESLOT ALLOCATION
 Time,Mon,Tue,Wed,Thu,Fri,Sat,Sun,Total
-08:45,-,-,-,Studio Barre 57,-,-,-,1
 10:15,-,-,-,-,Studio Cardio Barre,-,-,1
-11:00,-,-,-,Studio FIT,-,-,-,1
-12:00,Studio FIT,-,Studio FIT,Studio Mat 57 Express,-,Studio FIT,Studio FIT,5
+12:00,Studio FIT,-,Studio FIT,-,-,Studio FIT,Studio FIT,4
 20:00,-,Studio Barre 57,-,-,-,-,-,1

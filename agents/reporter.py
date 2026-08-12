@@ -777,6 +777,7 @@ class OutputReporter:
         trainer_daily_min: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
         trainer_days: Dict[str, set] = defaultdict(set)
         trainer_weekly_min: Dict[str, int] = defaultdict(int)
+        trainer_weekly_main_min: Dict[str, int] = defaultdict(int)
         trainer_am_pm: Dict[str, Dict[str, set]] = defaultdict(lambda: {"am": set(), "pm": set()})
 
         for s in slots:
@@ -788,6 +789,8 @@ class OutputReporter:
                 trainer_daily_min[t][day] += dur
                 trainer_days[t].add(day)
                 trainer_weekly_min[t] += dur
+                if s.get("location") not in DERIVED_STUDIOS:
+                    trainer_weekly_main_min[t] += dur
                 hour = int(time_str.split(":")[0]) if ":" in time_str else 0
                 if hour < 13:
                     trainer_am_pm[t]["am"].add(day)
@@ -855,7 +858,7 @@ class OutputReporter:
 
         # ---- BUSINESS: Tier 1 weekly hours toward 15h ----------------
         tier1_in_sched = {t: trainer_weekly_min[t] for t in trainer_weekly_min if t in tier1_trainers}
-        over_cap = {t: m for t, m in tier1_in_sched.items() if m > 900}
+        over_cap = {t: trainer_weekly_main_min[t] for t in tier1_in_sched if trainer_weekly_main_min[t] > 900}
         under_target = {t: m for t, m in tier1_in_sched.items() if m < 720 and t in tier1_trainers}
         if over_cap:
             names = ", ".join(f"{t} {round(m/60,1)}h" for t, m in list(over_cap.items())[:3])
@@ -871,7 +874,7 @@ class OutputReporter:
                   f"{len(tier1_in_sched)} Tier 1 trainer(s) within target", "12–15h/week")
 
         # ---- BUSINESS: weekly 15h hard cap (any trainer) ---------------
-        hard_over = {t: m for t, m in trainer_weekly_min.items() if m > 900}
+        hard_over = {t: m for t, m in trainer_weekly_main_min.items() if m > 900}
         if hard_over:
             names = ", ".join(f"{t} {round(m/60,1)}h" for t, m in list(hard_over.items())[:3])
             _rule("WEEKLY-CAP", "business", "No trainer >15h/week", "FAIL",
@@ -3107,7 +3110,7 @@ document.addEventListener("keydown", e=>{{
         trainer_weekly_minutes = defaultdict(int)
         for slot in all_slots:
             trainer = slot.get("trainer_1")
-            if trainer:
+            if trainer and slot.get("location") not in DERIVED_STUDIOS:
                 trainer_weekly_minutes[trainer] += int(slot.get("duration_min") or 57)
         for trainer, minutes in trainer_weekly_minutes.items():
             if minutes > 15 * 60:
@@ -3226,7 +3229,7 @@ document.addEventListener("keydown", e=>{{
             trainer_weekly_minutes = defaultdict(int)
             for slot in schedule:
                 trainer = slot.get("trainer_1")
-                if trainer:
+                if trainer and slot.get("location") not in DERIVED_STUDIOS:
                     trainer_weekly_minutes[trainer] += int(slot.get("duration_min") or 57)
             for trainer, minutes in trainer_weekly_minutes.items():
                 if minutes > 15 * 60:

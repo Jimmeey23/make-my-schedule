@@ -83,8 +83,8 @@ LOCATION_WEEKLY_CLASS_BOUNDS = {
     KWALITY_LOCATION: {"min": 70, "max": 80},
     SUPREME_LOCATION: {"min": 65, "max": 75},
     "Kenkere House": {"min": 55, "max": 70},
-    "Courtside": {"min": 9, "max": 11},
-    "Copper & Cloves": {"min": 9, "max": 13},
+    "Courtside": {"min": 4, "max": 6},
+    "Copper & Cloves": {"min": 10, "max": 12},
 }
 HIGH_PRIORITY_TRAINERS = {
     "Anisha Shah", "Rohan Dahima", "Reshma Sharma", "Atulan Purohit", "Pranjali Jain",
@@ -305,8 +305,8 @@ DATA_DRIVEN_DAILY_RANGES: Dict[str, Dict[str, tuple]] = {
         "Thursday": (7, 8), "Friday": (7, 8), "Saturday": (8, 11), "Sunday": (5, 6),
     },
     "Courtside": {
-        "Monday": (0, 0), "Tuesday": (0, 0), "Wednesday": (0, 0),
-        "Thursday": (0, 0), "Friday": (0, 0), "Saturday": (2, 2), "Sunday": (2, 2),
+        "Monday": (0, 1), "Tuesday": (0, 1), "Wednesday": (0, 1),
+        "Thursday": (0, 1), "Friday": (0, 1), "Saturday": (0, 1), "Sunday": (0, 1),
     },
     "Copper & Cloves": {
         "Monday": (1, 2), "Tuesday": (1, 2), "Wednesday": (1, 2),
@@ -877,10 +877,12 @@ class TrainerState:
         if day not in self.worked_days() and self.worked_days_count() >= MAX_TRAINER_WORK_DAYS:
             return False
 
-        # Tier-based hard weekly caps
-        max_mins = MAX_TRAINER_WEEKLY_MINUTES_T1 if self.tier == 1 else (MAX_TRAINER_WEEKLY_MINUTES_T2 if self.tier == 2 else MAX_TRAINER_WEEKLY_MINUTES_T3)
-        if self.weekly_minutes + new_dur > max_mins:
-            return False
+        # Satellite studios may exceed the weekly cap when needed to satisfy
+        # explicit business class-count floors.
+        if not is_derived_studio(location):
+            max_mins = MAX_TRAINER_WEEKLY_MINUTES_T1 if self.tier == 1 else (MAX_TRAINER_WEEKLY_MINUTES_T2 if self.tier == 2 else MAX_TRAINER_WEEKLY_MINUTES_T3)
+            if self.weekly_minutes + new_dur > max_mins:
+                return False
 
         if self.minutes_today(day) + new_dur > MAX_TRAINER_DAILY_MINUTES:
             return False
