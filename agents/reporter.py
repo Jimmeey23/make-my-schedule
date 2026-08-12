@@ -2,6 +2,7 @@ import json
 import csv
 import glob
 import os
+from datetime import date
 from pathlib import Path
 from typing import Dict, List
 from collections import defaultdict
@@ -22,6 +23,57 @@ MAIN_STUDIOS = {"Kwality House, Kemps Corner", "Supreme HQ, Bandra", "Kenkere Ho
 DERIVED_STUDIOS = {"Courtside", "Copper & Cloves"}
 MUMBAI_LOCATIONS = {"Kwality House, Kemps Corner", "Supreme HQ, Bandra", "Courtside"}
 BENGALURU_LOCATIONS = {"Kenkere House", "Copper & Cloves"}
+
+
+def _historic_cutoff_date() -> date:
+    raw = os.environ.get("HISTORIC_COMPLETED_CUTOFF_DATE") or date.today().isoformat()
+    return date.fromisoformat(str(raw)[:10])
+
+
+def _completed_session_date(value) -> date | None:
+    try:
+        return date.fromisoformat(str(value or "")[:10])
+    except ValueError:
+        return None
+
+
+def _summarize_completed_detail(detail: dict | None) -> dict | None:
+    if not isinstance(detail, dict):
+        return detail
+    sessions = detail.get("individual_sessions") or []
+    if not isinstance(sessions, list):
+        return detail
+    cutoff = _historic_cutoff_date()
+    completed = []
+    for row in sessions:
+        row_date = _completed_session_date((row or {}).get("date"))
+        if row_date and row_date < cutoff:
+            completed.append(row)
+    out = dict(detail)
+    out["individual_sessions"] = completed
+    out["session_rows"] = len(completed)
+    if not completed:
+        for key in ("avg_checked_in", "avg_booked", "avg_capacity", "avg_fill_rate", "avg_revenue", "total_revenue", "avg_late_cancel_rate", "avg_no_show_rate"):
+            out[key] = 0.0
+        return out
+    checked = [float(r.get("checked_in") or 0) for r in completed]
+    booked = [float(r.get("booked") or 0) for r in completed]
+    capacity = [max(float(r.get("capacity") or 0), 1.0) for r in completed]
+    revenue = [float(r.get("revenue") or 0) for r in completed]
+    late = [float(r.get("late_cancel_rate") or 0) for r in completed]
+    no_show = [float(r.get("no_show_rate") or 0) for r in completed]
+    fills = [min(1.0, c / cap) for c, cap in zip(checked, capacity)]
+    out.update({
+        "avg_checked_in": round(sum(checked) / len(completed), 2),
+        "avg_booked": round(sum(booked) / len(completed), 2),
+        "avg_capacity": round(sum(capacity) / len(completed), 2),
+        "avg_fill_rate": round(sum(fills) / len(completed), 4),
+        "avg_revenue": round(sum(revenue) / len(completed), 2),
+        "total_revenue": round(sum(revenue), 2),
+        "avg_late_cancel_rate": round(sum(late) / len(completed), 4),
+        "avg_no_show_rate": round(sum(no_show) / len(completed), 4),
+    })
+    return out
 
 
 def _report_location_region(location: str) -> str:
@@ -1242,7 +1294,11 @@ class OutputReporter:
                 return default
 
         def _history_from_rows(rows: List[dict]) -> dict:
-            rows = list(rows or [])
+            cutoff = _historic_cutoff_date()
+            rows = [
+                row for row in list(rows or [])
+                if (_completed_session_date(row.get("Date")) and _completed_session_date(row.get("Date")) < cutoff)
+            ]
             if not rows:
                 return {}
             checked_values = [_num(row.get("CheckedIn")) for row in rows]
@@ -1465,6 +1521,13 @@ class OutputReporter:
                         "individual_sessions": [],
                         "_synthetic": True,
                     }
+            raw_hist = _summarize_completed_detail(raw_hist)
+            raw_slot_hist = _summarize_completed_detail(raw_slot_hist)
+            if isinstance(raw_hist, dict) and raw_hist.get("individual_sessions") is not None:
+                sr = {**sr, "avg_checkin": raw_hist.get("avg_checked_in", sr.get("avg_checkin")), "avg_fill_rate": raw_hist.get("avg_fill_rate", sr.get("avg_fill_rate")), "session_count": raw_hist.get("session_rows", sr.get("session_count"))}
+            if isinstance(raw_slot_hist, dict) and raw_slot_hist.get("individual_sessions") is not None:
+                slot_sr = {**slot_sr, "avg_checkin": raw_slot_hist.get("avg_checked_in", slot_sr.get("avg_checkin")), "avg_fill_rate": raw_slot_hist.get("avg_fill_rate", slot_sr.get("avg_fill_rate")), "session_count": raw_slot_hist.get("session_rows", slot_sr.get("session_count"))}
+            score_src = sr or slot_sr or fallback_score_src or nearby_score_sr
             metric_avg_checkin = score_src.get("avg_checkin", score_src.get("avg_attendance", s.get("historical_avg_checkin", None)))
             metric_avg_fill = score_src.get("avg_fill_rate", s.get("historical_avg_fill", None))
             metric_sessions = score_src.get("session_count", s.get("historical_session_count", None))

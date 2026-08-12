@@ -1,6 +1,7 @@
 import json
 import os
 import base64
+from datetime import date
 from urllib.parse import parse_qs, urlparse
 import pandas as pd
 import numpy as np
@@ -45,6 +46,11 @@ REQUIRED_SESSION_COLUMNS = {
     "LateCancelled",
     "Revenue",
 }
+
+
+def historic_cutoff_date() -> pd.Timestamp:
+    raw = os.environ.get("HISTORIC_COMPLETED_CUTOFF_DATE") or date.today().isoformat()
+    return pd.Timestamp(raw).normalize()
 
 
 def copper_class_name(row) -> str:
@@ -365,6 +371,11 @@ class DataIngestor:
         # Parse date
         df["Date"] = parse_google_sheet_dates(df["Date"])
         df = df.dropna(subset=["Date"])
+        completed_mask = df["Date"].dt.normalize() < historic_cutoff_date()
+        dropped_future = int((~completed_mask).sum())
+        df = df.loc[completed_mask].copy()
+        if dropped_future:
+            print(f"  Excluded {dropped_future:,} non-completed/future session rows")
 
         # Normalize time to HH:MM
         df["Time"] = df["Time"].apply(normalize_google_sheet_time)

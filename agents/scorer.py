@@ -8,6 +8,7 @@ import json
 import re
 import os
 import base64
+from datetime import date
 from collections import defaultdict
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -86,6 +87,24 @@ EXCLUDED_CLASS_KEYWORDS = (
     "sweat in 30",
     "unknown class",
 )
+
+
+def _historic_cutoff_date() -> pd.Timestamp:
+    raw = os.environ.get("HISTORIC_COMPLETED_CUTOFF_DATE") or date.today().isoformat()
+    return pd.Timestamp(raw).normalize()
+
+
+def _filter_completed_sessions(df: pd.DataFrame, label: str) -> pd.DataFrame:
+    if df.empty or "Date" not in df.columns:
+        return df.copy()
+    parsed_dates = parse_google_sheet_dates(df["Date"])
+    completed = parsed_dates.notna() & (parsed_dates.dt.normalize() < _historic_cutoff_date())
+    dropped = int((~completed).sum())
+    out = df.loc[completed].copy()
+    out["Date"] = parsed_dates.loc[completed]
+    if dropped:
+        print(f"  Excluded {dropped:,} non-completed/future rows from {label}")
+    return out
 
 
 def _is_strength_lab_protected(class_name: str, fill_rate: float, session_count: int) -> bool:
@@ -414,10 +433,10 @@ class ClassScorer:
         def _load_performance_frame(df: pd.DataFrame, label: str) -> pd.DataFrame:
             df = df.copy()
             print(f"  Loaded {len(df):,} rows from {label}")
+            df = _filter_completed_sessions(df, label)
 
             if COL_DAY not in df.columns and "Date" in df.columns:
-                parsed_dates = parse_google_sheet_dates(df["Date"])
-                df[COL_DAY] = parsed_dates.dt.day_name()
+                df[COL_DAY] = df["Date"].dt.day_name()
 
             session_names = df["SessionName"] if "SessionName" in df.columns else ""
             copper_mask = (
@@ -918,6 +937,7 @@ class ClassScorer:
                     _sess = json.load(_f)
                 sdf = pd.DataFrame(_sess.get("sessions", []))
                 if not sdf.empty:
+                    sdf = _filter_completed_sessions(sdf, "state/01_sessions.json historic detail")
                     def _sess_time(t):
                         s = str(t).strip()
                         m = re.match(r"^(\d{1,2}):(\d{2})", s)

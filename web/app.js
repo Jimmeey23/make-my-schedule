@@ -2491,12 +2491,21 @@ function drillFallbackRowsFromHistoricCache(s){
     String(r.day_name||r.day||"").trim()===targetDay &&
     String(r.time||"").slice(0,5)===targetTime
   );
-  return ((match||{}).historic_detail||{}).individual_sessions||[];
+  return historicCompletedRows(((match||{}).historic_detail||{}).individual_sessions||[]);
+}
+
+function historicCompletedRows(rows){
+  const today=new Date();
+  today.setHours(0,0,0,0);
+  return (Array.isArray(rows)?rows:[]).filter(r=>{
+    const d=new Date(String(r?.date||"").slice(0,10)+"T00:00:00");
+    return !Number.isNaN(d.getTime()) && d < today;
+  });
 }
 
 function drillSessionRows(s){
-  const slotRows=((s.slot_historic_detail||{}).individual_sessions)||[];
-  const exactRows=((s.historic_detail||{}).individual_sessions)||[];
+  const slotRows=historicCompletedRows(((s.slot_historic_detail||{}).individual_sessions)||[]);
+  const exactRows=historicCompletedRows(((s.historic_detail||{}).individual_sessions)||[]);
   const fallbackRows=drillFallbackRowsFromHistoricCache(s);
   const rows=(slotRows.length?slotRows:(exactRows.length?exactRows:fallbackRows));
   return rows.slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
@@ -2507,7 +2516,10 @@ function drillMetrics(s){
   const slotH=s.slot_historic_detail||{};
   const exactH=s.historic_detail||{};
   // Pick best available historic object; prefer slot-level, fall to exact, fall to empty
-  const h=(slotH.session_rows||slotH.avg_checked_in!=null)?slotH:(exactH.session_rows||exactH.avg_checked_in!=null)?exactH:{};
+  let h=(slotH.session_rows||slotH.avg_checked_in!=null)?slotH:(exactH.session_rows||exactH.avg_checked_in!=null)?exactH:{};
+  if(Array.isArray(h.individual_sessions)&&!rows.length){
+    h={...h,session_rows:0,avg_checked_in:0,avg_booked:0,avg_capacity:0,avg_fill_rate:0,avg_revenue:0,total_revenue:0,avg_late_cancel_rate:0,avg_no_show_rate:0};
+  }
   const isSynthetic=!!(h&&h._synthetic);
 
   const sessions=rows.length || Number(h.session_rows||0) || Number(s.slot_sessions||s.historical_session_count||0);
