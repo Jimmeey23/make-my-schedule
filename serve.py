@@ -1748,6 +1748,77 @@ def _add_classes_to_schedule(payload):
     return {"added": len(prepared), "supabase_saved": supabase_saved}
 
 
+def _satellite_top_up_schedule(location: str, target_count: int, iteration: str = "Main") -> dict:
+    """Add vetted satellite classes until location reaches target_count."""
+    if location not in {"Copper & Cloves", "Courtside"}:
+        raise ValueError("Satellite top-up is only supported for Copper & Cloves or Courtside")
+
+    path = WEB_DIR / "schedule_data.json"
+    if not path.exists():
+        raise FileNotFoundError("web/schedule_data.json was not found")
+    data = json.loads(path.read_text())
+    existing = list((data.get("locations") or {}).get(location) or [])
+    if len(existing) >= target_count:
+        return {"location": location, "added": 0, "target": target_count, "total": len(existing), "slots": []}
+
+    copper_candidates = [
+        {"location": "Copper & Cloves", "date": "2026-05-04", "day_of_week": "Monday", "time": "12:30", "class_name": "Copper + Cloves Barre 57", "trainer_1": "Kajol Kanchan", "room": "Studio 1", "capacity": 14, "duration_min": 57},
+        {"location": "Copper & Cloves", "date": "2026-05-05", "day_of_week": "Tuesday", "time": "19:30", "class_name": "Copper + Cloves Barre 57", "trainer_1": "Kajol Kanchan", "room": "Studio 1", "capacity": 14, "duration_min": 57},
+        {"location": "Copper & Cloves", "date": "2026-05-09", "day_of_week": "Saturday", "time": "10:15", "class_name": "Copper + Cloves Mat 57", "trainer_1": "Chaitanya Nahar", "room": "Studio 1", "capacity": 14, "duration_min": 57},
+        {"location": "Copper & Cloves", "date": "2026-05-10", "day_of_week": "Sunday", "time": "10:45", "class_name": "Copper + Cloves Mat 57", "trainer_1": "Chaitanya Nahar", "room": "Studio 1", "capacity": 14, "duration_min": 57},
+    ]
+    courtside_candidates = [
+        {"location": "Courtside", "date": "2026-05-07", "day_of_week": "Thursday", "time": "11:00", "class_name": "Studio Barre 57", "trainer_1": "Anmol Sharma", "room": "Studio 1", "capacity": 14, "duration_min": 57},
+        {"location": "Courtside", "date": "2026-05-09", "day_of_week": "Saturday", "time": "10:15", "class_name": "Studio Mat 57", "trainer_1": "Anisha Shah", "room": "Studio 1", "capacity": 14, "duration_min": 57},
+    ]
+    candidates = copper_candidates if location == "Copper & Cloves" else courtside_candidates
+
+    prepared = []
+    pending = []
+    existing_keys = {
+        (slot.get("location"), slot.get("day_of_week"), slot.get("time"), slot.get("room"))
+        for slot in existing
+    }
+    for raw in candidates:
+        if len(existing) + len(prepared) >= target_count:
+            break
+        key = (raw.get("location"), raw.get("day_of_week"), raw.get("time"), raw.get("room"))
+        if key in existing_keys:
+            continue
+        slot = dict(raw)
+        slot.setdefault("recommendation", "MANUAL")
+        slot.setdefault("manual_added", True)
+        slot.setdefault("scheduling_reason", f"Satellite top-up to {target_count} weekly classes")
+        slot.setdefault("predicted_fill_rate", 0.6 if location == "Copper & Cloves" else 0.25)
+        slot.setdefault("score", 59.0 if location == "Copper & Cloves" else 35.0)
+        slot.setdefault("constraint_violations", [])
+        try:
+            _validate_manual_slot(data, iteration, slot, additional_rows=pending)
+        except ValueError:
+            continue
+        prepared.append(slot)
+        pending.append(slot)
+
+    if prepared:
+        result = _add_classes_to_schedule({"slots": prepared, "iteration": iteration})
+        total = len(existing) + int(result.get("added") or 0)
+    else:
+        total = len(existing)
+    return {"location": location, "added": len(prepared), "target": target_count, "total": total, "slots": prepared}
+
+
+def _chat_followup_top_up(user_msg: str, history: list) -> dict | None:
+    lower = str(user_msg or "").strip().lower()
+    if lower not in {"do it", "yes do it", "go ahead", "apply it", "make it happen"}:
+        return None
+    context_text = " ".join(str((item or {}).get("content") or "") for item in (history or [])[-6:]).lower()
+    if "copper" in context_text or "cloves" in context_text:
+        return _satellite_top_up_schedule("Copper & Cloves", 12)
+    if "courtside" in context_text:
+        return _satellite_top_up_schedule("Courtside", 6)
+    return None
+
+
 def _save_schedule_to_supabase(data):
     if not supabase_configured():
         return {"saved": False, "error": "Supabase is not configured"}
@@ -3216,9 +3287,32 @@ class RulesHandler(BaseHTTPRequestHandler):
                     self._send_json(400, {"error": "Empty message"})
                     return
 
+                try:
+                    top_up = _chat_followup_top_up(user_msg, history)
+                    if top_up is not None:
+                        slots = top_up.get("slots") or []
+                        if slots:
+                            lines = [
+                                f"• ADD: {s.get('class_name')} with {s.get('trainer_1')} on {s.get('day_of_week')} {s.get('time')} at {s.get('location')}"
+                                for s in slots
+                            ]
+                            self._send_json(200, {
+                                "reply": f"✅ Executed satellite schedule top-up. {top_up.get('location') or ''} now has {top_up.get('total')} classes.\n" + "\n".join(lines),
+                                "applied": True,
+                                "edits": slots,
+                            })
+                        else:
+                            self._send_json(200, {
+                                "reply": f"No top-up needed. The satellite schedule is already at {top_up.get('total')} classes against the {top_up.get('target')}-class target.",
+                                "applied": False,
+                            })
+                        return
+                except Exception as top_up_err:
+                    print(f"  [Chat Top-Up Error] {top_up_err}")
+
                 # Detect if the instruction is a schedule modification request
                 edit_keywords = (
-                    "add", "create", "insert", "remove", "delete", "cancel", "drop",
+                    "add", "populate", "create", "insert", "remove", "delete", "cancel", "drop",
                     "swap", "replace", "substitute", "change", "move", "shift", "reschedule",
                     "optimize", "optimise", "fix", "switch", "adjust", "update"
                 )

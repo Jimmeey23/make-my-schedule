@@ -309,8 +309,8 @@ DATA_DRIVEN_DAILY_RANGES: Dict[str, Dict[str, tuple]] = {
         "Thursday": (0, 1), "Friday": (0, 1), "Saturday": (0, 1), "Sunday": (0, 1),
     },
     "Copper & Cloves": {
-        "Monday": (1, 2), "Tuesday": (1, 2), "Wednesday": (1, 2),
-        "Thursday": (1, 2), "Friday": (1, 2), "Saturday": (2, 3), "Sunday": (2, 3),
+        "Monday": (1, 3), "Tuesday": (1, 3), "Wednesday": (1, 3),
+        "Thursday": (1, 3), "Friday": (1, 3), "Saturday": (1, 3), "Sunday": (1, 3),
     },
 }
 

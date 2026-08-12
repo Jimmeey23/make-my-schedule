@@ -7707,7 +7707,7 @@ function drillToggleTrainer(s){
 // NATURAL LANGUAGE SCHEDULE EDITOR
 // ═══════════════════════════════════════════════════════════════
 
-const NL_EDIT_KEYWORDS = /\b(move|swap|shift|replace|reassign|change|add|remove|delete|cancel|reschedule|put|assign|drop|take off|give|book|schedule|unschedule|rename|swap out|rotate|insert)\b/i;
+const NL_EDIT_KEYWORDS = /\b(move|swap|shift|replace|reassign|change|add|populate|remove|delete|cancel|reschedule|put|assign|drop|take off|give|book|schedule|unschedule|rename|swap out|rotate|insert)\b/i;
 const NL_TRAINER_WORDS = /\b(trainer|instructor|coach)\b/i;
 const NL_SCHEDULE_WORDS = /\b(class|session|slot|block|morning|evening|midday|monday|tuesday|wednesday|thursday|friday|saturday|sunday|am|pm|week|day)\b/i;
 

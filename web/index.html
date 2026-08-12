@@ -4436,6 +4436,108 @@ const SCHEDULE_DATA = [{
         "slot_avg_fill_rate": null,
         "slot_session_count": null,
         "slot_empty_sessions": null
+      },
+      {
+        "location": "Copper & Cloves",
+        "date": "2026-05-04",
+        "day_of_week": "Monday",
+        "time": "12:30",
+        "class_name": "Copper + Cloves Barre 57",
+        "trainer_1": "Kajol Kanchan",
+        "room": "Studio 1",
+        "capacity": 14,
+        "duration_min": 57,
+        "recommendation": "MANUAL",
+        "manual_added": true,
+        "scheduling_reason": "Satellite top-up to 12 weekly classes",
+        "predicted_fill_rate": 0.6,
+        "score": 59.0,
+        "constraint_violations": [],
+        "metric_source": "scheduled_slot",
+        "metric_avg_checkin": null,
+        "metric_avg_fill_rate": null,
+        "metric_session_count": null,
+        "trainer_slot_avg_checkin": null,
+        "trainer_slot_avg_fill_rate": null,
+        "trainer_slot_session_count": null,
+        "trainer_slot_empty_sessions": null,
+        "optimizer_score": 59.0,
+        "metric_score": 59.0,
+        "trainer_overall_fill": 0.19556962024683547,
+        "trainer_overall_checkin": 2.1012658227848102,
+        "trainer_total_sessions": 79,
+        "historical_avg_fill": null,
+        "historical_avg_checkin": null,
+        "historical_session_count": null,
+        "blended_fill": null,
+        "base_score": null,
+        "recency_boost": null,
+        "score_breakdown": null,
+        "metric_score_breakdown": null,
+        "historic_detail": null,
+        "slot_historic_detail": null,
+        "slot_top_trainers": [],
+        "slot_score_breakdown": null,
+        "slot_group_score": null,
+        "slot_trust": null,
+        "studio_avg_fill": null,
+        "above_studio_avg": null,
+        "slot_sessions": null,
+        "slot_avg_checkin": null,
+        "slot_avg_fill_rate": null,
+        "slot_session_count": null,
+        "slot_empty_sessions": null
+      },
+      {
+        "location": "Copper & Cloves",
+        "date": "2026-05-05",
+        "day_of_week": "Tuesday",
+        "time": "19:30",
+        "class_name": "Copper + Cloves Barre 57",
+        "trainer_1": "Kajol Kanchan",
+        "room": "Studio 1",
+        "capacity": 14,
+        "duration_min": 57,
+        "recommendation": "MANUAL",
+        "manual_added": true,
+        "scheduling_reason": "Satellite top-up to 12 weekly classes",
+        "predicted_fill_rate": 0.6,
+        "score": 59.0,
+        "constraint_violations": [],
+        "metric_source": "scheduled_slot",
+        "metric_avg_checkin": null,
+        "metric_avg_fill_rate": null,
+        "metric_session_count": null,
+        "trainer_slot_avg_checkin": null,
+        "trainer_slot_avg_fill_rate": null,
+        "trainer_slot_session_count": null,
+        "trainer_slot_empty_sessions": null,
+        "optimizer_score": 59.0,
+        "metric_score": 59.0,
+        "trainer_overall_fill": 0.19556962024683547,
+        "trainer_overall_checkin": 2.1012658227848102,
+        "trainer_total_sessions": 79,
+        "historical_avg_fill": null,
+        "historical_avg_checkin": null,
+        "historical_session_count": null,
+        "blended_fill": null,
+        "base_score": null,
+        "recency_boost": null,
+        "score_breakdown": null,
+        "metric_score_breakdown": null,
+        "historic_detail": null,
+        "slot_historic_detail": null,
+        "slot_top_trainers": [],
+        "slot_score_breakdown": null,
+        "slot_group_score": null,
+        "slot_trust": null,
+        "studio_avg_fill": null,
+        "above_studio_avg": null,
+        "slot_sessions": null,
+        "slot_avg_checkin": null,
+        "slot_avg_fill_rate": null,
+        "slot_session_count": null,
+        "slot_empty_sessions": null
       }
     ],
     "Courtside": [
@@ -285652,7 +285754,7 @@ const SCHEDULE_DATA = [{
         "passed": 6,
         "warned": 5,
         "failed": 1,
-        "score": 60.0,
+        "score": 60.7,
         "score_target": 50
       },
       "rules": [
@@ -285688,9 +285790,9 @@ const SCHEDULE_DATA = [{
           "category": "business",
           "label": "Tier 1 trainers toward 15h/week",
           "status": "WARN",
-          "actual": "Pushyank Nahar 2.9h",
+          "actual": "Pushyank Nahar 2.9h, Kajol Kanchan 1.9h",
           "expected": "12\u201315h/week target",
-          "reason": "1 Tier 1 trainer(s) below 12h \u2014 consider adding classes"
+          "reason": "2 Tier 1 trainer(s) below 12h \u2014 consider adding classes"
         },
         {
           "id": "WEEKLY-CAP",
@@ -285706,9 +285808,9 @@ const SCHEDULE_DATA = [{
           "category": "soft",
           "label": "Barre 57 family 45\u201355% of classes",
           "status": "WARN",
-          "actual": "90.0% (9 classes)",
+          "actual": "91.7% (11 classes)",
           "expected": "45\u201355%",
-          "reason": "Above target \u2014 ~4 class(es) over 55% ceiling"
+          "reason": "Above target \u2014 ~5 class(es) over 55% ceiling"
         },
         {
           "id": "MIX-003",
@@ -285724,9 +285826,9 @@ const SCHEDULE_DATA = [{
           "category": "soft",
           "label": "Fill peak midday 11:00\u201311:30 and prime evening 19:00\u201319:30",
           "status": "WARN",
-          "actual": "Midday: 1 days, Evening: 1 days",
+          "actual": "Midday: 1 days, Evening: 2 days",
           "expected": "\u22655 days each",
-          "reason": "midday only 1/7 days; prime evening only 1/7 days"
+          "reason": "midday only 1/7 days; prime evening only 2/7 days"
         },
         {
           "id": "SLOT-002",
@@ -285751,7 +285853,7 @@ const SCHEDULE_DATA = [{
           "category": "score",
           "label": "Schedule score meets location target",
           "status": "PASS",
-          "actual": "60.0/100",
+          "actual": "60.7/100",
           "expected": "\u226550",
           "reason": null
         },
@@ -285954,6 +286056,28 @@ const SCHEDULE_DATA = [{
           "time": "19:30",
           "class": "Copper + Cloves Barre 57",
           "trainer": "Chaitanya Nahar",
+          "score": 59.0,
+          "below_threshold": false,
+          "components": [],
+          "recency_boost": 0.0,
+          "violations": []
+        },
+        {
+          "day": "Monday",
+          "time": "12:30",
+          "class": "Copper + Cloves Barre 57",
+          "trainer": "Kajol Kanchan",
+          "score": 59.0,
+          "below_threshold": false,
+          "components": [],
+          "recency_boost": 0.0,
+          "violations": []
+        },
+        {
+          "day": "Tuesday",
+          "time": "19:30",
+          "class": "Copper + Cloves Barre 57",
+          "trainer": "Kajol Kanchan",
           "score": 59.0,
           "below_threshold": false,
           "components": [],
@@ -289978,7 +290102,7 @@ const SCHEDULE_DATA = [{
           "reason": null
         },
         {
-          "id": "HARD-134",
+          "id": "HARD-169",
           "category": "hard",
           "label": "UNIV-026: Recovery not last in shift",
           "status": "FAIL",
@@ -291879,18 +292003,18 @@ const SCORECARD    = [{
   "generated_for_week": "2026-05-04",
   "locations": {
     "Copper & Cloves": {
-      "total_classes": 10,
+      "total_classes": 12,
       "target_schedule_score": 50,
-      "schedule_score": 60.0,
-      "avg_slot_score": 55.0,
-      "predicted_avg_fill_rate": 0.571,
+      "schedule_score": 60.7,
+      "avg_slot_score": 55.7,
+      "predicted_avg_fill_rate": 0.576,
       "historical_avg_fill_rate": 0.0,
-      "zero_history_slots": 10,
+      "zero_history_slots": 12,
       "zero_history_pct": 1.0,
       "experimental_pct": 0.0,
       "barre_pct": 1.0,
-      "barre_family_count": 9,
-      "barre_family_pct": 0.9,
+      "barre_family_count": 11,
+      "barre_family_pct": 0.917,
       "format_counts": {
         "Studio Barre 57": 0,
         "Studio Mat 57": 0,
@@ -291905,8 +292029,8 @@ const SCORECARD    = [{
         "Studio Foundations": 0
       },
       "class_mix": {
-        "Copper + Cloves Mat 57": 0.1,
-        "Copper + Cloves Barre 57": 0.9
+        "Copper + Cloves Mat 57": 0.083,
+        "Copper + Cloves Barre 57": 0.917
       },
       "hard_constraint_violations": [],
       "soft_constraint_penalties": 0,
@@ -291925,21 +292049,21 @@ const SCORECARD    = [{
           "pct": 14.6
         },
         "Studio 1": {
-          "used_min": 456,
+          "used_min": 570,
           "avail_min": 4680,
-          "pct": 9.7
+          "pct": 12.2
         }
       },
       "peak_cluster_fill_count": 2,
-      "format_mix_cov": 0.8,
+      "format_mix_cov": 0.833,
       "trainer_hours_histogram": {
-        "<5h": 3,
+        "<5h": 4,
         "5-10h": 0,
         "10-13h": 0,
         "13-15h": 0,
         ">15h": 0
       },
-      "trainer_count": 3
+      "trainer_count": 4
     },
     "Courtside": {
       "total_classes": 6,

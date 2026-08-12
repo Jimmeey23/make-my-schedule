@@ -151,27 +151,27 @@
     "Copper & Cloves": {
       "Monday": {
         "target": 1,
-        "max": 2,
+        "max": 3,
         "source": "settings"
       },
       "Tuesday": {
         "target": 1,
-        "max": 2,
+        "max": 3,
         "source": "settings"
       },
       "Wednesday": {
         "target": 1,
-        "max": 2,
+        "max": 3,
         "source": "settings"
       },
       "Thursday": {
         "target": 1,
-        "max": 2,
+        "max": 3,
         "source": "settings"
       },
       "Friday": {
         "target": 1,
-        "max": 2,
+        "max": 3,
         "source": "settings"
       },
       "Saturday": {

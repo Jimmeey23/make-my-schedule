@@ -1,7 +1,9 @@
 Date,Day,Time,Class,Trainer 1,Trainer 2,Cover,Room,Capacity,Duration (min),Score,Recommendation,Reason,Score Breakdown,Historic Sessions,Historic Checkins,Historic Fill Rate,Projected Avg Checkin,Projected Fill Rate,Late Cancel Rate,No Show Rate,Constraint Violations
+2026-05-04,Monday,12:30,Copper + Cloves Barre 57,Kajol Kanchan,,,Studio 1,14,57,59.0,MANUAL,Satellite top-up to 12 weekly classes,,0,0.00,0.0000,8.4,0.6000,0.0000,0.0000,
 2026-05-04,Monday,20:30,Copper + Cloves Barre 57,Chaitanya Nahar,,,Studio 1,14,57,59.0,MANUAL,Manual Copper expansion: validated final-stop addition,,0,0.00,0.0000,8.4,0.6000,0.0000,0.0000,
 2026-05-05,Tuesday,08:30,Copper + Cloves Barre 57,Siddhartha Kusuma,,,Studio 1,14,57,59.0,MANUAL,Manual Copper expansion: validated final-stop addition,,0,0.00,0.0000,8.4,0.6000,0.0000,0.0000,
 2026-05-05,Tuesday,12:30,Copper + Cloves Barre 57,Pushyank Nahar,,,Studio 1,14,57,59.0,MANUAL,Manual Copper expansion: validated final-stop addition,,0,0.00,0.0000,8.4,0.6000,0.0000,0.0000,
+2026-05-05,Tuesday,19:30,Copper + Cloves Barre 57,Kajol Kanchan,,,Studio 1,14,57,59.0,MANUAL,Satellite top-up to 12 weekly classes,,0,0.00,0.0000,8.4,0.6000,0.0000,0.0000,
 2026-05-06,Wednesday,20:30,Copper + Cloves Barre 57,Pushyank Nahar,,,Studio 1,14,57,59.0,MANUAL,Manual Copper expansion: validated final-stop addition,,0,0.00,0.0000,8.4,0.6000,0.0000,0.0000,
 2026-05-07,Thursday,20:30,Copper + Cloves Barre 57,Pushyank Nahar,,,Studio 1,14,57,59.0,MANUAL,Moved from Kenkere to populate Copper & Cloves without increasing Pushyank weekly load,,0,0.00,0.0000,8.4,0.6000,0.0000,0.0000,
 2026-05-08,Friday,12:30,Copper + Cloves Barre 57,Chaitanya Nahar,,,Studio 1,14,57,59.0,MANUAL,Moved from Kenkere to populate Copper & Cloves without increasing trainer load,,0,0.00,0.0000,8.4,0.6000,0.0000,0.0000,

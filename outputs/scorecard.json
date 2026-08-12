@@ -2,18 +2,18 @@
   "generated_for_week": "2026-05-04",
   "locations": {
     "Copper & Cloves": {
-      "total_classes": 10,
+      "total_classes": 12,
       "target_schedule_score": 50,
-      "schedule_score": 60.0,
-      "avg_slot_score": 55.0,
-      "predicted_avg_fill_rate": 0.571,
+      "schedule_score": 60.7,
+      "avg_slot_score": 55.7,
+      "predicted_avg_fill_rate": 0.576,
       "historical_avg_fill_rate": 0.0,
-      "zero_history_slots": 10,
+      "zero_history_slots": 12,
       "zero_history_pct": 1.0,
       "experimental_pct": 0.0,
       "barre_pct": 1.0,
-      "barre_family_count": 9,
-      "barre_family_pct": 0.9,
+      "barre_family_count": 11,
+      "barre_family_pct": 0.917,
       "format_counts": {
         "Studio Barre 57": 0,
         "Studio Mat 57": 0,
@@ -28,8 +28,8 @@
         "Studio Foundations": 0
       },
       "class_mix": {
-        "Copper + Cloves Mat 57": 0.1,
-        "Copper + Cloves Barre 57": 0.9
+        "Copper + Cloves Mat 57": 0.083,
+        "Copper + Cloves Barre 57": 0.917
       },
       "hard_constraint_violations": [],
       "soft_constraint_penalties": 0,
@@ -48,21 +48,21 @@
           "pct": 14.6
         },
         "Studio 1": {
-          "used_min": 456,
+          "used_min": 570,
           "avail_min": 4680,
-          "pct": 9.7
+          "pct": 12.2
         }
       },
       "peak_cluster_fill_count": 2,
-      "format_mix_cov": 0.8,
+      "format_mix_cov": 0.833,
       "trainer_hours_histogram": {
-        "<5h": 3,
+        "<5h": 4,
         "5-10h": 0,
         "10-13h": 0,
         "13-15h": 0,
         ">15h": 0
       },
-      "trainer_count": 3
+      "trainer_count": 4
     },
     "Courtside": {
       "total_classes": 6,
