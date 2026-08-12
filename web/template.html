@@ -17,9 +17,10 @@
 <script>
   (function() {
     var theme = localStorage.getItem('athena-theme');
-    if (theme === 'theme-dark') {
-      document.documentElement.classList.add('theme-dark');
-    }
+    var isDark = theme === 'theme-dark';
+    document.documentElement.classList.toggle('theme-dark', isDark);
+    document.body?.classList.toggle('theme-dark', isDark);
+    document.body?.classList.toggle('theme-light', !isDark);
   })();
 </script>
 </head>
@@ -292,7 +293,10 @@ const WEEK_LABEL   = [/*INJECT_WEEK_LABEL*/][0] || SCHEDULE_DATA.generated_for_w
 const OPPORTUNITIES = [/*INJECT_OPPORTUNITIES*/][0] || [];
 
 function toggleTheme() {
-  const isDark = document.documentElement.classList.toggle('theme-dark');
+  const isDark = !document.documentElement.classList.contains('theme-dark');
+  document.documentElement.classList.toggle('theme-dark', isDark);
+  document.body.classList.toggle('theme-dark', isDark);
+  document.body.classList.toggle('theme-light', !isDark);
   localStorage.setItem('athena-theme', isDark ? 'theme-dark' : 'theme-light');
   updateThemeIcon();
   updateBrandLogos();
@@ -302,8 +306,10 @@ function updateThemeIcon() {
   const isDark = document.documentElement.classList.contains('theme-dark');
   const btn = document.getElementById('theme-toggle-btn');
   if(btn) {
-    btn.querySelector('.icon-light').style.display = isDark ? 'none' : 'flex';
-    btn.querySelector('.icon-dark').style.display = isDark ? 'flex' : 'none';
+    const light = btn.querySelector('.icon-light');
+    const dark = btn.querySelector('.icon-dark');
+    if(light) light.style.display = isDark ? 'none' : 'flex';
+    if(dark) dark.style.display = isDark ? 'flex' : 'none';
   }
 }
 

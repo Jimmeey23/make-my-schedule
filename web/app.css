@@ -41,33 +41,8 @@
   --sh-lg: 0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
-/* Dark mode overrides */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0F172A;
-    --surface: #111827;
-    --surface2: #1F2937;
-    --border: #374151;
-    --border-strong: #4B5563;
-    --text: #F9FAFB;
-    --text-2: #E5E7EB;
-    --text-muted: #9CA3AF;
-    --text-light: #6B7280;
-    --primary: #2563EB;
-    --primary-600: #3B82F6;
-    --primary-light: #EFF6FF;
-    --primary-mid: #DBEAFE;
-    --prime: #D97706;
-    --prime-light: #FFFBEB;
-    --green: #15803D;
-    --green-light: #F0FDF4;
-    --red: #DC2626;
-    --red-light: #FEF2F2;
-    --purple: #7C3AED;
-    --purple-light: #F5F3FF;
-    /* additional dark mode palette as needed */
-  }
-}
+/* Dark mode is opt-in only via .theme-dark; light mode remains the default. */
+
 
 
 html {
@@ -81,7 +56,8 @@ body {
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
-  font-variant-numeric: tabular-nums
+  font-variant-numeric: tabular-nums;
+  color-scheme: light;
 }
 
 h1,
@@ -11770,6 +11746,7 @@ details.fp-section[open] .fp-section-hdr::after {
 
   background: var(--bg) !important;
   color: var(--text) !important;
+  color-scheme: dark;
 }
 
 /* Header & Shell Overrides (Removing Hardcoded Gradients) */
