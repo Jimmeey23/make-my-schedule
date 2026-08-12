@@ -223,6 +223,14 @@ COPPER_ALLOWED_CLASSES = {
     "Copper + Cloves FIT",
     "Copper + Cloves Barre 57",
 }
+# Copper & Cloves has almost no history under its own branded class names, so its
+# candidate pool and history lookups must bridge to Kenkere House's generic names
+# (Kenkere calls the same formats "Studio Mat 57" / "Studio FIT" / "Studio Barre 57").
+COPPER_GENERIC_FORMAT_NAME = {
+    "Copper + Cloves Mat 57": "Studio Mat 57",
+    "Copper + Cloves FIT": "Studio FIT",
+    "Copper + Cloves Barre 57": "Studio Barre 57",
+}
 STRENGTH_LAB_PROTECT_FILL_THRESHOLD = 0.50
 
 def location_region(location: str) -> str:
@@ -479,6 +487,19 @@ def canonical_class_key(class_name: str) -> str:
     if "fit" in lower:
         return "Studio FIT"
     return class_name
+
+
+def copper_branded_class_name(class_name: str) -> Optional[str]:
+    """Map a generic class name (e.g. Kenkere's "Studio Mat 57") to the Copper &
+    Cloves branded equivalent, or None if the format isn't one Copper allows."""
+    lower = (class_name or "").lower()
+    if "mat 57" in lower or "mat57" in lower:
+        return "Copper + Cloves Mat 57"
+    if "barre 57" in lower or "power barre" in lower or "barre fusion" in lower:
+        return "Copper + Cloves Barre 57"
+    if "fit" in lower:
+        return "Copper + Cloves FIT"
+    return None
 
 
 def protected_class_variant_key(class_name: str) -> str:
@@ -1383,26 +1404,39 @@ class ScheduleOptimiser:
         self._ranking_by_location_day = dict(by_location_day)
         self._ranking_by_location_class_day = dict(by_location_class_day)
 
+    def _derived_source_rows(self, location: str, own_rows: List[dict], native_rows: List[dict]) -> List[dict]:
+        """Borrow candidate rows from a derived studio's source location(s), rebranding
+        the class name where needed (e.g. Copper & Cloves uses branded names that don't
+        exist in Kenkere House's history)."""
+        borrowed = []
+        for source in DERIVED_LOCATION_SOURCES.get(location, []):
+            if source == location:
+                continue
+            for row in native_rows(source):
+                cname = row.get("class")
+                if location == "Copper & Cloves":
+                    cname = copper_branded_class_name(cname)
+                    if not cname:
+                        continue
+                borrowed.append({**row, "location": location, "class": cname})
+        return own_rows + borrowed
+
     def _candidate_rows(self, location: str, day: int, day_filter: bool) -> List[dict]:
         if not hasattr(self, "_ranking_by_location"):
             self._build_score_indexes()
+        if location not in DERIVED_LOCATION_SOURCES:
+            if day_filter:
+                return self._ranking_by_location_day.get((location, day), [])
+            return self._ranking_by_location.get(location, [])
         if day_filter:
-            rows = self._ranking_by_location_day.get((location, day), [])
-            if rows:
-                return rows
-            return [
-                {**row, "location": location}
-                for source in DERIVED_LOCATION_SOURCES.get(location, [])
-                for row in self._ranking_by_location_day.get((source, day), [])
-            ]
-        rows = self._ranking_by_location.get(location, [])
-        if rows:
-            return rows
-        return [
-            {**row, "location": location}
-            for source in DERIVED_LOCATION_SOURCES.get(location, [])
-            for row in self._ranking_by_location.get(source, [])
-        ]
+            own = self._ranking_by_location_day.get((location, day), [])
+            return self._derived_source_rows(
+                location, own, lambda source: self._ranking_by_location_day.get((source, day), [])
+            )
+        own = self._ranking_by_location.get(location, [])
+        return self._derived_source_rows(
+            location, own, lambda source: self._ranking_by_location.get(source, [])
+        )
 
     def _derived_slot_history_times(self, location: str) -> Tuple[List[str], List[str]]:
         if not hasattr(self, "scores_data"):
@@ -5007,10 +5041,17 @@ class ScheduleOptimiser:
             nearby.sort(key=lambda item: item[0])
             return nearby[0][1]
         if location in DERIVED_LOCATION_SOURCES:
+            # Copper & Cloves' branded class names (e.g. "Copper + Cloves Mat 57") don't
+            # exist in Kenkere House's history, which uses the generic name — try both.
+            source_class_names = [class_name]
+            generic_name = COPPER_GENERIC_FORMAT_NAME.get(class_name)
+            if generic_name:
+                source_class_names.append(generic_name)
             source_matches = [
-                self._get_hist(source, class_name, trainer, day_int, time_str)
+                self._get_hist(source, source_name, trainer, day_int, time_str)
                 for source in DERIVED_LOCATION_SOURCES.get(location, [])
                 if source != location
+                for source_name in source_class_names
             ]
             source_matches = [m for m in source_matches if m and m.get("session_count", 0) > 0]
             if source_matches:
@@ -5036,14 +5077,19 @@ class ScheduleOptimiser:
             if abs(hist_min - t_min) <= 15
         ]
         if not matching and location in DERIVED_LOCATION_SOURCES:
+            source_class_names = [class_name]
+            generic_name = COPPER_GENERIC_FORMAT_NAME.get(class_name)
+            if generic_name:
+                source_class_names.append(generic_name)
             for source in DERIVED_LOCATION_SOURCES.get(location, []):
                 if source == location:
                     continue
-                matching.extend(
-                    metrics
-                    for hist_min, metrics in self._hist_by_slot_day.get((source, class_name, day_int), [])
-                    if abs(hist_min - t_min) <= 15
-                )
+                for source_name in source_class_names:
+                    matching.extend(
+                        metrics
+                        for hist_min, metrics in self._hist_by_slot_day.get((source, source_name, day_int), [])
+                        if abs(hist_min - t_min) <= 15
+                    )
 
         if not matching:
             canonical_class = canonical_class_key(class_name)

@@ -1,1 +1,1 @@
-{"running": true, "status": "running", "pid": 63749, "started": 1786512700.8859148, "message": "Running \u2014 Agent 2: Analysing history..."}
+{"running": false, "status": "done", "pid": null, "started": 1786512700.8859148, "message": "Complete \u2014 reload to see new schedule."}

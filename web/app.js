@@ -5056,6 +5056,30 @@ const QUAL_FORMAT_HINTS={
 };
 const DAYS_ALL=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const LOCS_ALL=["Kwality House, Kemps Corner","Supreme HQ, Bandra","Courtside","Kenkere House","Copper & Cloves"];
+const CITIES_ALL=["Mumbai","Bengaluru"];
+const LOCATION_CITY={
+  "Kwality House, Kemps Corner":"Mumbai",
+  "Supreme HQ, Bandra":"Mumbai",
+  "Courtside":"Mumbai",
+  "Kenkere House":"Bengaluru",
+  "Copper & Cloves":"Bengaluru"
+};
+function trainerCities(t){
+  const locs=Object.keys(t.locations||{});
+  const cities=new Set(locs.map(loc=>LOCATION_CITY[loc]).filter(Boolean));
+  return cities.size?[...cities]:["Unassigned"];
+}
+function groupTrainerRowsByCity(rows,trainerOf){
+  const groups=new Map(CITIES_ALL.map(c=>[c,[]]));
+  rows.forEach(row=>{
+    const cities=trainerCities(trainerOf(row));
+    cities.forEach(city=>{
+      if(!groups.has(city))groups.set(city,[]);
+      groups.get(city).push(row);
+    });
+  });
+  return [...groups.entries()].filter(([,list])=>list.length);
+}
 function settHistoricWeekOffDays(t){
   const days=Array.isArray(t?.historic_week_off_days)?t.historic_week_off_days:[];
   return days.filter(d=>DAYS_ALL.includes(d)).slice(0,2);
@@ -5902,8 +5926,11 @@ function settRenderTrainerManager(){
   if(!wrap||!_settTrainerProfiles)return;
   const rows=settFilteredTrainerIndexes();
   if(!rows.length){wrap.innerHTML=`<div style="font-size:12px;color:var(--text-muted);padding:10px 0">No trainers match the current filters.</div>`;return;}
-  wrap.innerHTML=`<div class="trainer-mgr-grid">
-    ${rows.map(({t,i})=>{
+  const cityGroups=groupTrainerRowsByCity(rows,({t})=>t);
+  wrap.innerHTML=cityGroups.map(([city,cityRows])=>`
+    <div class="sett-city-group-label">${rvEscapeHtml(city)} <span class="sett-city-group-count">${cityRows.length}</span></div>
+    <div class="trainer-mgr-grid">
+    ${cityRows.map(({t,i})=>{
       const active=trainerIsActive(t);
       const img=trainerImage(t.name);
       const locNames=Object.keys(t.locations||{});
@@ -5960,7 +5987,7 @@ function settRenderTrainerManager(){
         </div>
       </div>`;
     }).join("")}
-  </div>`;
+  </div>`).join("");
 }
 
 function settTierDefaultCap(tier){
@@ -6134,7 +6161,9 @@ function settRenderQualifications(){
       </div></th>`).join("")}
     </tr></thead>
     <tbody>
-      ${sorted.map(t=>`<tr class="qual-row" data-trainer="${(t.name||"").replace(/"/g,"&quot;")}">
+      ${groupTrainerRowsByCity(sorted,t=>t).map(([city,cityTrainers])=>`
+        <tr class="qual-city-row"><td colspan="${2+QUAL_KEYS.length}" class="qual-city-label">${rvEscapeHtml(city)} <span class="sett-city-group-count">${cityTrainers.length}</span></td></tr>
+        ${cityTrainers.map(t=>`<tr class="qual-row" data-trainer="${(t.name||"").replace(/"/g,"&quot;")}">
         <td>
           <div class="qual-row-name">
             <span class="trainer-mgr-avatar" style="width:28px;height:28px">${trainerImage(t.name)?`<img src="${trainerImage(t.name)}">`:trainerInitials(t.name||"")}</span>
@@ -6143,7 +6172,7 @@ function settRenderQualifications(){
         </td>
         <td><span class="qual-tier">T${t.tier||"?"}</span></td>
         ${QUAL_KEYS.map(k=>`<td><input type="checkbox" class="qual-cb" data-trainer="${(t.name||"").replace(/"/g,"&quot;")}" data-key="${k}" ${(t.qualifications||{})[k]?"checked":""} onchange="settCollectQualsFromDom()"></td>`).join("")}
-      </tr>`).join("")}
+      </tr>`).join("")}`).join("")}
     </tbody>
   </table></div>`;
 }
@@ -6241,7 +6270,13 @@ function settRenderAvailability(){
   grid.className="avail-cards-container";
   grid.id="avail-cards-container";
 
-  sorted.forEach(t=>{
+  const withLocs=sorted.filter(t=>Object.keys(t.locations||{}).length);
+  groupTrainerRowsByCity(withLocs,t=>t).forEach(([city,cityTrainers])=>{
+    const cityLabel=document.createElement("div");
+    cityLabel.className="sett-city-group-label";
+    cityLabel.innerHTML=`${rvEscapeHtml(city)} <span class="sett-city-group-count">${cityTrainers.length}</span>`;
+    grid.appendChild(cityLabel);
+    cityTrainers.forEach(t=>{
     const locEntries=Object.entries(t.locations||{});
     if(!locEntries.length)return;
     const active=trainerIsActive(t);
@@ -6330,6 +6365,7 @@ function settRenderAvailability(){
     });
     card.appendChild(body);
     grid.appendChild(card);
+    });
   });
 
   wrap.appendChild(grid);
@@ -6894,35 +6930,38 @@ function settRenderPriority(){
       <button class="sett-ghost-btn" onclick="settApplyPriorityBulk()">Set All to Value</button>
       <button class="sett-ghost-btn" onclick="settApplyPriorityByTier()">Auto-Weight by Tier</button>
     </div>
-    <div class="priority-grid">
-      ${trainers.map(t=>{
-        const val=cfg[t.name]!==undefined?cfg[t.name]:50;
-        return `
-          <div class="priority-card">
-            <div class="priority-card-head">
-              <div style="display:flex;align-items:center;gap:10px;min-width:0">
-                <span class="trainer-mgr-avatar" style="width:36px;height:36px">
-                  ${trainerImage(t.name)?`<img src="${trainerImage(t.name)}">`:trainerInitials(t.name)}
-                </span>
-                <div style="min-width:0">
-                  <div style="font-size:13px;font-weight:800">${rvEscapeHtml(t.name)}</div>
-                  <div style="font-size:9px;color:#64748B;text-transform:uppercase;font-weight:900">Tier ${t.tier}</div>
+    ${groupTrainerRowsByCity(trainers,t=>t).map(([city,cityTrainers])=>`
+      <div class="sett-city-group-label">${rvEscapeHtml(city)} <span class="sett-city-group-count">${cityTrainers.length}</span></div>
+      <div class="priority-grid">
+        ${cityTrainers.map(t=>{
+          const val=cfg[t.name]!==undefined?cfg[t.name]:50;
+          return `
+            <div class="priority-card">
+              <div class="priority-card-head">
+                <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                  <span class="trainer-mgr-avatar" style="width:36px;height:36px">
+                    ${trainerImage(t.name)?`<img src="${trainerImage(t.name)}">`:trainerInitials(t.name)}
+                  </span>
+                  <div style="min-width:0">
+                    <div style="font-size:13px;font-weight:800">${rvEscapeHtml(t.name)}</div>
+                    <div style="font-size:9px;color:#64748B;text-transform:uppercase;font-weight:900">Tier ${t.tier}</div>
+                  </div>
+                </div>
+                <div style="text-align:right">
+                  <label style="font-size:8px;font-weight:900;text-transform:uppercase;color:#94A3B8;display:block;margin-bottom:4px">Weight</label>
+                  <input type="number" class="priority-inp" data-trainer="${rvEscapeAttr(t.name)}" value="${val}" min="0" max="100"
+                         style="width:60px;text-align:center;color:#1D4ED8;font-weight:900"
+                         oninput="settCollectPriorityFromDom()">
                 </div>
               </div>
-              <div style="text-align:right">
-                <label style="font-size:8px;font-weight:900;text-transform:uppercase;color:#94A3B8;display:block;margin-bottom:4px">Weight</label>
-                <input type="number" class="priority-inp" data-trainer="${rvEscapeAttr(t.name)}" value="${val}" min="0" max="100" 
-                       style="width:60px;text-align:center;color:#1D4ED8;font-weight:900"
-                       oninput="settCollectPriorityFromDom()">
+              <div class="priority-bar">
+                <div class="priority-bar-fill" style="width:${val}%"></div>
               </div>
             </div>
-            <div class="priority-bar">
-              <div class="priority-bar-fill" style="width:${val}%"></div>
-            </div>
-          </div>
-        `;
-      }).join("")}
-    </div>
+          `;
+        }).join("")}
+      </div>
+    `).join("")}
   `;
 }
 

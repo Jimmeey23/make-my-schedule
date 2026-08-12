@@ -375,11 +375,6 @@ button {
   min-width: 0
 }
 
-.hdr-actions .week-badge,
-.hdr-actions .schedule-week-control {
-  display: none
-}
-
 .hdr-actions .gen-btn,
 .hdr-actions .finalise-btn {
   height: 34px;
@@ -7824,6 +7819,42 @@ details.fp-section[open] .fp-section-hdr::after {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 12px
+}
+
+.sett-city-group-label {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--primary);
+  padding: 16px 2px 8px;
+  margin-top: 4px;
+  border-bottom: 1px solid var(--border-strong);
+  display: flex;
+  align-items: baseline;
+  gap: 8px
+}
+
+.sett-city-group-label:first-child {
+  margin-top: 0
+}
+
+.sett-city-group-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: normal
+}
+
+.qual-city-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--primary);
+  background: var(--surface2);
+  padding: 8px 12px !important
 }
 
 .trainer-mgr-card {
