@@ -141,6 +141,9 @@ async function collaborationEmailSignUp() {
     data.session ? "Account created and signed in." : "Check your email to confirm your account, then return here to sign in.",
     "success"
   );
+  if (data.session) {
+    window.location.reload();
+  }
 }
 
 async function collaborationRequireAuth() {

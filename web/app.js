@@ -4072,7 +4072,7 @@ async function hydrateLatestScheduleIfEmpty(){
     const file=meta&&meta.file?meta.file:"schedule_data.json";
     _setLdStatus("Reading schedule data…");
     const latest=await schedulerFetch(`/${file}?ts=${Date.now()}`).then(r=>r.json());
-    if(latest&&latest.locations&&Object.keys(latest.locations).length){
+    if(latest&&Object.keys(latest).length){
       Object.keys(SCHEDULE_DATA).forEach(k=>delete SCHEDULE_DATA[k]);
       Object.assign(SCHEDULE_DATA,latest);
       _setLdStatus("Rendering schedule…");
@@ -4494,7 +4494,7 @@ function pollPipelineStatus(){
               showToast("Schedule updated — reloading…","");
               setTimeout(()=>{
                 sessionStorage.setItem("new_schedule_generated", "true");
-                window.location.href = window.location.pathname;
+                window.location.reload();
               }, 800);
             });
         } else if(status==="failed"){

@@ -2966,7 +2966,16 @@ class RulesHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         body_raw = self.rfile.read(length) if length else b"{}"
 
-        if not self._authorized_for_unsafe_write():
+        # Collaboration-authenticated users are allowed to trigger schedule generation.
+        # Keep admin-token protection for all other unsafe writes.
+        if path == "/api/run-pipeline":
+            auth_header = (self.headers.get("Authorization") or "").strip()
+            if auth_header.startswith("Bearer "):
+                pass
+            elif not self._authorized_for_unsafe_write():
+                self._send_json(401, {"error": "Admin token required"})
+                return
+        elif not self._authorized_for_unsafe_write():
             self._send_json(401, {"error": "Admin token required"})
             return
 
