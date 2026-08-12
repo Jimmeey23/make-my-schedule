@@ -204,18 +204,18 @@ class TestUniversalConstraints:
                 violations.append("UNIV-007: Recovery is first class of day")
         assert len(violations) == 0
 
-    def test_foundations_not_at_1130(self):
+    def test_foundations_never_scheduled_1130(self):
         violations = []
         slot_time = "11:30"
-        if "Foundations" in "Studio Foundations" and slot_time in ("11:30", "19:15"):
-            violations.append("UNIV-008: Foundations at forbidden slot")
+        if "Foundations" in "Studio Foundations":
+            violations.append("UNIV-008: Foundations must never be scheduled")
         assert len(violations) == 1
 
-    def test_foundations_not_at_1915(self):
+    def test_foundations_never_scheduled_1915(self):
         violations = []
         slot_time = "19:15"
-        if "Foundations" in "Studio Foundations" and slot_time in ("11:30", "19:15"):
-            violations.append("UNIV-008: Foundations at forbidden slot")
+        if "Foundations" in "Studio Foundations":
+            violations.append("UNIV-008: Foundations must never be scheduled")
         assert len(violations) == 1
 
     def test_foundations_banned_at_0900(self):

@@ -118,7 +118,7 @@ def test_calendar_empty_slots_open_manual_add_modal():
     assert ('fetch(endpoint' in source or 'schedulerFetch(endpoint' in source or 'schedulerFetch(' in source)
     assert "Historic options for this exact studio/day/time" in source
     assert 'id="manual-custom-class"' in source
-    assert "manualEligibleTrainerOptions(ctx,cls)" in source
+    assert "manualTrainerOptions(ctx,cls)" in source
     assert "Private Session" in source
     assert 'id="manual-recurring-session"' in source
     assert "historicSlotIntel(_loc,d,t)" in source
@@ -301,6 +301,48 @@ def test_manual_add_rejects_room_overlap(tmp_path, monkeypatch):
                 },
             }
         )
+
+
+def test_manual_override_add_allows_ineligible_trainer_and_room_overlap(tmp_path, monkeypatch):
+    import app
+
+    web_dir = tmp_path / "web"
+    web_dir.mkdir()
+    schedule_path = web_dir / "schedule_data.json"
+    schedule_path.write_text(
+        '{"locations":{"Studio A":[{"location":"Studio A","date":"2026-05-04","day_of_week":"Monday","time":"10:00","duration_min":57,"class_name":"Studio Mat 57","room":"Studio 1","trainer_1":"Trainer B"}]},"iterations":{}}'
+    )
+    profiles_path = tmp_path / "profiles.json"
+    profiles_path.write_text(
+        '[{"name":"Trainer A","active":true,"locations":{"Studio A":{"available_days":["Tuesday"],"time_window":{"start":"07:00","end":"09:00"},"max_classes_per_day":3}},"qualifications":{"mat_57":false,"powercycle":true}}]'
+    )
+    monkeypatch.setattr(app, "WEB_DIR", web_dir)
+    monkeypatch.setattr(app, "TRAINER_PROFILES_PATH", profiles_path)
+    monkeypatch.setattr(app, "_save_schedule_to_supabase", lambda data: False)
+
+    result, _warning = app._add_class_to_schedule(
+        {
+            "iteration": "Main",
+            "slot": {
+                "location": "Studio A",
+                "date": "2026-05-04",
+                "day_of_week": "Monday",
+                "time": "10:30",
+                "duration_min": 57,
+                "class_name": "Studio Foundations",
+                "trainer_1": "Trainer A",
+                "room": "Studio 1",
+                "manual_allow_rule_override": True,
+                "manual_override_warnings": ["Not qualified", "Room occupied"],
+            },
+        }
+    )
+
+    assert result["added"] == 1
+    text = schedule_path.read_text()
+    assert '"class_name": "Studio Foundations"' in text
+    assert '"manual_allow_rule_override": true' in text
+    assert "Manual override: scheduler eligibility warnings acknowledged" in text
 
 
 def test_manual_recurring_add_validates_batch_before_writing(tmp_path, monkeypatch):

@@ -1282,7 +1282,7 @@
     "tier1_min_weekly_hours": 13,
     "tier1_ideal_weekly_hours": 15,
     "max_daily_trainer_hours": 4,
-    "max_trainer_work_days": 5,
+    "max_trainer_work_days": 6,
     "max_classes_per_day_default": 3,
     "enforce_assignment_days": true,
     "enforce_leave_and_off_days": true,
@@ -1323,11 +1323,14 @@
     "trend": 4
   },
   "am_pm_settings": {
-    "morning_cap_pct": 50,
+    "morning_cap_pct": 60,
     "enforce_split": false,
     "peak_slots": [
+      "08:00",
+      "09:00",
       "11:00",
       "11:30",
+      "18:00",
       "19:15"
     ]
   },

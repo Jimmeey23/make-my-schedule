@@ -716,8 +716,8 @@ def build_constraint_violations(location: str, day_name: str, time_str: str,
             violations.append("UNIV-026: Recovery not last in shift")
         if not is_recovery_allowed_in_slot(time_str):
             violations.append("UNIV-026: Recovery in early slot (must be at or after 12:30)")
-    if "Foundations" in class_name and time_str in ("11:30", "19:15"):
-        violations.append("UNIV-008: Foundations at forbidden slot")
+    if "Foundations" in class_name:
+        violations.append("UNIV-008: Foundations must never be scheduled")
     current_min = slot_time_to_minutes(time_str)
     current_format = get_class_format(class_name)
     earlier = [s for s in slots_today if slot_time_to_minutes(s.time) < current_min]

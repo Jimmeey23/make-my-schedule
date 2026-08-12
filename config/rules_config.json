@@ -19,7 +19,7 @@
     },
     "UNIV-003": {
       "enabled": true,
-      "description": "Saturday should be a high-load day, without violating weekly floors, trainer caps, or quality gates",
+      "description": "Saturday morning should be a high-load window, without violating weekly floors, trainer caps, or quality gates",
       "title": "UNIV-003"
     },
     "UNIV-004": {
@@ -44,7 +44,7 @@
     },
     "UNIV-008": {
       "enabled": true,
-      "description": "Foundations never at 11:30 or 19:15",
+      "description": "Foundations must never be scheduled",
       "title": "UNIV-008"
     },
     "UNIV-009": {

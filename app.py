@@ -672,6 +672,14 @@ def _room_overlaps(slot, rows):
 
 
 def _validate_manual_slot(data, iteration, slot, original_slot=None, additional_rows=None):
+    if slot.get("manual_allow_rule_override"):
+        slot.setdefault("constraint_violations", [])
+        slot.setdefault("scheduling_reason", "Manual class added from calendar")
+        if "Manual override: scheduler eligibility warnings acknowledged" not in slot["scheduling_reason"]:
+            slot["scheduling_reason"] = (
+                f"{slot['scheduling_reason']} · Manual override: scheduler eligibility warnings acknowledged"
+            )
+        return
     trainer = slot.get("trainer_1") or ""
     profile = _trainer_profile(trainer)
     if not profile:

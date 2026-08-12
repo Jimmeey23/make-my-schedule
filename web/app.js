@@ -215,6 +215,11 @@ function buildQuarterHourTimes(slots){
   return out.sort();
 }
 function isPrime(t){return PRIME_TIMES.has(t)}
+function isPinnedScheduleSlot(s){
+  const rec=String(s?.recommendation||"").toUpperCase();
+  const reason=String(s?.scheduling_reason||s?.reason||"").toLowerCase();
+  return rec==="PINNED" || s?.manual_pin || s?.manual || s?.is_pinned || reason.includes("manual pin") || reason.includes("pinned");
+}
 function pct(v,d=0){if(v==null||isNaN(v))return"—";return(v*100).toFixed(d)+"%"}
 function round1(v){return v==null?"—":v.toFixed(1)}
 function fillColor(v){if(v==null)return"#9CA3AF";if(v>=0.6)return"#15803D";if(v>=0.4)return"#D97706";return"#DC2626"}
@@ -798,6 +803,8 @@ function getCanonicalSelectionReason(s) {
 
 function renderStatsRow(area,slots){
   const total=slots.length;
+  const pinnedClasses=slots.filter(isPinnedScheduleSlot).length;
+  const generatedClasses=Math.max(0,total-pinnedClasses);
   const avgFill=total?slots.reduce((s,x)=>s+(x.predicted_fill_rate||0),0)/total:0;
   const avgScore=total?slots.reduce((s,x)=>s+(x.score||0),0)/total:0;
   const violations=slots.filter(s=>s.constraint_violations&&s.constraint_violations.length>0).length;
@@ -812,7 +819,8 @@ function renderStatsRow(area,slots){
   const expCls = (total > 0 && (experimental / total) > 0.10) ? "red" : "amber";
 
   area.insertAdjacentHTML("beforeend",`<div class="stats-row" style="display:flex;flex-wrap:wrap;gap:8px">
-    ${sc("Classes",total,"blue")}
+    ${sc("Generated Classes",generatedClasses,"blue")}
+    ${sc("Pinned Classes",pinnedClasses,"amber","reason_pinned")}
     ${sc("Avg Fill",pct(avgFill,1),avgFill>=0.5?"green":avgFill>=0.35?"amber":"red")}
     ${sc("Strong Historic",`${strongHistoric} (${total?Math.round(strongHistoric/total*100):0}%)`,"green","reason_strong_historic")}
     ${sc("Variety & Mix",`${varietyMix} (${total?Math.round(varietyMix/total*100):0}%)`,"purple","reason_variety_mix")}
@@ -890,6 +898,7 @@ function openStatsModal(kind){
     const reason=getCanonicalSelectionReason(s);
     if(kind==="reason_strong_historic") { title="Strong Historic Performance Evidence Classes"; return reason==="Strong historic performance evidence"; }
     if(kind==="reason_variety_mix") { title="Variety & Class Mix Balance Classes"; return reason==="Added for variety and to balance class mix"; }
+    if(kind==="reason_pinned") { title="Pinned Classes"; return isPinnedScheduleSlot(s); }
     if(kind==="reason_protected" || kind==="protected") { title="Protected Session & Slot Classes"; return reason==="Protected session & slot" || ["PINNED","PROTECT","PROTECT_EXACT","PROTECT_SLOT"].includes(s.recommendation); }
     if(kind==="reason_experimental" || kind==="experimental") { title="Experimental Classes"; return reason==="Experimental" || ["EXPERIMENTAL"].includes(s.recommendation) || s.is_experimental; }
     if(kind==="reason_trainer_constraints") { title="Trainer Constraint Classes"; return reason==="Trainer constraints"; }
@@ -2865,12 +2874,15 @@ function manualClassAllowedAtLocation(loc,cls){
 function manualClassOptions(loc){
   const slots=getAllLocSlots().filter(s=>!loc||s.location===loc).map(s=>s.class_name).filter(Boolean);
   return [...new Set([...MANUAL_CLASS_FORMATS,...slots])]
-    .filter(c=>manualClassAllowedAtLocation(loc,c))
     .sort((a,b)=>displayClass(a).localeCompare(displayClass(b)));
+}
+function manualClassCountAtLocation(loc,cls){
+  return getAllLocSlots().filter(s=>(s.location||"")===loc&&canonicalMixClass(s.class_name)===canonicalMixClass(cls)).length;
 }
 function manualRoomOptions(loc){
   const rooms=getAllLocSlots().filter(s=>!loc||s.location===loc).map(s=>s.room).filter(Boolean);
-  return [...new Set(rooms)].sort();
+  const fallback=["Studio 1","Studio 2","PowerCycle Studio","Strength Lab"];
+  return [...new Set([...rooms,...fallback])].filter(Boolean).sort();
 }
 function profileLocationData(profile,loc){
   const locations=profile?.locations||{};
@@ -2964,6 +2976,66 @@ function manualClassTrainerMetric(loc,day,time,cls,trainer){
   if(Object.keys(cm).length)return{avg_fill_rate:cm.avg_fill_rate,avg_checkin:cm.avg_checkin,session_count:cm.session_count,source:"class"};
   const tm=manualTrainerMetric(loc,trainer);
   return{avg_fill_rate:tm.trainer_fill_rate||0,avg_checkin:tm.trainer_avg_checkin||0,session_count:tm.trainer_session_count||0,source:tm.trainer_session_count?"trainer":"none"};
+}
+function manualTrainerWeeklyMinutes(trainer){
+  return getAllLocSlots()
+    .filter(r=>manualSameTrainerName(r.trainer_1,trainer))
+    .reduce((sum,r)=>sum+manualSlotDuration(r),0);
+}
+function manualTrainerWarnings(ctx,cls,trainer){
+  const loc=ctx.location||_loc||allLocations()[0]||"";
+  const day=ctx.day_of_week||ctx.day||"";
+  const time=ctx.time||"09:00";
+  const duration=Number(document.getElementById("manual-duration")?.value||classDefaultDuration(cls));
+  const start=tmins(time);
+  const end=start+duration;
+  const inactive=new Set(((_settSchedConfig||{}).inactive_trainers||[]).map(n=>manualNormName(n).toLowerCase()));
+  const rows=getAllLocSlots();
+  const profile=manualTrainerProfileFor(trainer);
+  const profileLoc=profileLocationData(profile,loc);
+  const warnings=[];
+  if(!manualClassAllowedAtLocation(loc,cls))warnings.push(`${displayClass(cls)} is normally blocked by this location/class mix.`);
+  if(!profile)warnings.push("No trainer profile found.");
+  if(profile?.active===false||inactive.has(manualNormName(trainer).toLowerCase()))warnings.push("Trainer is marked inactive.");
+  if(!profileLoc)warnings.push(`Trainer is not enabled for ${loc}.`);
+  if(profile&&cls!=="Private Session"&&manualHasExplicitQualifications(profile)&&!manualHasClassQualification(profile,cls))warnings.push(`Trainer is not marked qualified for ${displayClass(cls)}.`);
+  const days=profileLoc?.available_days||[];
+  if(days.length&&!days.includes(day))warnings.push(`Trainer is not normally available on ${day}.`);
+  const tw=profileLoc?.time_window||{};
+  const winStart=tw.start||"06:00";
+  const winEnd=tw.end||"22:00";
+  if(start<tmins(winStart)||start>=tmins(winEnd))warnings.push(`Outside trainer time window ${winStart}-${winEnd}.`);
+  const trainerRows=rows.filter(r=>manualSameTrainerName(r.trainer_1,trainer));
+  const sameDayLoc=trainerRows.filter(r=>(r.location||"")===loc&&(r.day_of_week||"")===day);
+  const maxDay=Number(profileLoc?.max_classes_per_day||4);
+  if(sameDayLoc.length>=maxDay)warnings.push(`Trainer already has ${sameDayLoc.length}/${maxDay} classes at this location that day.`);
+  if(trainerRows.some(r=>(r.day_of_week||"")===day&&manualWindowsOverlap(start,end,tmins(r.time||"00:00"),tmins(r.time||"00:00")+manualSlotDuration(r))))warnings.push("Trainer has an overlapping class.");
+  const shift=start<13*60?"AM":"PM";
+  const opposite=shift==="AM"?"PM":"AM";
+  if(trainerRows.some(r=>(r.day_of_week||"")===day&&((tmins(r.time||"00:00")<13*60?"AM":"PM")===opposite)))warnings.push(`Trainer already has a ${opposite} class that day.`);
+  const locationShift=manualViolatesLocationShiftLock({location:loc,day_of_week:day,time},trainerRows);
+  if(locationShift)warnings.push(locationShift);
+  const dailyMinutes=trainerRows.filter(r=>(r.day_of_week||"")===day).reduce((sum,r)=>sum+manualSlotDuration(r),0);
+  if(dailyMinutes+duration>4*60)warnings.push("Would exceed the recommended 4h daily teaching cap.");
+  const weeklyMinutes=manualTrainerWeeklyMinutes(trainer);
+  if(weeklyMinutes+duration>15*60)warnings.push("Would exceed the recommended 15h weekly teaching cap.");
+  return warnings;
+}
+function manualTrainerOptions(ctx,cls){
+  const loc=ctx.location||_loc||allLocations()[0]||"";
+  const day=ctx.day_of_week||ctx.day||"";
+  const time=ctx.time||"09:00";
+  const names=new Set([
+    ...(_settTrainerProfiles||[]).map(p=>p.name).filter(Boolean),
+    ...getAllLocSlots().map(s=>s.trainer_1).filter(Boolean)
+  ]);
+  return [...names].map(trainer=>{
+    const metric=manualClassTrainerMetric(loc,day,time,cls,trainer);
+    const warnings=manualTrainerWarnings(ctx,cls,trainer);
+    const weeklyMinutes=manualTrainerWeeklyMinutes(trainer);
+    const score=(Number(metric.avg_fill_rate||0)*55)+(Number(metric.avg_checkin||0)*3)+Math.min(20,Number(metric.session_count||0));
+    return{trainer,metric,warnings,weeklyMinutes,score};
+  }).sort((a,b)=>a.warnings.length-b.warnings.length||b.score-a.score||a.trainer.localeCompare(b.trainer));
 }
 function manualEligibleTrainerOptions(ctx,cls){
   const loc=ctx.location||_loc||allLocations()[0]||"";
@@ -3113,6 +3185,8 @@ function manualSlotTemplate(ctx,cls,trainer,source,overrides={}){
   const baseClass=cls||document.getElementById("manual-class")?.value||"Studio Mat 57";
   const className=isPrivate?`Private Session (${displayClass(baseClass)})`:(customClass||baseClass);
   const hist=source||{};
+  const warnings=manualTrainerWarnings({...ctx,...overrides},baseClass,trainer);
+  if(!manualClassAllowedAtLocation(loc,baseClass))warnings.unshift(`${displayClass(baseClass)} is normally blocked by location or class mix rules.`);
   const trainerMetric=(_historicSlotsCache?.trainer_metrics||[]).find(t=>t.location===loc&&String(t.trainer||"").trim().toLowerCase()===String(trainer||"").trim().toLowerCase())||{};
   const classMetric=(_historicSlotsCache?.class_metrics||[]).find(c=>c.location===loc&&c.class===baseClass)||{};
   return{
@@ -3133,7 +3207,10 @@ function manualSlotTemplate(ctx,cls,trainer,source,overrides={}){
     score:hist.score||58,
     recommendation:"MANUAL",
     is_experimental:false,
-    scheduling_reason:isPrivate?"Manual private session added from calendar":"Manual class added from calendar",
+    scheduling_reason:[
+      isPrivate?"Manual private session added from calendar":"Manual class added from calendar",
+      warnings.length?`Manual override warnings: ${warnings.join("; ")}`:""
+    ].filter(Boolean).join(" · "),
     historical_avg_fill:hist.avg_fill_rate||classMetric.avg_fill_rate||0,
     historical_avg_checkin:hist.avg_checkin||hist.avg_attendance||classMetric.avg_checkin||0,
     historical_session_count:hist.session_count||classMetric.session_count||0,
@@ -3146,7 +3223,9 @@ function manualSlotTemplate(ctx,cls,trainer,source,overrides={}){
     trainer_total_sessions:trainerMetric.trainer_session_count||0,
     historic_detail:hist.historic_detail||null,
     slot_top_trainers:[],
-    manual_added:true
+    manual_added:true,
+    manual_allow_rule_override:true,
+    manual_override_warnings:warnings
   };
 }
 async function openAddClassModal(ctx){
@@ -3178,24 +3257,27 @@ async function openAddClassModal(ctx){
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body">
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:10px">Schedule Fresh Class</div>
-        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px">
-          <label style="font-size:10px;font-weight:800;color:var(--text-muted)">Class<select class="sett-select" id="manual-class" style="width:100%;margin-top:4px">${classes.map(c=>`<option value="${rvEscapeAttr(c)}" ${c===defaultClass?"selected":""}>${rvEscapeHtml(displayClass(c))}</option>`).join("")}</select></label>
-          <label style="font-size:10px;font-weight:800;color:var(--text-muted)">Trainer<select class="sett-select" id="manual-trainer" style="width:100%;margin-top:4px"></select></label>
-          <label style="font-size:10px;font-weight:800;color:var(--text-muted)">Room<select class="sett-select" id="manual-room" style="width:100%;margin-top:4px">${rooms.map(r=>`<option value="${rvEscapeAttr(r)}">${rvEscapeHtml(r)}</option>`).join("")}</select></label>
-          <label style="font-size:10px;font-weight:800;color:var(--text-muted)">Capacity<input class="sett-input" id="manual-capacity" type="number" value="22" min="1" style="width:100%;margin-top:4px"></label>
-          <label style="font-size:10px;font-weight:800;color:var(--text-muted)">Duration<input class="sett-input" id="manual-duration" type="number" value="${classDefaultDuration(defaultClass)}" min="15" style="width:100%;margin-top:4px"></label>
+        <div class="manual-add-panel">
+        <div class="manual-add-kicker">Schedule Fresh Class</div>
+        <div class="manual-add-grid">
+          <label class="manual-field manual-field-wide">Class<select class="sett-select" id="manual-class">${classes.map(c=>{
+            const count=manualClassCountAtLocation(loc,c);
+            return`<option value="${rvEscapeAttr(c)}" ${c===defaultClass?"selected":""}>${rvEscapeHtml(displayClass(c))} (${count} scheduled)</option>`;
+          }).join("")}</select></label>
+          <label class="manual-field manual-field-wide">Trainer<select class="sett-select" id="manual-trainer"></select></label>
+          <label class="manual-field">Room<select class="sett-select" id="manual-room">${rooms.map(r=>`<option value="${rvEscapeAttr(r)}">${rvEscapeHtml(r)}</option>`).join("")}</select></label>
+          <label class="manual-field">Capacity<input class="sett-input" id="manual-capacity" type="number" value="22" min="1"></label>
+          <label class="manual-field">Duration<input class="sett-input" id="manual-duration" type="number" value="${classDefaultDuration(defaultClass)}" min="15"></label>
         </div>
-        <div id="manual-trainer-help" style="font-size:10px;color:var(--text-muted);margin-top:8px"></div>
-        <label style="display:block;font-size:10px;font-weight:800;color:var(--text-muted);margin-top:10px">Custom Class Name<input class="sett-input" id="manual-custom-class" placeholder="Optional: enter a custom class name" style="width:100%;margin-top:4px"></label>
-        <div style="font-size:10px;color:var(--text-muted);margin-top:6px">If custom class name is filled, it overrides the class dropdown and is saved into the schedule.</div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-          <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:900;color:var(--text-2)"><input type="checkbox" id="manual-private-session">Private session</label>
-          <label style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:900;color:var(--text-2)"><input type="checkbox" id="manual-recurring-session">Recurring</label>
-          <div id="manual-repeat-days" style="display:none;gap:8px;align-items:center;flex-wrap:wrap">${repeatHtml}</div>
+        <div id="manual-trainer-help" class="manual-warning-box"></div>
+        <label class="manual-field manual-custom-field">Custom Class Name<input class="sett-input" id="manual-custom-class" placeholder="Optional: enter a custom class name"></label>
+        <div class="manual-muted">If custom class name is filled, it overrides the class dropdown and is saved into the schedule.</div>
+        <div class="manual-toggle-row">
+          <label><input type="checkbox" id="manual-private-session">Private session</label>
+          <label><input type="checkbox" id="manual-recurring-session">Recurring</label>
+          <div id="manual-repeat-days" class="manual-repeat-days">${repeatHtml}</div>
         </div>
-        <button class="sett-save-btn" style="margin-top:12px" id="manual-add-fresh">Add Fresh Class</button>
+        <button class="sett-save-btn manual-add-submit" id="manual-add-fresh">Add Fresh Class Anyway</button>
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Historic options for this exact studio/day/time. Click Add to schedule that class and trainer immediately.</div>
       <div style="display:flex;flex-direction:column;gap:10px">
@@ -3230,21 +3312,28 @@ async function openAddClassModal(ctx){
     if(document.activeElement!==durationEl)durationEl.value=classDefaultDuration(cls);
     if(isPrivate)capacityEl.value=1;
     capacityEl.disabled=isPrivate;
-    const candidates=manualEligibleTrainerOptions(ctx,cls);
+    const candidates=manualTrainerOptions(ctx,cls);
+    const previousTrainer=trainerEl.value;
     trainerEl.innerHTML=candidates.length?candidates.map(c=>{
       const m=c.metric||{};
-      const label=`${c.trainer} - ${pct(m.avg_fill_rate||0,0)} fill - ${round1(m.avg_checkin||0)} avg - ${Math.round(m.session_count||0)} sessions`;
+      const label=`${c.trainer} - ${round1(c.weeklyMinutes/60)}h scheduled - ${c.warnings.length?`${c.warnings.length} warning${c.warnings.length===1?"":"s"}`:"OK"} - ${pct(m.avg_fill_rate||0,0)} fill`;
       return`<option value="${rvEscapeAttr(c.trainer)}">${rvEscapeHtml(label)}</option>`;
-    }).join(""):`<option value="">No eligible trainer</option>`;
+    }).join(""):`<option value="">No trainers available</option>`;
+    if(previousTrainer&&candidates.some(c=>c.trainer===previousTrainer))trainerEl.value=previousTrainer;
     const roomOk=manualRoomAvailable(loc,day,time,roomEl.value,Number(durationEl.value||57));
     const help=document.getElementById("manual-trainer-help");
-    help.textContent=candidates.length
-      ? `Showing ${candidates.length} eligible trainer${candidates.length===1?"":"s"} after qualification, studio availability, overlap, AM/PM split, location shift, and weekly cap checks.${roomOk?"":` ${roomEl.value} is already occupied at this time.`}`
-      : "No trainer currently satisfies qualification, studio availability, overlap, AM/PM split, location shift, and weekly cap checks.";
-    document.getElementById("manual-add-fresh").disabled=!candidates.length||!roomOk;
+    const selected=candidates.find(c=>c.trainer===trainerEl.value)||candidates[0]||null;
+    const classWarnings=manualClassAllowedAtLocation(loc,cls)?[]:[`${displayClass(cls)} is normally blocked by location or class mix rules.`];
+    const warnings=[...classWarnings,...(selected?.warnings||[])];
+    if(!roomOk)warnings.push(`${roomEl.value} is already occupied at this time.`);
+    help.classList.toggle("has-warning",warnings.length>0);
+    help.innerHTML=warnings.length
+      ? `<strong>Manual override warnings:</strong><ul>${warnings.map(w=>`<li>${rvEscapeHtml(w)}</li>`).join("")}</ul><div>User can still assign this manually.</div>`
+      : `<strong>No scheduler warnings for this selection.</strong><div>All trainers remain selectable for manual override.</div>`;
+    document.getElementById("manual-add-fresh").disabled=!candidates.length;
     document.getElementById("manual-repeat-days").style.display=document.getElementById("manual-recurring-session").checked?"flex":"none";
   };
-  ["manual-class","manual-room","manual-duration","manual-private-session","manual-recurring-session"].forEach(id=>{
+  ["manual-class","manual-trainer","manual-room","manual-duration","manual-private-session","manual-recurring-session"].forEach(id=>{
     box.querySelector("#"+id)?.addEventListener("change",refreshManualControls);
   });
   refreshManualControls();
@@ -4652,12 +4741,12 @@ const BUILTIN_RULES_CATALOG={
     {id:"universal",label:"Universal",description:"Apply to all 3 studio locations",enabled:true,rules:[
       {id:"UNIV-001",type:"hard",label:"Barre 57 ≥ 25% of weekly classes",description:"Barre 57 family must be ≥ 25% of total weekly classes at any location",enabled:true,risk_level:"critical",impact_area:"Class Mix",status_tag:"Mandatory"},
       {id:"UNIV-002",type:"hard",label:"All 3 time bands covered daily",description:"All 3 time bands must have ≥ 1 class every weekday (morning / midday / evening)",enabled:true,risk_level:"critical",impact_area:"Slot Coverage",status_tag:"Mandatory"},
-      {id:"UNIV-003",type:"hard",label:"Saturday is max-load day",description:"Saturday must never have fewer classes than any other day of the week",enabled:true,risk_level:"high",impact_area:"Day Distribution",status_tag:"Recommended"},
+      {id:"UNIV-003",type:"hard",label:"Saturday morning is high-load",description:"Saturday morning should carry strong demand coverage without violating weekly floors, trainer caps, or quality gates",enabled:true,risk_level:"high",impact_area:"Day Distribution",status_tag:"Recommended"},
       {id:"UNIV-004",type:"hard",label:"Sunday max 5–6 classes, no early/evening",description:"Sunday max 5–6 classes. No class before 10:00. No evening band.",enabled:true,risk_level:"high",impact_area:"Sunday Policy",status_tag:"Mandatory"},
       {id:"UNIV-005",type:"hard",label:"Specialist classes — certified trainers only",description:"PowerCycle, Strength Lab, Pre/Post Natal, Foundations — only certified trainers may teach",enabled:true,risk_level:"critical",impact_area:"Trainer Certification",status_tag:"Mandatory"},
       {id:"UNIV-006",type:"hard",label:"Express class must pair with full-length equivalent",description:"Any Express class must be paired with a full-length equivalent of the same type on the same day",enabled:true,risk_level:"high",impact_area:"Class Pairing",status_tag:"Recommended"},
       {id:"UNIV-007",type:"hard",label:"Studio Recovery never first class of day",description:"Studio Recovery must NEVER be the first class of the day at any location",enabled:true,risk_level:"high",impact_area:"Class Ordering",status_tag:"Mandatory"},
-      {id:"UNIV-008",type:"hard",label:"Foundations never at 11:30 or 19:15",description:"Foundations must never be scheduled in 11:30 or 19:15 slots",enabled:true,risk_level:"medium",impact_area:"Slot Restriction",status_tag:"Recommended"},
+      {id:"UNIV-008",type:"hard",label:"Foundations must never be scheduled",description:"Foundations is blocked from auto-scheduling in every slot",enabled:true,risk_level:"high",impact_area:"Class Restriction",status_tag:"Mandatory"},
       {id:"UNIV-009",type:"hard",label:"No trainer > 3 consecutive classes without gap",description:"No trainer more than 3 consecutive classes without ≥ 30 min gap",enabled:true,risk_level:"high",impact_area:"Trainer Welfare",status_tag:"Mandatory"},
       {id:"UNIV-010",type:"hard",label:"No trainer > 4 classes per day",description:"No trainer more than 4 classes in one day",enabled:true,risk_level:"critical",impact_area:"Trainer Welfare",status_tag:"Mandatory"},
       {id:"UNIV-011",type:"hard",label:"PowerCycle never at Kenkere",description:"PowerCycle NEVER at Kenkere House — not for any reason",enabled:true,risk_level:"critical",impact_area:"Location Restriction",status_tag:"Mandatory"},
@@ -4709,7 +4798,7 @@ const BUILTIN_RULES_CATALOG={
       {id:"MIX-002",type:"soft",label:"PowerCycle: 8–10% at Kwality, 25–28% at Supreme, 0% at Kenkere",description:"PowerCycle 8–10% at Kwality, 25–28% at Supreme, 0% at Kenkere",enabled:true,risk_level:"high",impact_area:"Class Mix",status_tag:"Recommended"},
       {id:"MIX-003",type:"soft",label:"Mat 57 min 3–4×/week per location",description:"Mat 57 minimum 3–4× per week at each location",enabled:true,risk_level:"medium",impact_area:"Class Mix",status_tag:"Recommended"},
       {id:"MIX-004",type:"soft",label:"FIT 1× daily, morning slots",description:"FIT 1× daily, morning slots preferred",enabled:true,risk_level:"medium",impact_area:"Class Mix",status_tag:"Recommended"},
-      {id:"MIX-005",type:"soft",label:"Foundations daily at Kenkere; 2–3×/week elsewhere",description:"Foundations at Kenkere 1× daily; Kwality/Supreme 2–3×/week",enabled:true,risk_level:"medium",impact_area:"Class Mix",status_tag:"Recommended"},
+      {id:"MIX-005",type:"soft",label:"Foundations disabled",description:"Foundations class mix is currently set to zero and should not be generated",enabled:true,risk_level:"high",impact_area:"Class Mix",status_tag:"Mandatory"},
       {id:"MIX-006",type:"soft",label:"Recovery — weekends only, afternoon slots",description:"Recovery weekends only, afternoon slots (12:30–16:00)",enabled:true,risk_level:"low",impact_area:"Class Mix",status_tag:"Optional"},
       {id:"MIX-007",type:"soft",label:"Back Body Blaze — morning only, max 3×/week",description:"Back Body Blaze morning only (07:30–09:00), max 3×/week",enabled:true,risk_level:"low",impact_area:"Class Mix",status_tag:"Optional"},
       {id:"MIX-008",type:"soft",label:"Studio Amped Up! max 1–2×/week; Reshma or Rohan only",description:"Studio Amped Up! max 1–2×/week; Reshma Sharma or Rohan Dahima only",enabled:true,risk_level:"low",impact_area:"Class Mix",status_tag:"Optional"},
@@ -5096,18 +5185,18 @@ const CLASS_MIX_TARGETS={
   "Kwality House, Kemps Corner":{
     "Studio Barre 57":{min:14,max:22},"Studio Cardio Barre":{min:8,max:10},"Studio Mat 57":{min:5,max:8},
     "Studio PowerCycle":{min:13,max:14},"Studio Strength Lab":{min:6,max:8},"Studio Back Body Blaze":{min:0,max:3},
-    "Studio FIT":{min:8,max:8},"Studio Recovery":{min:1,max:3},"Studio Foundations":{min:0,max:10},
+    "Studio FIT":{min:8,max:8},"Studio Recovery":{min:1,max:3},"Studio Foundations":{min:0,max:0},
     "Studio Amped Up!":{min:1,max:2},"Studio HIIT":{min:1,max:2}
   },
   "Supreme HQ, Bandra":{
     "Studio Barre 57":{min:12,max:20},"Studio Cardio Barre":{min:4,max:8},"Studio Mat 57":{min:3,max:6},
     "Studio PowerCycle":{min:14,max:20},"Studio Back Body Blaze":{min:0,max:3},
-    "Studio FIT":{min:3,max:6},"Studio Recovery":{min:1,max:3},"Studio Foundations":{min:2,max:4}
+    "Studio FIT":{min:3,max:6},"Studio Recovery":{min:1,max:3},"Studio Foundations":{min:0,max:0}
   },
   "Kenkere House":{
     "Studio Barre 57":{min:12,max:20},"Studio Cardio Barre":{min:4,max:8},"Studio Mat 57":{min:3,max:6},
     "Studio Back Body Blaze":{min:0,max:3},"Studio FIT":{min:3,max:6},"Studio Recovery":{min:1,max:3},
-    "Studio Foundations":{min:3,max:6}
+    "Studio Foundations":{min:0,max:0}
   },
   "Courtside":{
     "Studio Barre 57":{min:1,max:2},"Studio Barre 57 Express":{min:0,max:1},
@@ -5149,7 +5238,7 @@ function settDefaultConfig(){
       tier1_min_weekly_hours:13,
       tier1_ideal_weekly_hours:15,
       max_daily_trainer_hours:4,
-      max_trainer_work_days:5,
+      max_trainer_work_days:6,
       max_classes_per_day_default:3,
       enforce_assignment_days:true,
       enforce_leave_and_off_days:true,
@@ -5197,7 +5286,7 @@ function settNormalizeConfig(config){
   next.settings_options.tier1_min_weekly_hours=Number(next.settings_options.tier1_min_weekly_hours??base.settings_options.tier1_min_weekly_hours);
   next.settings_options.tier1_ideal_weekly_hours=Number(next.settings_options.tier1_ideal_weekly_hours??base.settings_options.tier1_ideal_weekly_hours);
   next.settings_options.max_daily_trainer_hours=Number(next.settings_options.max_daily_trainer_hours??base.settings_options.max_daily_trainer_hours);
-  next.settings_options.max_trainer_work_days=Math.max(1,Math.min(5,Number(next.settings_options.max_trainer_work_days??base.settings_options.max_trainer_work_days)));
+  next.settings_options.max_trainer_work_days=Math.max(1,Math.min(6,Number(next.settings_options.max_trainer_work_days??base.settings_options.max_trainer_work_days)));
   next.settings_options.max_classes_per_day_default=Number(next.settings_options.max_classes_per_day_default??base.settings_options.max_classes_per_day_default);
   next.settings_options.max_week_off_days=Math.max(0,Math.min(2,Number(next.settings_options.max_week_off_days??base.settings_options.max_week_off_days)));
   if(!["historic_lowest_days","manual_only"].includes(next.settings_options.trainer_week_off_strategy))next.settings_options.trainer_week_off_strategy=base.settings_options.trainer_week_off_strategy;
@@ -5332,7 +5421,8 @@ function settValidateConfig(config){
   if(Number(cfg.settings_options?.tier1_ideal_weekly_hours||0)<Number(cfg.settings_options?.tier1_min_weekly_hours||0))warnings.push("Advanced: Tier 1 ideal hours should be at least the Tier 1 minimum.");
   if(Number(cfg.settings_options?.tier1_ideal_weekly_hours||0)>Number(cfg.settings_options?.weekly_hours_cap||0))warnings.push("Advanced: Tier 1 ideal hours should not exceed the weekly cap.");
   if(Number(cfg.settings_options?.max_daily_trainer_hours||0)>4)warnings.push("Generation: max trainer hours/day is above the recommended 4-hour cap.");
-  if(Number(cfg.settings_options?.max_trainer_work_days||0)>5)errors.push("Generation: trainer work days exceeds canonical 5-day cap (every trainer must have at least one off day).");
+  if(Number(cfg.settings_options?.max_trainer_work_days||0)>6)errors.push("Generation: trainer work days cannot exceed the occasional 6-day cap.");
+  if(Number(cfg.settings_options?.max_trainer_work_days||0)>5)warnings.push("Generation: trainer work days above 5 should be used only occasionally when coverage requires it.");
   if(Number(cfg.settings_options?.max_classes_per_day_default||0)<=0)errors.push("Advanced: default classes per day cap must be greater than zero.");
   if(Number(cfg.settings_options?.max_week_off_days||0)>2)errors.push("Advanced: max default week-off days cannot exceed 2.");
   if(!cfg.settings_options?.enforce_assignment_days)warnings.push("Generation: assignment-day enforcement is disabled.");
@@ -5739,7 +5829,7 @@ function settRenderAISettings(){
   const cfg=(_settSchedConfig||{});
   const sw=cfg.scoring_weights||{fill_rate:35,revenue:25,avg_checkin:20,session_frequency:10,trend:10};
   const tb=cfg.time_band_weights||{morning:1.0,midday:1.15,evening:1.1};
-  const ap=cfg.am_pm_settings||{morning_cap_pct:50,enforce_split:false,peak_slots:["11:00","11:30","19:00","19:15"]};
+  const ap=cfg.am_pm_settings||{morning_cap_pct:60,enforce_split:false,peak_slots:["08:00","09:00","11:00","11:30","18:00","19:15"]};
   const sliderRow=(id,label,val,min,max,step,desc)=>{
     const isTimeBand=id.startsWith("tb_");
     const updateCall=isTimeBand
@@ -5790,7 +5880,7 @@ function settRenderAISettings(){
         </label>
         <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
           <label style="font-size:11px;color:var(--text-muted)">Morning classes cap (% of day)</label>
-          <input type="number" min="20" max="80" value="${ap.morning_cap_pct||50}" style="width:70px;height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:12px;font-weight:700;background:var(--surface);color:var(--text)" oninput="settSetAMPMOption('morning_cap_pct',+this.value)">
+          <input type="number" min="20" max="80" value="${ap.morning_cap_pct||60}" style="width:70px;height:30px;border:1px solid var(--border);border-radius:6px;padding:0 8px;font-size:12px;font-weight:700;background:var(--surface);color:var(--text)" oninput="settSetAMPMOption('morning_cap_pct',+this.value)">
           <span style="font-size:11px;color:var(--text-muted)">%</span>
         </div>
       </div>
@@ -5854,13 +5944,13 @@ function settUpdateTimeBandWeight(band,val){
 
 function settSetAMPMOption(key,val){
   if(!_settSchedConfig)_settSchedConfig=settNormalizeConfig({});
-  if(!_settSchedConfig.am_pm_settings)_settSchedConfig.am_pm_settings={morning_cap_pct:50,enforce_split:false,peak_slots:["11:00","11:30","19:00","19:15"]};
+  if(!_settSchedConfig.am_pm_settings)_settSchedConfig.am_pm_settings={morning_cap_pct:60,enforce_split:false,peak_slots:["08:00","09:00","11:00","11:30","18:00","19:15"]};
   _settSchedConfig.am_pm_settings[key]=val;
 }
 
 function settTogglePeakSlot(t,btn){
   if(!_settSchedConfig)_settSchedConfig=settNormalizeConfig({});
-  if(!_settSchedConfig.am_pm_settings)_settSchedConfig.am_pm_settings={morning_cap_pct:50,enforce_split:false,peak_slots:["11:00","11:30","19:00","19:15"]};
+  if(!_settSchedConfig.am_pm_settings)_settSchedConfig.am_pm_settings={morning_cap_pct:60,enforce_split:false,peak_slots:["08:00","09:00","11:00","11:30","18:00","19:15"]};
   const slots=_settSchedConfig.am_pm_settings.peak_slots||[];
   const idx=slots.indexOf(t);
   if(idx>=0){slots.splice(idx,1);btn.classList.remove("primary");}
