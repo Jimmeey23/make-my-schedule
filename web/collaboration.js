@@ -26,9 +26,14 @@ function collaborationSetGate(open, message = "Sign in to collaborate on live sc
   if (hint) hint.textContent = message;
 }
 
-function collaborationSetLogoutVisible(visible) {
+function collaborationSetLogoutVisible(visible, user = null) {
   const logoutBtn = document.getElementById("collaboration-logout-btn");
   if (logoutBtn) logoutBtn.hidden = !visible;
+  const emailEl = document.getElementById("collaboration-account-email");
+  if (!emailEl) return;
+  const label = user ? (user.user_metadata?.full_name || user.email || "") : "";
+  emailEl.textContent = label;
+  emailEl.hidden = !visible || !label;
 }
 
 function collaborationSetAuthFeedback(message = "", type = "") {
@@ -165,14 +170,14 @@ async function collaborationRequireAuth() {
     }
     collaborationUser = session.user;
     collaborationSetGate(false);
-    collaborationSetLogoutVisible(true);
+    collaborationSetLogoutVisible(true, collaborationUser);
     collaborationStartRealtime();
   });
   const { data } = await collaborationClient.auth.getSession();
   collaborationUser = data.session?.user || null;
   if (collaborationUser) {
     collaborationSetGate(false);
-    collaborationSetLogoutVisible(true);
+    collaborationSetLogoutVisible(true, collaborationUser);
     collaborationStartRealtime();
   } else {
     collaborationSetGate(true);

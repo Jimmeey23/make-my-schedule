@@ -1614,6 +1614,37 @@ class AISchedulePlanner:
                     day_accepted = best_day_slots
                     excluded_names = {normalize_trainer_name(s.trainer_1) for s in day_accepted}
 
+                    # A trainer used in AM can't also work PM the same day, so a greedy
+                    # AM pass can silently consume the whole roster and leave PM with no
+                    # eligible trainers. Before moving to PM, check whether enough distinct
+                    # trainers remain to hit PM's target; if not, drop the lowest-scoring
+                    # AM slots (freeing their trainers) until PM has a fair shot.
+                    if shift == "AM":
+                        pm_slot_times = LOCATION_SLOTS.get(location, {}).get("pm", [])
+                        am_slot_times = LOCATION_SLOTS.get(location, {}).get("am", [])
+                        am_share = (
+                            len(am_slot_times) / (len(am_slot_times) + len(pm_slot_times))
+                            if (am_slot_times or pm_slot_times) else 0.5
+                        )
+                        pm_target_hi = max(0, round(lo * (1 - am_share))) if lo else 0
+                        all_qualified = {
+                            normalize_trainer_name(p.get("name"))
+                            for p in profiles if p.get("name")
+                        }
+                        am_slots_sorted = sorted(
+                            day_accepted, key=lambda s: float(s.score or 0.0)
+                        )
+                        while pm_target_hi > 0 and am_slots_sorted:
+                            remaining_pool = all_qualified - {
+                                normalize_trainer_name(s.trainer_1) for s in am_slots_sorted
+                            }
+                            if len(remaining_pool) >= min(pm_target_hi, len(pm_slot_times) or pm_target_hi):
+                                break
+                            am_slots_sorted.pop(0)
+                        if len(am_slots_sorted) != len(day_accepted):
+                            day_accepted = am_slots_sorted
+                            excluded_names = {normalize_trainer_name(s.trainer_1) for s in day_accepted}
+
                 accepted = [s for s in accepted if s.day_of_week != day] + day_accepted
 
             min_slots = _minimum_ai_slot_count_for_location(location)
