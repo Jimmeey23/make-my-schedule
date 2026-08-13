@@ -1,5 +1,6 @@
 Date,Day,Time,Class,Trainer 1,Trainer 2,Cover,Room,Capacity,Duration (min),Score,Recommendation,Reason,Score Breakdown,Historic Sessions,Historic Checkins,Historic Fill Rate,Projected Avg Checkin,Projected Fill Rate,Late Cancel Rate,No Show Rate,Constraint Violations
-2026-08-10,Monday,08:30,Studio Mat 57,Bret Saldanha,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,7.8,0.5580,0.0000,0.0000,
-2026-08-10,Monday,09:30,Studio Cardio Barre,Atulan Purohit,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,5.4,0.3892,0.0000,0.0000,
-2026-08-11,Tuesday,20:00,Studio Barre 57,Mrigakshi Jaiswal,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,4.1,0.2952,0.0000,0.0000,
-2026-08-12,Wednesday,19:30,Studio Barre 57,Anmol Sharma,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,4.9,0.3500,0.0000,0.0000,
+2026-08-10,Monday,11:15,Studio Barre 57 Express,Richard D'Costa,,,Studio 1,14,45,65.0,,,,0,0.00,0.0000,5.1,0.3670,0.0000,0.0000,
+2026-08-11,Tuesday,11:15,Studio Barre 57,Karanvir Bhatia,,,Studio 1,14,57,50.0,,,,0,0.00,0.0000,3.8,0.2695,0.0000,0.0000,
+2026-08-12,Wednesday,18:30,Studio Cardio Barre,Karan Bhatia,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,3.6,0.2549,0.0000,0.0000,
+2026-08-13,Thursday,09:30,Studio Mat 57,Anmol Sharma,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,9.2,0.6561,0.0000,0.0000,
+2026-08-15,Saturday,10:15,Studio FIT,Pranjali Jain,,,Studio 1,14,57,65.0,,,,0,0.00,0.0000,11.5,0.8181,0.0000,0.0000,

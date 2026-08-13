@@ -2,18 +2,18 @@
   "generated_for_week": "2026-08-10",
   "locations": {
     "Copper & Cloves": {
-      "total_classes": 7,
+      "total_classes": 6,
       "target_schedule_score": 50,
-      "schedule_score": 52.7,
-      "avg_slot_score": 47.7,
-      "predicted_avg_fill_rate": 0.411,
+      "schedule_score": 55.0,
+      "avg_slot_score": 50.0,
+      "predicted_avg_fill_rate": 0.31,
       "historical_avg_fill_rate": 0.0,
-      "zero_history_slots": 7,
+      "zero_history_slots": 6,
       "zero_history_pct": 1.0,
       "experimental_pct": 0.0,
       "barre_pct": 1.0,
-      "barre_family_count": 4,
-      "barre_family_pct": 0.571,
+      "barre_family_count": 3,
+      "barre_family_pct": 0.5,
       "format_counts": {
         "Studio Barre 57": 0,
         "Studio Mat 57": 0,
@@ -28,8 +28,9 @@
         "Studio Foundations": 0
       },
       "class_mix": {
-        "Copper + Cloves Barre 57": 0.571,
-        "Copper + Cloves Mat 57": 0.429
+        "Copper + Cloves Mat 57": 0.333,
+        "Copper + Cloves Barre 57": 0.5,
+        "Copper + Cloves FIT": 0.167
       },
       "hard_constraint_violations": [],
       "soft_constraint_penalties": 0,
@@ -43,39 +44,39 @@
       ],
       "room_utilisation": {
         "studio_a": {
-          "used_min": 399,
-          "avail_min": 4680,
-          "pct": 8.5
+          "used_min": 342,
+          "avail_min": 3900,
+          "pct": 8.8
         }
       },
-      "peak_cluster_fill_count": 4,
-      "format_mix_cov": 0.143,
+      "peak_cluster_fill_count": 5,
+      "format_mix_cov": 0.408,
       "trainer_hours_histogram": {
-        "<5h": 3,
+        "<5h": 4,
         "5-10h": 0,
         "10-13h": 0,
         "13-15h": 0,
         ">15h": 0
       },
-      "trainer_count": 3
+      "trainer_count": 4
     },
     "Courtside": {
-      "total_classes": 4,
+      "total_classes": 5,
       "target_schedule_score": 75,
-      "schedule_score": 70.0,
-      "avg_slot_score": 65.0,
-      "predicted_avg_fill_rate": 0.398,
+      "schedule_score": 67.0,
+      "avg_slot_score": 62.0,
+      "predicted_avg_fill_rate": 0.473,
       "historical_avg_fill_rate": 0.0,
-      "zero_history_slots": 4,
+      "zero_history_slots": 5,
       "zero_history_pct": 1.0,
       "experimental_pct": 0.0,
       "barre_pct": 1.0,
       "barre_family_count": 3,
-      "barre_family_pct": 0.75,
+      "barre_family_pct": 0.6,
       "format_counts": {
         "Studio Barre 57": 2,
         "Studio Mat 57": 1,
-        "Studio FIT": 0,
+        "Studio FIT": 1,
         "Studio Cardio Barre": 1,
         "Studio PowerCycle": 0,
         "Studio Strength Lab": 0,
@@ -86,9 +87,10 @@
         "Studio Foundations": 0
       },
       "class_mix": {
-        "Studio Mat 57": 0.25,
-        "Studio Cardio Barre": 0.25,
-        "Studio Barre 57": 0.5
+        "Studio Barre 57": 0.4,
+        "Studio Cardio Barre": 0.2,
+        "Studio Mat 57": 0.2,
+        "Studio FIT": 0.2
       },
       "hard_constraint_violations": [],
       "soft_constraint_penalties": 0,
@@ -102,55 +104,55 @@
       ],
       "room_utilisation": {
         "studio_a": {
-          "used_min": 228,
-          "avail_min": 2340,
-          "pct": 9.7
+          "used_min": 273,
+          "avail_min": 3900,
+          "pct": 7.0
         }
       },
-      "peak_cluster_fill_count": 1,
-      "format_mix_cov": 0.354,
+      "peak_cluster_fill_count": 3,
+      "format_mix_cov": 0.346,
       "trainer_hours_histogram": {
-        "<5h": 4,
+        "<5h": 5,
         "5-10h": 0,
         "10-13h": 0,
         "13-15h": 0,
         ">15h": 0
       },
-      "trainer_count": 4
+      "trainer_count": 5
     },
     "Kenkere House": {
-      "total_classes": 49,
+      "total_classes": 52,
       "target_schedule_score": 80,
-      "schedule_score": 59.4,
-      "avg_slot_score": 54.4,
-      "predicted_avg_fill_rate": 0.356,
+      "schedule_score": 61.1,
+      "avg_slot_score": 56.1,
+      "predicted_avg_fill_rate": 0.407,
       "historical_avg_fill_rate": 0.0,
-      "zero_history_slots": 49,
+      "zero_history_slots": 52,
       "zero_history_pct": 1.0,
       "experimental_pct": 0.0,
-      "barre_pct": 0.959,
-      "barre_family_count": 24,
-      "barre_family_pct": 0.49,
+      "barre_pct": 0.962,
+      "barre_family_count": 25,
+      "barre_family_pct": 0.481,
       "format_counts": {
-        "Studio Barre 57": 18,
-        "Studio Mat 57": 8,
-        "Studio FIT": 14,
-        "Studio Cardio Barre": 6,
+        "Studio Barre 57": 17,
+        "Studio Mat 57": 11,
+        "Studio FIT": 12,
+        "Studio Cardio Barre": 8,
         "Studio PowerCycle": 0,
         "Studio Strength Lab": 0,
         "Studio HIIT": 0,
         "Studio Amped Up!": 0,
         "Studio Recovery": 2,
-        "Studio Back Body Blaze": 1,
+        "Studio Back Body Blaze": 2,
         "Studio Foundations": 0
       },
       "class_mix": {
-        "Studio Barre 57": 0.367,
-        "Studio Mat 57": 0.163,
-        "Studio FIT": 0.286,
-        "Studio Cardio Barre": 0.122,
-        "Studio Recovery": 0.041,
-        "Studio Back Body Blaze": 0.02
+        "Studio Barre 57": 0.327,
+        "Studio Mat 57": 0.212,
+        "Studio Cardio Barre": 0.154,
+        "Studio FIT": 0.231,
+        "Studio Back Body Blaze": 0.038,
+        "Studio Recovery": 0.038
       },
       "hard_constraint_violations": [],
       "soft_constraint_penalties": 0,
@@ -164,60 +166,60 @@
       ],
       "room_utilisation": {
         "studio_a": {
-          "used_min": 1881,
+          "used_min": 2166,
           "avail_min": 5460,
-          "pct": 34.5
+          "pct": 39.7
         },
         "studio_b": {
-          "used_min": 912,
-          "avail_min": 5460,
-          "pct": 16.7
+          "used_min": 798,
+          "avail_min": 3900,
+          "pct": 20.5
         }
       },
-      "peak_cluster_fill_count": 14,
-      "format_mix_cov": 0.75,
+      "peak_cluster_fill_count": 15,
+      "format_mix_cov": 0.624,
       "trainer_hours_histogram": {
-        "<5h": 1,
+        "<5h": 0,
         "5-10h": 2,
-        "10-13h": 0,
-        "13-15h": 2,
+        "10-13h": 2,
+        "13-15h": 1,
         ">15h": 0
       },
       "trainer_count": 5
     },
     "Supreme HQ, Bandra": {
-      "total_classes": 66,
+      "total_classes": 68,
       "target_schedule_score": 80,
-      "schedule_score": 64.5,
-      "avg_slot_score": 59.5,
-      "predicted_avg_fill_rate": 0.366,
+      "schedule_score": 54.2,
+      "avg_slot_score": 49.2,
+      "predicted_avg_fill_rate": 0.344,
       "historical_avg_fill_rate": 0.0,
-      "zero_history_slots": 66,
+      "zero_history_slots": 68,
       "zero_history_pct": 1.0,
       "experimental_pct": 0.0,
-      "barre_pct": 0.697,
-      "barre_family_count": 27,
-      "barre_family_pct": 0.409,
+      "barre_pct": 0.721,
+      "barre_family_count": 26,
+      "barre_family_pct": 0.382,
       "format_counts": {
         "Studio Barre 57": 19,
-        "Studio Mat 57": 6,
-        "Studio FIT": 11,
-        "Studio Cardio Barre": 8,
-        "Studio PowerCycle": 19,
+        "Studio Mat 57": 9,
+        "Studio FIT": 13,
+        "Studio Cardio Barre": 7,
+        "Studio PowerCycle": 18,
         "Studio Strength Lab": 0,
         "Studio HIIT": 0,
         "Studio Amped Up!": 0,
         "Studio Recovery": 1,
-        "Studio Back Body Blaze": 2,
+        "Studio Back Body Blaze": 1,
         "Studio Foundations": 0
       },
       "class_mix": {
-        "Studio Barre 57": 0.288,
-        "Studio PowerCycle": 0.288,
-        "Studio Cardio Barre": 0.121,
-        "Studio FIT": 0.167,
-        "Studio Back Body Blaze": 0.03,
-        "Studio Mat 57": 0.091,
+        "Studio PowerCycle": 0.265,
+        "Studio Barre 57": 0.279,
+        "Studio FIT": 0.191,
+        "Studio Mat 57": 0.132,
+        "Studio Cardio Barre": 0.103,
+        "Studio Back Body Blaze": 0.015,
         "Studio Recovery": 0.015
       },
       "hard_constraint_violations": [],
@@ -231,52 +233,52 @@
         "Supreme Friday underperformance \u2014 31.2% fill. Test Vivaran or Cauveri on Fridays instead."
       ],
       "room_utilisation": {
-        "studio_b": {
-          "used_min": 957,
-          "avail_min": 5460,
-          "pct": 17.5
-        },
         "powercycle": {
-          "used_min": 780,
+          "used_min": 765,
           "avail_min": 5460,
-          "pct": 14.3
+          "pct": 14.0
+        },
+        "studio_b": {
+          "used_min": 1083,
+          "avail_min": 5460,
+          "pct": 19.8
         },
         "studio_a": {
-          "used_min": 1710,
+          "used_min": 1767,
           "avail_min": 5460,
-          "pct": 31.3
+          "pct": 32.4
         }
       },
-      "peak_cluster_fill_count": 26,
-      "format_mix_cov": 0.723,
+      "peak_cluster_fill_count": 22,
+      "format_mix_cov": 0.702,
       "trainer_hours_histogram": {
-        "<5h": 8,
-        "5-10h": 4,
+        "<5h": 4,
+        "5-10h": 7,
         "10-13h": 0,
         "13-15h": 0,
         ">15h": 0
       },
-      "trainer_count": 12
+      "trainer_count": 11
     },
     "Kwality House, Kemps Corner": {
-      "total_classes": 72,
+      "total_classes": 69,
       "target_schedule_score": 80,
-      "schedule_score": 72.1,
-      "avg_slot_score": 67.1,
-      "predicted_avg_fill_rate": 0.474,
+      "schedule_score": 74.2,
+      "avg_slot_score": 69.2,
+      "predicted_avg_fill_rate": 0.462,
       "historical_avg_fill_rate": 0.0,
-      "zero_history_slots": 72,
+      "zero_history_slots": 69,
       "zero_history_pct": 1.0,
       "experimental_pct": 0.0,
-      "barre_pct": 0.597,
-      "barre_family_count": 23,
+      "barre_pct": 0.623,
+      "barre_family_count": 22,
       "barre_family_pct": 0.319,
       "format_counts": {
-        "Studio Barre 57": 16,
-        "Studio Mat 57": 10,
-        "Studio FIT": 7,
-        "Studio Cardio Barre": 7,
-        "Studio PowerCycle": 18,
+        "Studio Barre 57": 17,
+        "Studio Mat 57": 12,
+        "Studio FIT": 6,
+        "Studio Cardio Barre": 5,
+        "Studio PowerCycle": 16,
         "Studio Strength Lab": 10,
         "Studio HIIT": 0,
         "Studio Amped Up!": 1,
@@ -285,15 +287,14 @@
         "Studio Foundations": 0
       },
       "class_mix": {
-        "Studio Strength Lab": 0.139,
-        "Studio Mat 57": 0.139,
-        "Studio Cardio Barre": 0.097,
-        "Studio Barre 57": 0.222,
-        "Studio PowerCycle": 0.25,
-        "Studio Trainer's Choice": 0.014,
-        "Studio FIT": 0.097,
+        "Studio Strength Lab": 0.145,
+        "Studio Barre 57": 0.246,
+        "Studio PowerCycle": 0.232,
+        "Studio Mat 57": 0.174,
+        "Studio FIT": 0.087,
+        "Studio Cardio Barre": 0.072,
         "Studio Amped Up!": 0.014,
-        "Studio Back Body Blaze": 0.028
+        "Studio Back Body Blaze": 0.029
       },
       "hard_constraint_violations": [],
       "soft_constraint_penalties": 0,
@@ -311,32 +312,32 @@
           "avail_min": 3120,
           "pct": 18.3
         },
-        "studio_b": {
-          "used_min": 1170,
-          "avail_min": 5460,
-          "pct": 21.4
-        },
         "studio_a": {
-          "used_min": 1284,
+          "used_min": 1455,
           "avail_min": 5460,
-          "pct": 23.5
+          "pct": 26.6
         },
         "powercycle": {
-          "used_min": 765,
+          "used_min": 675,
           "avail_min": 5460,
-          "pct": 14.0
+          "pct": 12.4
+        },
+        "studio_b": {
+          "used_min": 987,
+          "avail_min": 5460,
+          "pct": 18.1
         }
       },
-      "peak_cluster_fill_count": 34,
-      "format_mix_cov": 0.731,
+      "peak_cluster_fill_count": 31,
+      "format_mix_cov": 0.661,
       "trainer_hours_histogram": {
         "<5h": 4,
-        "5-10h": 5,
+        "5-10h": 6,
         "10-13h": 1,
         "13-15h": 0,
         ">15h": 0
       },
-      "trainer_count": 10
+      "trainer_count": 11
     }
   }
 }

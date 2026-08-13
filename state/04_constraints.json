@@ -16,7 +16,7 @@
       "constraint_id": "UNIV-003",
       "type": "always_do",
       "location": null,
-      "description": "Saturday should be a high-load day, without violating weekly floors, trainer caps, or quality gates"
+      "description": "Saturday morning should be a high-load window, without violating weekly floors, trainer caps, or quality gates"
     },
     {
       "constraint_id": "UNIV-004",
@@ -46,7 +46,7 @@
       "constraint_id": "UNIV-008",
       "type": "never_do",
       "location": null,
-      "description": "Foundations never at 11:30 or 19:15"
+      "description": "Foundations must never be scheduled"
     },
     {
       "constraint_id": "UNIV-010",
