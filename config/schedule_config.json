@@ -1250,7 +1250,7 @@
     "Atulan Purohit": 90,
     "Bret Saldanha": 60,
     "Cauveri Vikrant": 90,
-    "Chaitanya Nahar": 90,
+    "Chaitanya Nahar": 60,
     "Kajol Kanchan": 90,
     "Karan Bhatia": 30,
     "Karanvir Bhatia": 90,
@@ -1262,9 +1262,8 @@
     "Richard D'Costa": 60,
     "Rohan Dahima": 90,
     "Shruti Kulkarni": 90,
-    "Siddhartha Kusuma": 90,
+    "Siddhartha Kusuma": 60,
     "Simonelle De Vitre": 60,
-    "Simran Dutt": 30,
     "Vivaran Dhasmana": 90
   },
   "settings_options": {
@@ -1313,7 +1312,7 @@
   "source_of_truth": {
     "owner": "settings-command-center",
     "conflict_policy": "settings_override_soft_rules",
-    "updated_at": "2026-08-12T04:51:58.271Z"
+    "updated_at": "2026-08-13T12:02:48.560Z"
   },
   "scoring_weights": {
     "fill_rate": 25,

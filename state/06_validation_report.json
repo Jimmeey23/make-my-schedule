@@ -1,0 +1,110 @@
+{
+  "violation_count": 10,
+  "slots_with_violations": 8,
+  "violations": [
+    {
+      "rule_id": "UNIV-023",
+      "reason": "Consecutive 'Studio Mat 57' classes back-to-back",
+      "location": "Kenkere House",
+      "day": "Monday",
+      "time": "08:30",
+      "class_name": "Studio Mat 57",
+      "trainer": "Kajol Kanchan",
+      "source": "ai"
+    },
+    {
+      "rule_id": "UNIV-023",
+      "reason": "Consecutive 'Studio Barre 57' classes back-to-back",
+      "location": "Kenkere House",
+      "day": "Tuesday",
+      "time": "18:15",
+      "class_name": "Studio Barre 57",
+      "trainer": "Kajol Kanchan",
+      "source": "greedy_fallback"
+    },
+    {
+      "rule_id": "UNIV-023",
+      "reason": "Consecutive 'Studio Barre 57' classes back-to-back",
+      "location": "Kenkere House",
+      "day": "Saturday",
+      "time": "09:00",
+      "class_name": "Studio Barre 57",
+      "trainer": "Pushyank Nahar",
+      "source": "greedy_fallback"
+    },
+    {
+      "rule_id": "UNIV-023",
+      "reason": "Consecutive 'Studio Barre 57' classes back-to-back",
+      "location": "Kenkere House",
+      "day": "Saturday",
+      "time": "09:15",
+      "class_name": "Studio Barre 57",
+      "trainer": "Shruti Kulkarni",
+      "source": "greedy_fallback"
+    },
+    {
+      "rule_id": "UNIV-023",
+      "reason": "Consecutive 'Studio Barre 57' classes back-to-back",
+      "location": "Kenkere House",
+      "day": "Saturday",
+      "time": "11:15",
+      "class_name": "Studio Barre 57",
+      "trainer": "Pushyank Nahar",
+      "source": "ai"
+    },
+    {
+      "rule_id": "UNIV-023",
+      "reason": "Consecutive 'Studio Barre 57' classes back-to-back",
+      "location": "Supreme HQ, Bandra",
+      "day": "Tuesday",
+      "time": "10:30",
+      "class_name": "Studio Barre 57",
+      "trainer": "Bret Saldanha",
+      "source": "greedy_fallback"
+    },
+    {
+      "rule_id": "UNIV-023",
+      "reason": "Consecutive 'Studio Mat 57' classes back-to-back",
+      "location": "Supreme HQ, Bandra",
+      "day": "Wednesday",
+      "time": "19:00",
+      "class_name": "Studio Mat 57",
+      "trainer": "Anmol Sharma",
+      "source": "greedy_fallback"
+    },
+    {
+      "rule_id": "UNIV-023",
+      "reason": "Consecutive 'Studio Mat 57' classes back-to-back",
+      "location": "Kwality House, Kemps Corner",
+      "day": "Monday",
+      "time": "08:30",
+      "class_name": "Studio Mat 57",
+      "trainer": "Atulan Purohit",
+      "source": "greedy_fallback"
+    },
+    {
+      "rule_id": "WEEKLY-FLOOR",
+      "reason": "Supreme HQ, Bandra has 64 assignments, below floor of 65",
+      "location": "Supreme HQ, Bandra",
+      "day": null,
+      "time": null,
+      "class_name": null,
+      "trainer": null,
+      "source": "aggregate"
+    },
+    {
+      "rule_id": "WEEKLY-FLOOR",
+      "reason": "Kenkere House has 39 assignments, below floor of 55",
+      "location": "Kenkere House",
+      "day": null,
+      "time": null,
+      "class_name": null,
+      "trainer": null,
+      "source": "aggregate"
+    }
+  ],
+  "by_rule": {
+    "UNIV-023": 8,
+    "WEEKLY-FLOOR": 2
+  }
+}

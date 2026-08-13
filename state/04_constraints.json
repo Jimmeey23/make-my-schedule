@@ -1,12 +1,6 @@
 {
   "hard_constraints": [
     {
-      "constraint_id": "UNIV-001",
-      "type": "always_do",
-      "location": null,
-      "description": "Barre 57 family must be >= 25% of total weekly classes at any location"
-    },
-    {
       "constraint_id": "UNIV-002",
       "type": "always_do",
       "location": null,
@@ -19,22 +13,10 @@
       "description": "Saturday morning should be a high-load window, without violating weekly floors, trainer caps, or quality gates"
     },
     {
-      "constraint_id": "UNIV-004",
-      "type": "never_do",
-      "location": null,
-      "description": "Sunday may carry AM and PM coverage when targets require it; no Sunday class should start before 10:00"
-    },
-    {
       "constraint_id": "UNIV-005",
       "type": "class_location",
       "location": null,
       "description": "Specialist classes only certified trainers"
-    },
-    {
-      "constraint_id": "UNIV-006",
-      "type": "always_do",
-      "location": null,
-      "description": "Express class must be paired with full-length equivalent on same day"
     },
     {
       "constraint_id": "UNIV-007",
@@ -47,6 +29,12 @@
       "type": "never_do",
       "location": null,
       "description": "Foundations must never be scheduled"
+    },
+    {
+      "constraint_id": "UNIV-009",
+      "type": "trainer_availability",
+      "location": null,
+      "description": "Avoid long trainer runs; keep consecutive assignments practical and respect the 4 assigned hours/day cap"
     },
     {
       "constraint_id": "UNIV-010",
@@ -71,42 +59,6 @@
       "type": "class_location",
       "location": null,
       "description": "Pre/Post Natal is not auto-scheduled unless manually pinned or saved as a hard custom rule at an eligible location"
-    },
-    {
-      "constraint_id": "UNIV-014",
-      "type": "slot_required",
-      "location": null,
-      "description": "Peak midday slot must never be empty"
-    },
-    {
-      "constraint_id": "UNIV-015",
-      "type": "always_do",
-      "location": null,
-      "description": "Prioritize at least one strong Barre 57 family option in the AM block every active day"
-    },
-    {
-      "constraint_id": "UNIV-016",
-      "type": "always_do",
-      "location": null,
-      "description": "Prioritize strong Barre 57 or Cardio Barre coverage in weekday PM demand windows"
-    },
-    {
-      "constraint_id": "UNIV-017",
-      "type": "always_do",
-      "location": null,
-      "description": "Prioritize Tier 1 trainers for primary peak slots where qualified and available"
-    },
-    {
-      "constraint_id": "UNIV-018",
-      "type": "trainer_availability",
-      "location": null,
-      "description": "Trainer substitution protocol hierarchy"
-    },
-    {
-      "constraint_id": "UNIV-019",
-      "type": "never_do",
-      "location": null,
-      "description": "Specialist classes no substitution with non-certified"
     },
     {
       "constraint_id": "UNIV-021",
@@ -137,12 +89,6 @@
       "type": "trainer_availability",
       "location": null,
       "description": "Every trainer must have at least 1 weekly off day; 2 is preferred when coverage allows, and no trainer may exceed 2 days without assignments unless unavoidable"
-    },
-    {
-      "constraint_id": "UNIV-026",
-      "type": "never_do",
-      "location": null,
-      "description": "Recovery sessions must be the last class in their shift at that location"
     }
   ],
   "soft_constraints": [

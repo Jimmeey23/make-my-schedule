@@ -4902,6 +4902,7 @@ def test_final_weekly_floor_repair_uses_selected_weekly_target_for_main_studio()
                     "max_classes_per_day": 4,
                 }
             },
+            "qualifications": {"all_barre": True},
         }
     }
     optimiser.trainer_states = {"Repair Trainer": TrainerState("Repair Trainer", 1)}
@@ -4968,6 +4969,7 @@ def test_final_weekly_floor_repair_does_not_duplicate_same_class_same_time():
                     "max_classes_per_day": 4,
                 }
             },
+            "qualifications": {"all_barre": True, "fit": True, "mat_57": True, "cardio_barre": True},
         }
     }
     optimiser.trainer_states = {"Repair Trainer": TrainerState("Repair Trainer", 1)}
@@ -5521,7 +5523,7 @@ def test_kwality_protected_class_times_can_share_clock_time_when_rooms_are_free(
                     "max_classes_per_day": 4,
                 }
             },
-            "qualifications": {"all_barre": True},
+            "qualifications": {"all_barre": True, "mat_57": True},
         }
         for name in ("Trainer Mat", "Trainer Barre")
     }

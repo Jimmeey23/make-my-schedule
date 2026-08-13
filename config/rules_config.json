@@ -8,7 +8,7 @@
   },
   "rules": {
     "UNIV-001": {
-      "enabled": true,
+      "enabled": false,
       "description": "Barre 57 family must be >= 25% of total weekly classes at any location",
       "title": "UNIV-001"
     },
@@ -23,7 +23,7 @@
       "title": "UNIV-003"
     },
     "UNIV-004": {
-      "enabled": true,
+      "enabled": false,
       "description": "Sunday may carry AM and PM coverage when targets require it; no Sunday class should start before 10:00",
       "title": "UNIV-004"
     },
@@ -33,7 +33,7 @@
       "title": "UNIV-005"
     },
     "UNIV-006": {
-      "enabled": true,
+      "enabled": false,
       "description": "Express class must be paired with full-length equivalent on same day",
       "title": "UNIV-006"
     },
@@ -48,7 +48,7 @@
       "title": "UNIV-008"
     },
     "UNIV-009": {
-      "enabled": false,
+      "enabled": true,
       "description": "Avoid long trainer runs; keep consecutive assignments practical and respect the 4 assigned hours/day cap",
       "title": "UNIV-009"
     },
@@ -73,32 +73,32 @@
       "title": "UNIV-013"
     },
     "UNIV-014": {
-      "enabled": true,
+      "enabled": false,
       "description": "Peak midday slot must never be empty",
       "title": "UNIV-014"
     },
     "UNIV-015": {
-      "enabled": true,
+      "enabled": false,
       "description": "Prioritize at least one strong Barre 57 family option in the AM block every active day",
       "title": "UNIV-015"
     },
     "UNIV-016": {
-      "enabled": true,
+      "enabled": false,
       "description": "Prioritize strong Barre 57 or Cardio Barre coverage in weekday PM demand windows",
       "title": "UNIV-016"
     },
     "UNIV-017": {
-      "enabled": true,
+      "enabled": false,
       "description": "Prioritize Tier 1 trainers for primary peak slots where qualified and available",
       "title": "UNIV-017"
     },
     "UNIV-018": {
-      "enabled": true,
+      "enabled": false,
       "description": "Trainer substitution protocol hierarchy",
       "title": "UNIV-018"
     },
     "UNIV-019": {
-      "enabled": true,
+      "enabled": false,
       "description": "Specialist classes no substitution with non-certified",
       "title": "UNIV-019"
     },
@@ -133,7 +133,7 @@
       "title": "UNIV-025"
     },
     "UNIV-026": {
-      "enabled": true,
+      "enabled": false,
       "description": "Recovery sessions must be the last class in their shift at that location",
       "title": "UNIV-026"
     }

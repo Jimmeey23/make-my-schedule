@@ -214,17 +214,39 @@ def run_pipeline(
             sys.exit(1)
 
     # ------------------------------------------------------------------ #
+    # Agent 5.5 — Hard-rule validator (runs on AI and greedy output alike)
+    # ------------------------------------------------------------------ #
+    primary_draft = STATE_DIR / f"05_draft_schedule{('_' + output_suffix) if output_suffix else ''}.json"
+    if not primary_draft.exists():
+        primary_draft = STATE_DIR / "05_draft_schedule.json"
+    if not primary_draft.exists():
+        console.print("[red][Agent 6] No schedule found — Agent 5 must have failed[/red]")
+        sys.exit(1)
+
+    try:
+        from agents.schedule_validator import validate_schedule_file
+
+        validation_report = validate_schedule_file(str(primary_draft))
+        report_path = STATE_DIR / "06_validation_report.json"
+        report_path.write_text(json.dumps(validation_report, indent=2))
+        if validation_report["violation_count"]:
+            console.print(
+                f"[yellow][Agent 5.5] Validator found {validation_report['violation_count']} "
+                f"hard-rule violation(s) across {validation_report['slots_with_violations']} slot(s) "
+                f"— see {report_path}[/yellow]"
+            )
+        else:
+            console.print("[green][Agent 5.5] Validator — no hard-rule violations found[/green]")
+    except Exception as e:
+        console.print(f"[red][Agent 5.5] Validator FAILED: {e}[/red]")
+        if debug:
+            traceback.print_exc()
+
+    # ------------------------------------------------------------------ #
     # Agent 6 — Output Reporter
     # ------------------------------------------------------------------ #
     try:
         from agents.reporter import OutputReporter
-
-        primary_draft = STATE_DIR / f"05_draft_schedule{('_' + output_suffix) if output_suffix else ''}.json"
-        if not primary_draft.exists():
-            primary_draft = STATE_DIR / "05_draft_schedule.json"
-        if not primary_draft.exists():
-            console.print("[red][Agent 6] No schedule found — Agent 5 must have failed[/red]")
-            sys.exit(1)
 
         with open(primary_draft) as f:
             draft_data = json.load(f)

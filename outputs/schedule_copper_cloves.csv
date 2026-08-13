@@ -1,28 +1,25 @@
 ,10-Aug,,,,,,,,,,11-Aug,,,,,,,,,,12-Aug,,,,,,,,,,13-Aug,,,,,,,,,,14-Aug,,,,,,,,,,15-Aug,,,,,,,,,,16-Aug,,,,,,,,,
 ,Monday,,,,,,,,,,Tuesday,,,,,,,,,,Wednesday,,,,,,,,,,Thursday,,,,,,,,,,Friday,,,,,,,,,,Saturday,,,,,,,,,,Sunday,,,,,,,,,
 Time,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,
-10:15,,,,,,,,,,,Copper + Cloves Mat 57,Pushyank Nahar,Studio 1,14,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-11:00,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Copper + Cloves FIT,Shruti Kulkarni,Studio 1,14,35%,0,0%,0.0,,,Copper + Cloves Barre 57,Chaitanya Nahar,Studio 1,14,25%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
-11:15,,,,,,,,,,,Copper + Cloves Barre 57,Shruti Kulkarni,Studio 1,14,15%,0,0%,0.0,,,Copper + Cloves Mat 57,Siddhartha Kusuma,Studio 1,14,30%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Copper + Cloves Barre 57,Siddhartha Kusuma,Studio 1,14,60%,0,0%,0.0,,,,,,,,,,,,
+09:30,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Copper + Cloves Barre 57,Chaitanya Nahar,Studio 1,14,38%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+11:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Copper + Cloves Mat 57,Siddhartha Kusuma,Studio 1,14,20%,0,0%,0.0,,,,,,,,,,,,
+17:15,,,,,,,,,,,Copper + Cloves Barre 57,Chaitanya Nahar,Studio 1,14,23%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
 
 === WEEKLY BREAKDOWN ===
 
 TRAINER ALLOCATION
 Trainer,Total Classes,Total Hours,Avg Fill%,Primary Classes
-Chaitanya Nahar,1,0.9,25%,Copper + Cloves Barre 57
-Pushyank Nahar,1,0.9,20%,Copper + Cloves Mat 57
-Shruti Kulkarni,2,1.9,25%,Copper + Cloves Barre 57
-Siddhartha Kusuma,2,1.9,45%,Copper + Cloves Mat 57
+Chaitanya Nahar,2,1.9,31%,Copper + Cloves Barre 57
+Siddhartha Kusuma,1,0.9,20%,Copper + Cloves Mat 57
 
 CLASS FORMAT ALLOCATION
 Class Format,Total Classes,Avg Fill%,Days Scheduled
-Copper + Cloves Barre 57,3,34%,3
-Copper + Cloves FIT,1,35%,1
-Copper + Cloves Mat 57,2,25%,2
+Copper + Cloves Barre 57,2,31%,2
+Copper + Cloves Mat 57,1,20%,1
 
 TIMESLOT ALLOCATION
 Time,Mon,Tue,Wed,Thu,Fri,Sat,Sun,Total
-10:15,-,Copper + Cloves Mat 57,-,-,-,-,-,1
-11:00,-,-,-,Copper + Cloves FIT,Copper + Cloves Barre 57,-,-,2
-11:15,-,Copper + Cloves Barre 57,Copper + Cloves Mat 57,-,-,Copper + Cloves Barre 57,-,3
+09:30,-,-,-,-,Copper + Cloves Barre 57,-,-,1
+11:15,-,-,-,-,-,Copper + Cloves Mat 57,-,1
+17:15,-,Copper + Cloves Barre 57,-,-,-,-,-,1

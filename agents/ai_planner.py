@@ -17,6 +17,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from agents.draft_retention import prune_draft_schedule_files
 from agents.io_utils import atomic_write_json
+from agents.schedule_validator import validate_schedule
 from agents import optimiser as _opt
 from agents.optimiser import (
     HORIZONTAL_MAX_SAME_CLASS_PER_TIME,
@@ -1224,6 +1225,36 @@ def _has_enough_slots_after_enforcement(location: str, slots: List[PlannedSlot])
     return len(slots) >= _minimum_ai_slot_count_for_location(location)
 
 
+def _drop_hard_rule_violations(slots: List[PlannedSlot]) -> Tuple[List[PlannedSlot], List[str]]:
+    """Run the shared schedule_validator against AI-accepted slots and remove any
+    that break a hard rule (e.g. certification mismatch), instead of letting them
+    reach the greedy repair pass as an immutable pin. Pinned slots are treated as
+    fixed by the optimiser, so a violating AI slot that got pinned would never be
+    correctable — filtering here is what actually makes hard rules binding on the
+    AI path, not just the prompt text."""
+    if not slots:
+        return slots, []
+    schedule_dicts = [asdict(s) for s in slots]
+    report = validate_schedule(schedule_dicts)
+    if not report["violation_count"]:
+        return slots, []
+    bad_keys = set()
+    reasons: List[str] = []
+    for slot, row in zip(slots, schedule_dicts):
+        violations = [v for v in (row.get("constraint_violations") or []) if not v.startswith("WEEKLY-FLOOR")]
+        if violations:
+            key = (slot.location, slot.day_of_week, slot.time, slot.trainer_1, slot.class_name)
+            bad_keys.add(key)
+            reasons.append(f"{slot.location} {slot.day_of_week} {slot.time} {slot.trainer_1}/{slot.class_name}: {'; '.join(violations)}")
+    if not bad_keys:
+        return slots, []
+    clean = [
+        s for s in slots
+        if (s.location, s.day_of_week, s.time, s.trainer_1, s.class_name) not in bad_keys
+    ]
+    return clean, reasons
+
+
 def _max_tokens_for_location(location: str) -> int:
     target = _target_count_for_location(location)
     # Ask for enough JSON for the location target, but avoid giving small studios
@@ -1647,8 +1678,16 @@ class AISchedulePlanner:
 
                 accepted = [s for s in accepted if s.day_of_week != day] + day_accepted
 
+            accepted, violation_reasons = _drop_hard_rule_violations(accepted)
+            if violation_reasons:
+                attempts.append(
+                    f"{location}: dropped {len(violation_reasons)} AI slot(s) for hard-rule "
+                    f"violations (will be greedy-repaired instead of pinned)"
+                )
+                attempts.extend(violation_reasons[:5])
+
             min_slots = _minimum_ai_slot_count_for_location(location)
-            shortfall = len(accepted) < min_slots
+            shortfall = len(accepted) < min_slots or bool(violation_reasons)
             if shortfall:
                 attempts.append(f"{location}: only {len(accepted)} slots after per-day generation; need {min_slots}")
             return location, accepted, attempts, shortfall

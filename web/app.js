@@ -5193,6 +5193,7 @@ function settDefaultConfig(){
     inactive_trainers:[],
     class_mix:{},
     trainer_priority:{},
+    format_trainer_priority:{mumbai_powercycle:[],strength_fit:[]},
     settings_options:{
       enforce_exact_daily_targets:true,
       auto_repair_underfilled_days:true,
@@ -5278,6 +5279,10 @@ function settNormalizeConfig(config){
   next.leave_periods=Array.isArray(next.leave_periods)?next.leave_periods:[];
   next.off_days=Array.isArray(next.off_days)?next.off_days:[];
   next.inactive_trainers=Array.isArray(next.inactive_trainers)?next.inactive_trainers:[];
+  next.format_trainer_priority={
+    mumbai_powercycle:Array.isArray(next.format_trainer_priority?.mumbai_powercycle)?next.format_trainer_priority.mumbai_powercycle:[],
+    strength_fit:Array.isArray(next.format_trainer_priority?.strength_fit)?next.format_trainer_priority.strength_fit:[],
+  };
   next.source_of_truth={
     ...base.source_of_truth,
     ...(next.source_of_truth||{}),
@@ -5912,7 +5917,29 @@ function settRenderAdvancedOptions(){
         ${settAdvancedOptionCard("field","default_bulk_scope","Default bulk scope","Preselect the bulk-operator scope used by target and class-mix matrices.",select("default_bulk_scope",[["selection","Selected cells"],["visible","All visible cells"],["weekdays","Weekdays"],["weekend","Weekend"]]))}
         ${settAdvancedOptionCard("toggle","save_snapshot_on_publish","Save snapshot on publish","Mark each canonical save as a versioned settings snapshot for traceability.",toggle("save_snapshot_on_publish"))}
       </div>
+    </div>
+    <div class="sett-config-panel">
+      <div class="sett-section-kicker">Format-Specific Trainer Priority</div>
+      <div class="sett-option-grid">
+        ${settFormatPriorityCard("mumbai_powercycle","Mumbai PowerCycle priority","Preferred trainers for PowerCycle at Kwality House / Supreme HQ, in priority order.")}
+        ${settFormatPriorityCard("strength_fit","Strength Lab & FIT priority","Preferred trainers for Strength Lab and FIT classes, in priority order.")}
+      </div>
     </div>`;
+}
+
+function settFormatPriorityCard(key,title,desc){
+  const list=(_settSchedConfig.format_trainer_priority?.[key])||[];
+  return settAdvancedOptionCard("field",`format_trainer_priority.${key}`,title,desc,
+    `<input type="text" value="${rvEscapeAttr(list.join(', '))}" placeholder="Comma-separated trainer names, in priority order" onchange="settSetFormatPriority('${key}',this.value)">`);
+}
+
+function settSetFormatPriority(key,value){
+  if(!_settSchedConfig)_settSchedConfig=settDefaultConfig();
+  _settSchedConfig=settNormalizeConfig(_settSchedConfig);
+  const known=new Set(settTrainerOptions());
+  const names=String(value||"").split(",").map(s=>s.trim()).filter(Boolean).filter(n=>known.has(n));
+  _settSchedConfig.format_trainer_priority[key]=names;
+  settValidateAndRender();
 }
 
 function settSetAdvancedOption(key,value,type){

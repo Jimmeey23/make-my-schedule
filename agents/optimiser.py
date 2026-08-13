@@ -86,24 +86,22 @@ LOCATION_WEEKLY_CLASS_BOUNDS = {
     "Courtside": {"min": 4, "max": 6},
     "Copper & Cloves": {"min": 10, "max": 12},
 }
-HIGH_PRIORITY_TRAINERS = {
+# Fallback pools used only when config/schedule_config.json lacks the
+# equivalent keys (trainer_priority / format_trainer_priority). Settings
+# Console edits to those config keys are the source of truth at runtime —
+# see Optimiser._load_priority_pools().
+_DEFAULT_HIGH_PRIORITY_TRAINERS = {
     "Anisha Shah", "Rohan Dahima", "Reshma Sharma", "Atulan Purohit", "Pranjali Jain",
     "Karanvir Bhatia", "Mrigakshi Jaiswal", "Vivaran Dhasmana", "Pushyank Nahar",
     "Kajol Kanchan", "Shruti Kulkarni",
 }
-MUMBAI_POWERCYCLE_PRIORITY_TRAINERS = {"Vivaran Dhasmana", "Cauveri Vikrant", "Karanvir Bhatia"}
-STRENGTH_FIT_PRIORITY_TRAINERS = {
+_DEFAULT_MUMBAI_POWERCYCLE_PRIORITY_TRAINERS = {"Vivaran Dhasmana", "Cauveri Vikrant", "Karanvir Bhatia"}
+_DEFAULT_STRENGTH_FIT_PRIORITY_TRAINERS = {
     "Atulan Purohit", "Mrigakshi Jaiswal", "Anisha Shah", "Reshma Sharma", "Richard D'Costa"
 }
+HIGH_PRIORITY_TRAINER_SCORE_THRESHOLD = 80
 MUMBAI_TIER1_SUPREME_MIN_SHARE = 0.45
 MUMBAI_TIER1_SUPREME_MAX_SHARE = 0.55
-# Trainers with a mandatory weekend off, independent of their saved availability
-# days. This is a hard trainer-specific rule not currently expressed in
-# rules/trainer_profiles.json or config/schedule_config.json custom_rules — per
-# CLAUDE.md this should eventually be a saved hard custom rule instead of code,
-# but is kept here (named, single source) until that migration happens so
-# behavior doesn't change silently.
-MANDATORY_WEEKEND_OFF_TRAINERS = {"Anisha Shah", "Vivaran Dhasmana", "Mrigakshi Jaiswal", "Pushyank Nahar"}
 MIN_CLASS_START_MIN = 7 * 60
 BLOCKED_MIDDAY_START_MIN = 13 * 60
 BLOCKED_MIDDAY_END_MIN = 15 * 60
@@ -579,6 +577,10 @@ def qualification_key_for_class(class_name: str) -> str:
         return "fit"
     if "mat 57" in lower:
         return "mat_57"
+    if "back body blaze" in lower:
+        return "back_body_blaze"
+    if "cardio barre" in lower:
+        return "cardio_barre"
     if "foundations" in lower:
         return "foundations"
     if "pre/post" in lower or "pre post" in lower or "natal" in lower:
@@ -1083,6 +1085,37 @@ class ScheduleOptimiser:
         self._time_format_counts: Dict[Tuple[str, str, str], int] = defaultdict(int)
         self._time_level_counts: Dict[Tuple[str, str, str], int] = defaultdict(int)
         self.trainer_priority: Dict[str, int] = self.schedule_config.get("trainer_priority", {})
+        self._load_priority_pools()
+
+    def _load_priority_pools(self) -> None:
+        """Derive trainer/format priority pools from config/schedule_config.json
+        (Settings Console) instead of hardcoded module constants, so priority
+        edits actually change optimiser behavior without a code change. Falls
+        back to the historical hardcoded pools only if config keys are absent,
+        and logs when that fallback path is taken."""
+        if self.trainer_priority:
+            self.high_priority_trainers = {
+                name for name, score in self.trainer_priority.items()
+                if (score or 0) >= HIGH_PRIORITY_TRAINER_SCORE_THRESHOLD
+            }
+        else:
+            print("[optimiser] WARNING: schedule_config.json has no trainer_priority — using hardcoded fallback pool")
+            self.high_priority_trainers = set(_DEFAULT_HIGH_PRIORITY_TRAINERS)
+
+        format_priority = self.schedule_config.get("format_trainer_priority", {}) or {}
+        mumbai_powercycle = format_priority.get("mumbai_powercycle")
+        if mumbai_powercycle:
+            self.mumbai_powercycle_priority_trainers = set(mumbai_powercycle)
+        else:
+            print("[optimiser] WARNING: schedule_config.json has no format_trainer_priority.mumbai_powercycle — using hardcoded fallback pool")
+            self.mumbai_powercycle_priority_trainers = set(_DEFAULT_MUMBAI_POWERCYCLE_PRIORITY_TRAINERS)
+
+        strength_fit = format_priority.get("strength_fit")
+        if strength_fit:
+            self.strength_fit_priority_trainers = set(strength_fit)
+        else:
+            print("[optimiser] WARNING: schedule_config.json has no format_trainer_priority.strength_fit — using hardcoded fallback pool")
+            self.strength_fit_priority_trainers = set(_DEFAULT_STRENGTH_FIT_PRIORITY_TRAINERS)
 
     # ------------------------------------------------------------------ #
     #  Overrides
@@ -1348,7 +1381,8 @@ class ScheduleOptimiser:
                 continue
             if self._is_inactive(trainer):
                 continue
-            if trainer not in by_name:
+            is_synthetic_profile = trainer not in by_name
+            if is_synthetic_profile:
                 by_name[trainer] = {
                     "name": trainer,
                     "tier": 3,
@@ -1362,7 +1396,13 @@ class ScheduleOptimiser:
                 profiles_list.append(by_name[trainer])
             profile = by_name[trainer]
             q = profile.setdefault("qualifications", {})
-            q[qualification_key_for_class(row.get("class", ""))] = True
+            # Only infer certification from scheduling history for trainers with no
+            # saved profile at all. A trainer with a real rules/trainer_profiles.json
+            # entry has an explicit, authoritative qualifications dict — historical
+            # appearance in a class (which may itself reflect a past uncertified
+            # placement) must never silently override an explicit False there.
+            if is_synthetic_profile:
+                q[qualification_key_for_class(row.get("class", ""))] = True
             loc = row.get("location")
             if loc and loc not in profile.setdefault("locations", {}):
                 profile["locations"][loc] = {
@@ -1708,6 +1748,11 @@ class ScheduleOptimiser:
         # T1 pull-up: try to lift under-target T1 trainers by swapping eligible
         # T2/T3 placements to a free T1, only when score regression is bounded.
         self._tier1_pull_up_pass(all_slots)
+        all_slots = self._drop_uncertified_slots(all_slots)
+        all_slots = self._repair_dropped_slot_gaps(
+            all_slots,
+            getattr(self, "_last_inactive_dropped", []) + getattr(self, "_last_cert_guard_dropped", []),
+        )
         self._print_utilisation()
 
         output = {
@@ -1836,6 +1881,9 @@ class ScheduleOptimiser:
         for slot in slots:
             if self._is_inactive(slot.trainer_1):
                 dropped.append(slot)
+                state = self.trainer_states.get(slot.trainer_1)
+                if state:
+                    state.remove(slot.day_of_week, slot.time, slot.location, slot.class_name)
             else:
                 kept.append(slot)
         if dropped:
@@ -1845,7 +1893,90 @@ class ScheduleOptimiser:
                 + ", ".join(names),
                 flush=True,
             )
+        self._last_inactive_dropped = dropped
         return kept
+
+    def _drop_uncertified_slots(self, slots: List[ScheduleSlot]) -> List[ScheduleSlot]:
+        """Final safety net: many candidate-construction paths across this file
+        (protected/top-performer placement, pinned-slot direct placement, floor
+        repair, etc.) each have their own certification check, and new ones keep
+        appearing. Rather than rely on every call site remembering to check,
+        enforce it once here as the last word before output, so a specialist
+        format can never reach the schedule with an uncertified trainer."""
+        kept: List[ScheduleSlot] = []
+        dropped: List[ScheduleSlot] = []
+        for slot in slots:
+            needed_qual = qualification_key_for_class(slot.class_name)
+            profile = self.trainer_profiles.get(slot.trainer_1, {})
+            if not profile.get("qualifications", {}).get(needed_qual, False):
+                dropped.append(slot)
+                state = self.trainer_states.get(slot.trainer_1)
+                if state:
+                    state.remove(slot.day_of_week, slot.time, slot.location, slot.class_name)
+            else:
+                kept.append(slot)
+        if dropped:
+            for s in dropped:
+                print(
+                    f"  [CERT GUARD] Dropped {s.location} {s.day_of_week} {s.time} "
+                    f"{s.class_name} — {s.trainer_1} not certified for "
+                    f"{qualification_key_for_class(s.class_name)}",
+                    flush=True,
+                )
+        self._last_cert_guard_dropped = dropped
+        return kept
+
+    def _repair_dropped_slot_gaps(
+        self, all_slots: List[ScheduleSlot], dropped_slots: List[ScheduleSlot],
+    ) -> List[ScheduleSlot]:
+        """Backfill (location, day, time) gaps left by the final inactive/
+        certification safety-net drops. Those drops run after all per-day
+        scheduling phases (including PM under-fill backstops) have already
+        completed, so without this repair a late-stage drop silently shrinks
+        that day's schedule with nothing to replace it."""
+        if not dropped_slots:
+            return all_slots
+        by_loc_day: Dict[Tuple[str, str], List[ScheduleSlot]] = defaultdict(list)
+        for s in dropped_slots:
+            by_loc_day[(s.location, s.day_of_week)].append(s)
+        repaired = 0
+        for (location, day_name), gaps in by_loc_day.items():
+            day_slots = [s for s in all_slots if s.location == location and s.day_of_week == day_name]
+            rooms = LOCATION_ROOMS.get(location, {})
+            room_occ = RoomOccupancy(rooms)
+            for s in day_slots:
+                room_occ.occupy(day_name, s.room, slot_time_to_minutes(s.time), s.duration_min, s.class_name, s.trainer_1)
+            used_at_time: Dict[str, Set[str]] = defaultdict(set)
+            shift_trainers: Dict[str, List[str]] = {"AM": [], "PM": []}
+            fmt_today: Dict[str, int] = defaultdict(int)
+            for s in day_slots:
+                used_at_time[s.time].add(s.trainer_1)
+                sh = "AM" if is_am_slot(s.time) else "PM"
+                if s.trainer_1 not in shift_trainers[sh]:
+                    shift_trainers[sh].append(s.trainer_1)
+                fmt_today[s.class_name] = fmt_today.get(s.class_name, 0) + 1
+            for gap in gaps:
+                replacement = self._fallback_slot(
+                    location, day_name, gap.date, gap.time,
+                    used_at_time.get(gap.time, set()), shift_trainers, room_occ, False,
+                    fmt_today=fmt_today, slots_today=day_slots,
+                    enforce_tier_priority=False,
+                )
+                if not replacement:
+                    continue
+                all_slots.append(replacement)
+                day_slots.append(replacement)
+                repaired += 1
+                room_occ.occupy(day_name, replacement.room, slot_time_to_minutes(replacement.time), replacement.duration_min, replacement.class_name, replacement.trainer_1)
+                self.trainer_states[replacement.trainer_1].add(day_name, replacement.time, location, replacement.class_name)
+                used_at_time.setdefault(replacement.time, set()).add(replacement.trainer_1)
+                sh = "AM" if is_am_slot(replacement.time) else "PM"
+                if replacement.trainer_1 not in shift_trainers[sh]:
+                    shift_trainers[sh].append(replacement.trainer_1)
+                fmt_today[replacement.class_name] = fmt_today.get(replacement.class_name, 0) + 1
+        if repaired:
+            print(f"  [GAP REPAIR] Backfilled {repaired}/{len(dropped_slots)} slot(s) dropped by safety nets", flush=True)
+        return all_slots
 
     def _tier1_pull_up_pass(self, all_slots: List[ScheduleSlot]) -> None:
         """Post-pass: for each Tier-1 trainer below TIER1_WEEKLY_TARGET_MIN, scan
@@ -1875,11 +2006,8 @@ class ScheduleOptimiser:
                     prof = self.trainer_profiles.get(t1_name) or {}
                     quals = prof.get("qualifications", {}) or {}
                     cname = slot.class_name
-                    if "PowerCycle" in cname and not quals.get("powercycle"):
-                        continue
-                    if "Strength Lab" in cname and not quals.get("strength_lab"):
-                        continue
-                    if "Foundations" in cname and not quals.get("foundations"):
+                    needed_qual = qualification_key_for_class(cname)
+                    if not quals.get(needed_qual):
                         continue
                     if self._is_inactive(t1_name) or self._on_leave(t1_name, slot.date, slot.location):
                         continue
@@ -2001,6 +2129,9 @@ class ScheduleOptimiser:
                                 continue
                             for trainer, profile in sorted(self.trainer_profiles.items()):
                                 if trainer in used_at_time or self._is_inactive(trainer) or self._on_leave(trainer, date_str, location):
+                                    continue
+                                needed_qual = qualification_key_for_class(class_name)
+                                if not profile.get("qualifications", {}).get(needed_qual, False):
                                     continue
                                 loc_data = self._profile_location_data(profile, location)
                                 if not loc_data:
@@ -2860,6 +2991,22 @@ class ScheduleOptimiser:
                     slots_today.append(result)
                     _register_slot(result, t)
                 continue
+            # Auto-protected historical top performers still need matching certification;
+            # true manual pins (explicit user override) are a binding exception.
+            if not is_manual_pin and not prof.get("qualifications", {}).get(qualification_key_for_class(cname), False):
+                self._release_pinned_reservation(trainer, cname)
+                result = self._fill_slot_class(
+                    location, day_name, date_str, t, cname, fam,
+                    used_at_time, shift_trainers, room_occ, slots_today,
+                    reason_prefix=f"Pinned class/time reassigned \u2014 {trainer} not certified",
+                    use_slot_history=True,
+                    weekly_class_counts=weekly_class_counts,
+                    recommendation_override="PINNED",
+                )
+                if result:
+                    slots_today.append(result)
+                    _register_slot(result, t)
+                continue
             hist = self._get_hist(location, cname, trainer, DOW_REVERSE[day_name], t)
             public_score, placement_score, recommendation, slot_is_exp = self._public_score_fields(
                 85.0, 85.0, hist.get("session_count", 0), "PINNED", False, manual_pin=True
@@ -2956,6 +3103,21 @@ class ScheduleOptimiser:
                         _register_slot(result, t)
                         opt_today += 1
                         continue
+            if not prof.get("qualifications", {}).get(qualification_key_for_class(cname), False):
+                self._release_pinned_reservation(trainer, cname)
+                result = self._fill_slot_class(
+                    location, day_name, date_str, t, cname, fam,
+                    used_at_time, shift_trainers, room_occ, slots_today,
+                    reason_prefix=f"Protected slot reassigned \u2014 {trainer} not certified",
+                    use_slot_history=True,
+                    weekly_class_counts=weekly_class_counts,
+                    recommendation_override="PROTECT_EXACT",
+                )
+                if result:
+                    slots_today.append(result)
+                    _register_slot(result, t)
+                    opt_today += 1
+                continue
             hist = self._get_hist(location, cname, trainer, DOW_REVERSE[day_name], t)
             public_score, placement_score, recommendation, slot_is_exp = self._public_score_fields(
                 r["score"], r["score"], hist.get("session_count", 0), "PROTECT_EXACT", False
@@ -3117,9 +3279,16 @@ class ScheduleOptimiser:
             desired_pm = max(1, target_count - desired_am)
         target_am_fill = max(0, desired_am - locked_am)
         target_pm_fill = max(0, desired_pm - locked_pm)
+        # Weekday AM ceiling used by Phase 7 (see below) to stop parallel-room
+        # peak fill from crowding out PM once AM has a reasonable share.
+        am_ceiling = desired_am + (3 if location in {KWALITY_LOCATION, SUPREME_LOCATION} else 2)
 
         def _do_fill(t: str, is_prime: bool) -> bool:
             nonlocal exp_today, opt_today
+            if not am_first_bias and is_am_slot(t):
+                am_now = sum(1 for s in slots_today if is_am_slot(s.time))
+                if am_now >= am_ceiling:
+                    return False
             result = self._fill_slot(location, day_name, date_str, t, used_at_time,
                                      shift_trainers, room_occ, slots_today,
                                      exp_today, opt_today, is_prime=is_prime,
@@ -3187,6 +3356,34 @@ class ScheduleOptimiser:
                     continue
                 if _do_fill(t, is_prime=False):
                     deficit -= 1
+
+        # ---- Phase 6b: PM under-fill backstop ----
+        # Tier-priority gating in _fill_slot/_fallback_slot can legitimately
+        # exhaust the day's eligible Tier-1 pool in AM (e.g. only 2-3 trainers
+        # are available at this location on this weekday), leaving PM starved
+        # even though other qualified trainers exist. Relax the tier-priority
+        # soft-gate only (hard rules/certs/availability still apply via
+        # _fallback_slot's own checks) as a last resort so PM isn't left empty.
+        if not is_sunday:
+            pm_count = sum(1 for s in slots_today if not is_am_slot(s.time))
+            am_count = len(slots_today) - pm_count
+            min_pm_floor = max(2, target_pm_fill, am_count // 2)
+            for t in pm_slots:
+                if pm_count >= min_pm_floor:
+                    break
+                if slot_is_in_blocked_window(day_name, t):
+                    continue
+                result = self._fallback_slot(
+                    location, day_name, date_str, t,
+                    used_at_time.get(t, set()), shift_trainers, room_occ, False,
+                    fmt_today=class_format_count_today, slots_today=slots_today,
+                    weekly_class_counts=weekly_class_counts,
+                    enforce_tier_priority=False,
+                )
+                if result:
+                    slots_today.append(result)
+                    _register_slot(result, t)
+                    pm_count += 1
 
         # Persisted daily targets should be attempted before the day closes,
         # even when the target needs a historically valid but non-core slot.
@@ -3262,6 +3459,15 @@ class ScheduleOptimiser:
         for t in peak_fill_slots:
             if len(slots_today) >= max(max_total_for_day, soft_target_count):
                 break
+            # Weekday AM ceiling: Phase 7's Mumbai clusters include 2 AM clusters
+            # vs 1 PM cluster, so unbounded parallel-room fill structurally skews
+            # AM-heavy even when trainers remain available for PM. Cap AM intake
+            # here (weekdays only — Saturday/Supreme-Friday intentionally stay
+            # AM-heavy per am_first_bias) so PM gets a fair share of this phase.
+            if not am_first_bias and is_am_slot(t):
+                am_now = sum(1 for s in slots_today if is_am_slot(s.time))
+                if am_now >= am_ceiling:
+                    continue
             classes_at_t = sum(1 for s in slots_today if s.time == t)
             available_rooms = sum(
                 1 for rid in (LOCATION_ROOMS.get(location) or {})
@@ -3272,6 +3478,10 @@ class ScheduleOptimiser:
                 and classes_at_t < available_rooms
                 and len(slots_today) < max(max_total_for_day, soft_target_count)
             ):
+                if not am_first_bias and is_am_slot(t):
+                    am_now = sum(1 for s in slots_today if is_am_slot(s.time))
+                    if am_now >= am_ceiling:
+                        break
                 if not _do_fill(t, is_prime=True):
                     break
                 classes_at_t = sum(1 for s in slots_today if s.time == t)
@@ -3448,6 +3658,9 @@ class ScheduleOptimiser:
                 if "Foundations" in cname:
                     if not self.trainer_profiles.get(trainer, {}).get("qualifications", {}).get("foundations", False):
                         continue
+                needed_qual = qualification_key_for_class(cname)
+                if not self.trainer_profiles.get(trainer, {}).get("qualifications", {}).get(needed_qual, False):
+                    continue
                 # Recovery slot restriction
                 if "Recovery" in cname and not is_recovery_allowed_in_slot(time_str):
                     continue
@@ -3765,6 +3978,9 @@ class ScheduleOptimiser:
                 if "Strength Lab" in cname:
                     if not self.trainer_profiles.get(name, {}).get("qualifications", {}).get("strength_lab", False):
                         continue
+                needed_qual = qualification_key_for_class(cname)
+                if not self.trainer_profiles.get(name, {}).get("qualifications", {}).get(needed_qual, False):
+                    continue
                 # Don't skip at target — deprioritize by sorting (handled via priority fn)
                 if not self._trainer_ok(name, location, day_name, time_str, cname):
                     continue
@@ -4470,11 +4686,6 @@ class ScheduleOptimiser:
                 return False
             loc_data = max(loc_candidates, key=lambda item: item.get("session_count", 0))
         avail_days = self._available_days(trainer, location, loc_data.get("available_days", []))
-        
-        # Mandatory Weekend Off for specific trainers
-        if trainer in MANDATORY_WEEKEND_OFF_TRAINERS:
-            if day_name in ["Saturday", "Sunday"]:
-                return False
 
         state = self.trainer_states.get(trainer)
         if state is None:
@@ -4839,7 +5050,7 @@ class ScheduleOptimiser:
         Priority pool bonus is gated to Tier-1 (per CLAUDE.md: T1-first capacity)."""
         score = 0.0
         state = getattr(self, "trainer_states", {}).get(trainer)
-        if trainer in HIGH_PRIORITY_TRAINERS and state and state.tier == 1:
+        if trainer in self.high_priority_trainers and state and state.tier == 1:
             if state.weekly_minutes < MAX_TRAINER_WEEKLY_MINUTES_T1:
                 score += 90.0 + max(0.0, (MAX_TRAINER_WEEKLY_MINUTES_T1 - state.weekly_minutes) / 60.0) * 10.0
         canonical = canonical_class_key(class_name) or str(class_name or "")
@@ -4848,17 +5059,17 @@ class ScheduleOptimiser:
         is_strength_lab = canonical == "Studio Strength Lab"
         is_fit = canonical in {"Studio FIT", "Copper + Cloves FIT"} or lower.strip().endswith(" fit") or lower.strip() == "studio fit"
         if location in MUMBAI_LOCATIONS and is_powercycle:
-            if trainer in MUMBAI_POWERCYCLE_PRIORITY_TRAINERS:
+            if trainer in self.mumbai_powercycle_priority_trainers:
                 score += 260.0
             else:
                 score -= 70.0
         if is_strength_lab:
-            if trainer in STRENGTH_FIT_PRIORITY_TRAINERS:
+            if trainer in self.strength_fit_priority_trainers:
                 score += 220.0
             else:
                 score -= 90.0
         elif is_fit:
-            if trainer in STRENGTH_FIT_PRIORITY_TRAINERS:
+            if trainer in self.strength_fit_priority_trainers:
                 score += 140.0
             else:
                 score -= 30.0

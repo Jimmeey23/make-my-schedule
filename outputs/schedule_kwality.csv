@@ -1,86 +1,90 @@
 ,10-Aug,,,,,,,,,,11-Aug,,,,,,,,,,12-Aug,,,,,,,,,,13-Aug,,,,,,,,,,14-Aug,,,,,,,,,,15-Aug,,,,,,,,,,16-Aug,,,,,,,,,
 ,Monday,,,,,,,,,,Tuesday,,,,,,,,,,Wednesday,,,,,,,,,,Thursday,,,,,,,,,,Friday,,,,,,,,,,Saturday,,,,,,,,,,Sunday,,,,,,,,,
 Time,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,,Class,Trainer,Room,Cap,Fill%,Hist Sessions,Hist Fill%,Hist Avg,Reason,
-07:15,Studio Strength Lab,Reshma Sharma,Strength Lab,7,100%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-07:30,Studio Barre 57,Anisha Shah,Studio 1,22,75%,0,0%,0.0,,,Studio Barre 57,Pranjali Jain,Studio 2,13,13%,0,0%,0.0,,,Studio Strength Lab,Anisha Shah,Strength Lab,7,100%,0,0%,0.0,,,Studio Mat 57 Express,Rohan Dahima,Studio 1,22,89%,0,0%,0.0,,,,,,,,,,,,,Studio Mat 57,Rohan Dahima,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,
-08:00,Studio PowerCycle Express,Vivaran Dhasmana,PowerCycle Studio,10,32%,0,0%,0.0,,,,,,,,,,,,,Studio PowerCycle,Rohan Dahima,PowerCycle Studio,10,86%,0,0%,0.0,,,Studio Mat 57,Cauveri Vikrant,Studio 1,22,20%,0,0%,0.0,,,Studio Barre 57,Atulan Purohit,Studio 2,13,33%,0,0%,0.0,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,20%,0,0%,0.0,,,,,,,,,,,,
-08:15,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Pranjali Jain,Studio 2,13,46%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-08:30,Studio Mat 57,Atulan Purohit,Studio 1,22,57%,0,0%,0.0,,,Studio Amped Up!,Pranjali Jain,Studio 1,22,65%,0,0%,0.0,,,,,,,,,,,,,Studio FIT,Mrigakshi Jaiswal,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-08:45,,,,,,,,,,,Studio Mat 57,Reshma Sharma,Studio 2,13,60%,0,0%,0.0,,,Studio Strength Lab (Pull),Atulan Purohit,Strength Lab,7,71%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-09:00,Studio FIT,Anisha Shah,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,,Studio Back Body Blaze,Anisha Shah,Studio 1,22,60%,0,0%,0.0,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,40%,0,0%,0.0,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,20%,0,0%,0.0,,,Studio Strength Lab (Push),Rohan Dahima,Strength Lab,7,63%,0,0%,0.0,,,,,,,,,,,,
-09:15,,,,,,,,,,,,,,,,,,,,,Studio Mat 57,Reshma Sharma,Studio 2,13,20%,0,0%,0.0,,,Studio Strength Lab (Push),Vivaran Dhasmana,Strength Lab,7,69%,0,0%,0.0,,,Studio Barre 57,Atulan Purohit,Studio 2,13,40%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
-09:30,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Mrigakshi Jaiswal,Studio 1,22,65%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
-10:00,,,,,,,,,,,Studio PowerCycle,Vivaran Dhasmana,PowerCycle Studio,10,46%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle,Rohan Dahima,PowerCycle Studio,10,65%,0,0%,0.0,,,Studio Mat 57,Reshma Sharma,Studio 2,13,20%,0,0%,0.0,,
-10:15,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle,Reshma Sharma,PowerCycle Studio,10,62%,0,0%,0.0,,,Studio PowerCycle,Mrigakshi Jaiswal,PowerCycle Studio,10,46%,0,0%,0.0,,,Studio Mat 57,Atulan Purohit,Studio 2,13,20%,0,0%,0.0,,,Studio Mat 57,Karanvir Bhatia,Studio 1,22,88%,0,0%,0.0,,,Studio Cardio Barre,Rohan Dahima,Studio 1,22,45%,0,0%,0.0,,
-11:00,Studio Cardio Barre,Reshma Sharma,Studio 1,22,10%,0,0%,0.0,,,Studio Mat 57,Anisha Shah,Studio 1,22,65%,0,0%,0.0,,,,,,,,,,,,,Studio Barre 57,Rohan Dahima,Studio 1,22,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-11:15,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Vivaran Dhasmana,Studio 1,22,32%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-11:30,Studio Strength Lab (Pull),Atulan Purohit,Strength Lab,7,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,20%,0,0%,0.0,,,,,,,,,,,,,Studio PowerCycle,Karanvir Bhatia,PowerCycle Studio,10,72%,0,0%,0.0,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,81%,0,0%,0.0,,
-11:45,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Cardio Barre,Cauveri Vikrant,Studio 2,13,25%,0,0%,0.0,,,,,,,,,,,,,Studio Barre 57,Reshma Sharma,Studio 2,13,40%,0,0%,0.0,,
-12:15,,,,,,,,,,,Studio Barre 57,Vivaran Dhasmana,Studio 1,22,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-17:00,Studio Mat 57,Cauveri Vikrant,Studio 1,22,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-17:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle Express,Raunak Khemuka,PowerCycle Studio,10,49%,0,0%,0.0,,
-17:45,Studio Strength Lab (Full Body),Rohan Dahima,Strength Lab,7,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Pranjali Jain,Studio 1,22,44%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
-18:00,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,32%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio Back Body Blaze,Richard D'Costa,Studio 1,22,30%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Raunak Khemuka,Studio 1,22,20%,0,0%,0.0,,
-18:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle Express,Raunak Khemuka,PowerCycle Studio,10,89%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-18:45,Studio Barre 57,Rohan Dahima,Studio 1,22,47%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio Cardio Barre Plus,Raunak Khemuka,Studio 2,13,26%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-19:15,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,33%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio Strength Lab (Pull),Richard D'Costa,Strength Lab,7,70%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+07:15,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Karanvir Bhatia,Studio 2,13,21%,0,0%,0.0,,,Studio Barre 57,Cauveri Vikrant,Studio 2,13,23%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+07:30,Studio Barre 57 Express,Atulan Purohit,Studio 2,13,12%,0,0%,0.0,,,Studio PowerCycle,Karanvir Bhatia,PowerCycle Studio,10,47%,0,0%,0.0,,,Studio Strength Lab,Anisha Shah,Strength Lab,7,100%,0,0%,0.0,,,Studio Mat 57 Express,Rohan Dahima,Studio 1,22,89%,0,0%,0.0,,,Studio Mat 57,Karanvir Bhatia,Studio 1,22,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+08:00,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,40%,0,0%,0.0,,,,,,,,,,,,,Studio PowerCycle,Rohan Dahima,PowerCycle Studio,10,86%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+08:15,Studio Mat 57,Reshma Sharma,Studio 2,13,52%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle Express,Karanvir Bhatia,PowerCycle Studio,10,67%,0,0%,0.0,,,Studio PowerCycle,Mrigakshi Jaiswal,PowerCycle Studio,10,43%,0,0%,0.0,,,Studio Barre 57,Cauveri Vikrant,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,
+08:30,Studio Mat 57,Atulan Purohit,Studio 1,22,57%,0,0%,0.0,,,Studio Strength Lab (Pull),Anisha Shah,Strength Lab,7,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio Cardio Barre,Cauveri Vikrant,Studio 2,13,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+08:45,,,,,,,,,,,Studio PowerCycle,Karanvir Bhatia,PowerCycle Studio,10,20%,0,0%,0.0,,,Studio Strength Lab (Pull),Atulan Purohit,Strength Lab,7,71%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle,Karanvir Bhatia,PowerCycle Studio,10,63%,0,0%,0.0,,,,,,,,,,,,
+09:00,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Reshma Sharma,Studio 1,22,59%,0,0%,0.0,,,,,,,,,,,,
+09:15,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,20%,0,0%,0.0,,,,,,,,,,,,,Studio Barre 57,Pranjali Jain,Studio 2,13,50%,0,0%,0.0,,,Studio Barre 57,Rohan Dahima,Studio 1,22,38%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+09:30,,,,,,,,,,,Studio Barre 57,Pranjali Jain,Studio 1,22,31%,0,0%,0.0,,,,,,,,,,,,,Studio Cardio Barre,Karanvir Bhatia,Studio 2,13,20%,0,0%,0.0,,,Studio FIT,Mrigakshi Jaiswal,Studio 1,22,65%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+10:00,,,,,,,,,,,Studio PowerCycle Express,Karanvir Bhatia,PowerCycle Studio,10,46%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,70%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+10:15,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle,Reshma Sharma,PowerCycle Studio,10,62%,0,0%,0.0,,,Studio PowerCycle,Rohan Dahima,PowerCycle Studio,10,46%,0,0%,0.0,,,,,,,,,,,,,Studio Mat 57,Karanvir Bhatia,Studio 1,22,88%,0,0%,0.0,,,Studio Cardio Barre,Rohan Dahima,Studio 1,22,45%,0,0%,0.0,,
+11:00,,,,,,,,,,,Studio Mat 57,Anisha Shah,Studio 1,22,65%,0,0%,0.0,,,,,,,,,,,,,Studio Mat 57,Karanvir Bhatia,Studio 1,22,20%,0,0%,0.0,,,Studio Cardio Barre Plus,Karanvir Bhatia,Studio 1,22,30%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+11:15,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Anisha Shah,Studio 1,22,53%,0,0%,0.0,,,Studio Barre 57,Rohan Dahima,Studio 2,13,20%,0,0%,0.0,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,
+11:30,,,,,,,,,,,,,,,,,,,,,Studio Strength Lab (Pull),Atulan Purohit,Strength Lab,7,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle,Karanvir Bhatia,PowerCycle Studio,10,72%,0,0%,0.0,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,81%,0,0%,0.0,,
+11:45,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Rohan Dahima,Studio 2,13,53%,0,0%,0.0,,
+12:00,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Mrigakshi Jaiswal,Studio 2,13,20%,0,0%,0.0,,,Studio FIT,Reshma Sharma,Studio 2,13,20%,0,0%,0.0,,,Studio Mat 57,Raunak Khemuka,Studio 1,22,20%,0,0%,0.0,,
+12:30,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Mat 57,Karanvir Bhatia,Studio 1,22,20%,0,0%,0.0,,,Studio Mat 57,Karanvir Bhatia,Studio 1,22,20%,0,0%,0.0,,,,,,,,,,,,
+12:45,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio PowerCycle,Cauveri Vikrant,PowerCycle Studio,10,100%,0,0%,0.0,,,,,,,,,,,,
+16:00,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Reshma Sharma,Studio 1,22,20%,0,0%,0.0,,
+17:00,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Mrigakshi Jaiswal,Studio 1,22,20%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+17:45,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Pranjali Jain,Studio 1,22,44%,0,0%,0.0,,,,,,,,,,,,,Studio Mat 57,Reshma Sharma,Studio 1,22,20%,0,0%,0.0,,
+18:00,Studio Strength Lab (Full Body),Anisha Shah,Strength Lab,7,20%,0,0%,0.0,,,Studio Barre 57,Reshma Sharma,Studio 1,22,40%,0,0%,0.0,,,,,,,,,,,,,Studio PowerCycle,Mrigakshi Jaiswal,PowerCycle Studio,10,89%,0,0%,0.0,,,,,,,,,,,,,Studio Cardio Barre,Karan Bhatia,Studio 1,22,20%,0,0%,0.0,,,,,,,,,,,,
+18:15,Studio PowerCycle Express,Rohan Dahima,PowerCycle Studio,10,32%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+18:45,Studio Barre 57,Rohan Dahima,Studio 1,22,47%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio Barre 57,Reshma Sharma,Studio 1,22,20%,0,0%,0.0,,
+19:15,Studio Trainer's Choice,Anisha Shah,Studio 2,13,28%,0,0%,0.0,,,Studio FIT,Reshma Sharma,Studio 1,22,53%,0,0%,0.0,,,,,,,,,,,,,Studio Strength Lab (Pull),Mrigakshi Jaiswal,Strength Lab,7,73%,0,0%,0.0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+20:00,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Studio FIT,Reshma Sharma,Studio 1,22,20%,0,0%,0.0,,
 
 
 === WEEKLY BREAKDOWN ===
 
 TRAINER ALLOCATION
 Trainer,Total Classes,Total Hours,Avg Fill%,Primary Classes
-Anisha Shah,6,5.7,67%,Studio FIT
-Atulan Purohit,7,6.7,42%,Studio Mat 57
-Cauveri Vikrant,11,9.1,35%,Studio PowerCycle
-Karanvir Bhatia,3,2.6,60%,Studio Mat 57
-Mrigakshi Jaiswal,3,2.6,44%,Studio FIT
-Pranjali Jain,6,5.7,47%,Studio Barre 57
-Raunak Khemuka,4,3.2,46%,Studio PowerCycle Express
-Reshma Sharma,9,8.3,50%,Studio Mat 57
-Richard D'Costa,2,1.9,50%,Studio Back Body Blaze
-Rohan Dahima,12,10.5,46%,Studio Barre 57
-Vivaran Dhasmana,6,5.1,36%,Studio Barre 57
+Anisha Shah,7,6.7,53%,Studio Strength Lab (Full Body)
+Atulan Purohit,5,4.3,43%,Studio Strength Lab (Pull)
+Cauveri Vikrant,10,8.3,47%,Studio PowerCycle
+Karan Bhatia,2,1.9,20%,Studio Cardio Barre
+Karanvir Bhatia,14,11.9,40%,Studio Mat 57
+Mrigakshi Jaiswal,6,5.3,52%,Studio FIT
+Pranjali Jain,4,3.8,34%,Studio Barre 57
+Raunak Khemuka,1,0.9,20%,Studio Mat 57
+Reshma Sharma,12,11.2,35%,Studio FIT
+Rohan Dahima,10,8.2,50%,Studio Barre 57
 
 CLASS FORMAT ALLOCATION
 Class Format,Total Classes,Avg Fill%,Days Scheduled
-Studio Amped Up!,1,65%,1
-Studio Back Body Blaze,2,45%,2
-Studio Barre 57,17,37%,7
-Studio Cardio Barre,4,33%,4
-Studio Cardio Barre Plus,1,26%,1
-Studio FIT,6,44%,6
+Studio Barre 57,16,37%,7
+Studio Barre 57 Express,1,12%,1
+Studio Cardio Barre,6,30%,5
+Studio Cardio Barre Plus,1,30%,1
+Studio FIT,10,39%,6
 Studio Mat 57,11,37%,7
 Studio Mat 57 Express,1,89%,1
-Studio PowerCycle,13,48%,7
-Studio PowerCycle Express,3,57%,3
-Studio Strength Lab,3,95%,2
+Studio PowerCycle,15,57%,7
+Studio PowerCycle Express,3,48%,3
+Studio Strength Lab,1,100%,1
 Studio Strength Lab (Full Body),1,20%,1
-Studio Strength Lab (Pull),4,60%,4
-Studio Strength Lab (Push),2,66%,2
+Studio Strength Lab (Pull),4,46%,3
+Studio Trainer's Choice,1,28%,1
 
 TIMESLOT ALLOCATION
 Time,Mon,Tue,Wed,Thu,Fri,Sat,Sun,Total
-07:15,Studio Strength Lab,-,-,-,-,-,-,1
-07:30,Studio Barre 57,Studio Barre 57,Studio Strength Lab,Studio Mat 57 Express,-,Studio Mat 57,-,5
-08:00,Studio PowerCycle Express,-,Studio PowerCycle,Studio Mat 57,Studio Barre 57,Studio PowerCycle,-,5
-08:15,-,-,Studio Barre 57,-,-,-,-,1
-08:30,Studio Mat 57,Studio Amped Up!,-,Studio FIT,-,-,-,3
-08:45,-,Studio Mat 57,Studio Strength Lab (Pull),-,-,-,-,2
-09:00,Studio FIT,-,Studio Back Body Blaze,Studio PowerCycle,Studio PowerCycle,Studio Strength Lab (Push),-,5
-09:15,-,-,Studio Mat 57,Studio Strength Lab (Push),Studio Barre 57,-,-,3
-09:30,-,-,-,-,Studio FIT,-,-,1
-10:00,-,Studio PowerCycle,-,-,-,Studio PowerCycle,Studio Mat 57,3
-10:15,-,-,Studio PowerCycle,Studio PowerCycle,Studio Mat 57,Studio Mat 57,Studio Cardio Barre,5
-11:00,Studio Cardio Barre,Studio Mat 57,-,Studio Barre 57,-,-,-,3
-11:15,-,-,Studio Barre 57,-,-,-,-,1
-11:30,Studio Strength Lab (Pull),-,-,Studio PowerCycle,-,Studio PowerCycle,Studio PowerCycle,4
-11:45,-,-,-,-,Studio Cardio Barre,-,Studio Barre 57,2
-12:15,-,Studio Barre 57,-,-,-,-,-,1
-17:00,Studio Mat 57,-,-,-,-,-,-,1
-17:15,-,-,-,-,-,-,Studio PowerCycle Express,1
-17:45,Studio Strength Lab (Full Body),-,-,-,Studio Barre 57,-,-,2
-18:00,Studio PowerCycle,-,-,Studio Back Body Blaze,-,-,Studio Barre 57,3
-18:15,-,-,-,Studio PowerCycle Express,-,-,-,1
-18:45,Studio Barre 57,-,-,Studio Cardio Barre Plus,-,-,-,2
-19:15,Studio PowerCycle,-,-,Studio Strength Lab (Pull),-,-,-,2
+07:15,-,-,-,Studio Barre 57,Studio Barre 57,-,-,2
+07:30,Studio Barre 57 Express,Studio PowerCycle,Studio Strength Lab,Studio Mat 57 Express,Studio Mat 57,-,-,5
+08:00,Studio PowerCycle,-,Studio PowerCycle,-,-,-,-,2
+08:15,Studio Mat 57,-,-,Studio PowerCycle Express,Studio PowerCycle,Studio Barre 57,-,4
+08:30,Studio Mat 57,Studio Strength Lab (Pull),-,-,Studio Cardio Barre,-,-,3
+08:45,-,Studio PowerCycle,Studio Strength Lab (Pull),-,-,Studio PowerCycle,-,3
+09:00,-,-,-,-,-,Studio FIT,-,1
+09:15,Studio PowerCycle,-,Studio Barre 57,Studio Barre 57,-,-,-,3
+09:30,-,Studio Barre 57,-,Studio Cardio Barre,Studio FIT,-,-,3
+10:00,-,Studio PowerCycle Express,-,-,Studio PowerCycle,-,-,2
+10:15,-,-,Studio PowerCycle,Studio PowerCycle,-,Studio Mat 57,Studio Cardio Barre,4
+11:00,-,Studio Mat 57,-,Studio Mat 57,Studio Cardio Barre Plus,-,-,3
+11:15,-,-,Studio Barre 57,Studio Barre 57,Studio PowerCycle,-,-,3
+11:30,-,-,Studio Strength Lab (Pull),-,-,Studio PowerCycle,Studio PowerCycle,3
+11:45,-,-,-,-,-,-,Studio Barre 57,1
+12:00,-,-,-,-,Studio FIT,Studio FIT,Studio Mat 57,3
+12:30,-,-,-,-,Studio Mat 57,Studio Mat 57,-,2
+12:45,-,-,-,-,-,Studio PowerCycle,-,1
+16:00,-,-,-,-,-,-,Studio FIT,1
+17:00,-,-,-,Studio FIT,-,-,-,1
+17:45,-,-,-,-,Studio Barre 57,-,Studio Mat 57,2
+18:00,Studio Strength Lab (Full Body),Studio Barre 57,-,Studio PowerCycle,-,Studio Cardio Barre,-,4
+18:15,Studio PowerCycle Express,-,-,-,-,-,-,1
+18:45,Studio Barre 57,-,-,-,-,-,Studio Barre 57,2
+19:15,Studio Trainer's Choice,Studio FIT,-,Studio Strength Lab (Pull),-,-,-,3
+20:00,-,-,-,-,-,-,Studio FIT,1
